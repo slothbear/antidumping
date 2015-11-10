@@ -10,9 +10,9 @@ In ME calculations, we base NV on the company’s actual costs and prices in the
 
 Here are the three programs used in ME calculations:  
 
-1. Comparison Market (CM) Program (me_comparison.sas)
-2. Margin Program (me_margin.sas)
-3. Macros Program (me_macros.sas)
+1. Comparison Market (CM) Program `me_comparison.sas`
+2. Margin Program `me_margin.sas`
+3. Macros Program `me_macros.sas`
 
 When a comparison market is the basis of NV, the first program used is the CM Program. The CM Program is where the case analyst enters information about the company’s costs and sales in the comparison market. The Macros Program is where the bulk of the code is stored. When the CM Program is executed, it calls up the relevant portions of code from the Macros Program to process the CM sales and saves the results for use in the Margin Program. After the CM Program is run, the Margin Program is completed by the analyst. When executed, the Margin program calls in relevant portions of the Macros Program to process U.S. sales and then compare them to CM sales or CV to calculate the AD duty rate. When there is no comparison market, only the Margin Program and Macros Program are required for comparisons of U.S. prices straight to CV.  
 
@@ -22,6 +22,6 @@ In nonmarket-economy AD calculations, NV is comprised of the company’s factors
 
 Here is the NME program:  
 
-1. NME Margin Program (nme_margin.sas)
+1. NME Margin Program `nme_margin.sas`
 
 In all NME calculations, the Margin Program is required. In the Margin Program, the analyst fills in the required case-specific information.
