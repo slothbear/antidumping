@@ -1,10 +1,10 @@
 DM 'CLEAR LOG; CLEAR OUTPUT'; RESETLINE;
 
 /***************************************************************************/
-/*                         ANTIDUMPING MARKET-ECONOMY                      */
+/*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                    ANALYSIS OF COMPARISON-MARKET SALES                  */
 /*                                                                         */
-/*                    LAST PROGRAM UPDATED JUNE 24, 2015                   */
+/*                  LAST PROGRAM UPDATED NOVEMBER 10, 2015                 */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In Comparison Market Sales, Convert Date Variable, If    */
@@ -257,6 +257,9 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
                                 /*    quotes).                             */
 %LET   CM_TIME_PERIOD = <  >;   /*(V) Variable in CM data for cost-related */
                                 /*     time periods, if applicable         */
+%LET   CM_MULTI_CUR = <YES/NO>; /*(T) Is CM data in more than one          */
+                                /*    currency? Type "YES" or "NO"         */
+                                /*    (without quotes).                    */
 %LET   MIXEDCURR = <YES/NO/NA>; /*(T) Are there mixed-currency variables   */
                                 /*    that need to be split into separate  */
                                 /*    currency variables?                  */
@@ -271,38 +274,6 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
                                 /*    there is no currency-indicating      */
                                 /*    variable (see 4-A below).            */
 
-/*--------------------------------------------------------------*/
-/* 1-E-ii-a. IN THE ABSENCE OF A COST DATABASE, VARIABLE        */
-/*                AND TOTAL COST INFORMATION IN CM SALES DATA   */
-/*                                                              */
-/*          Note:  This information is not required when there  */
-/*          is a cost database. In such cases, weight-averaged  */
-/*          variable and total manufacturing costs will be      */
-/*          automatically calculated and called, AVGVCOMH and   */
-/*          AVGTCOMH, respectively.                             */
-/*                                                              */
-/*          The macro variables &VCOM and &TCOM will be used    */
-/*          in the programming, and will be set either to the   */
-/*          variables in the sales database (in the absence of  */
-/*          a cost database) or the weighted-average values     */
-/*          listed in the paragraph above.                      */
-/*--------------------------------------------------------------*/
-
-%LET     CMVCOM = <NA>; /*(V) Variable manufacturing costs in sales     */
-                        /*    database when there is no separate cost   */
-                        /*    database. Type "NA" (without quotes) if   */
-                        /*    there is no cost database AND there is no */
-                        /*    variable cost reported in sales data.     */
-                        /*    When there is a cost database, this macro */
-                        /*    variable is not used.                     */
-%LET     CMTCOM = <NA>; /*(V) Total manufacturing costs in sales        */
-                        /*    database when there is no separate cost   */
-                        /*    database. Type "NA" (without quotes) if   */
-                        /*    there is no cost database AND there is no */
-                        /*    total cost reported in sales data.        */
-                        /*    When there is a cost database, this macro */
-                        /*    variable is not used.                     */
-
 /*---------------------------------------------------------------*/
 /* 1-E-iii. COST OF PRODUCTION DATA                              */
 /*                                                               */
@@ -311,8 +282,6 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 /*     Part 3 and calculate one weight-averaged cost database.   */
 /*---------------------------------------------------------------*/
 
-%LET USE_COSTDATA = <YES/NO>; /*(T) Use cost data? Type "YES"           */
-                              /*    or "NO" (without quotes).           */
 %LET     COST_DATA = <  >;    /*(D) Cost dataset name                   */
 %LET     COST_QTY = <  >;     /*(V) Production quantity                 */
 %LET     COST_MATCH = <  >;   /*(V) The variable (e.g., control number, */
@@ -428,8 +397,6 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 /*          If you select YES for THE RUN_ARMSLENGTH or RUN_CMLOTADJ    */
 /*          macro variables, also complete the ones immediately         */
 /*          following and indented.                                     */
-/*                                                                      */
-/*          To calculate CEP expenses, you must have a cost database.   */
 /*                                                                      */
 /*            Note: Results of the CMLOTADJ calculation are meaningless */
 /*          unless the following criteria are met:                      */
@@ -696,9 +663,6 @@ RUN;
 /***************************************************************************/
 /* PART 3: COST INFORMATION                                                */
 /*                                                                         */
-/*          Determine whether information from the sales database or from  */
-/*          a cost database will be used for variable cost and total cost. */
-/*                                                                         */
 /*          If the respondent has supplied separate COP and CV databases,  */
 /*          combine them together in this program in sect. 3-B and make    */
 /*          required adjustments, including indexing of inputs. The        */
@@ -706,18 +670,18 @@ RUN;
 /*          program can then also be used in the Margin Program with U.S.  */
 /*          sales. This is preferable to calculating the two individually. */
 /*                                                                         */
-/*          When a cost database is used, make required changes            */
-/*          to items in the indicated sections:                            */
+/*          Make required changes to items in the indicated sections as    */
+/*          needed:                                                        */
 /*                                                                         */
-/*          Sect.3-A-i          Pre-indexing changes                       */
-/*          Sect.3-B-ii-a      Align CM and U.S. CONNUMS, product chars.   */
-/*          Sect.3-D-i          Indexed inputs                             */
-/*          Sect.3-D-ii          Time-specific indices                     */
+/*          Sect.3-A-i        Pre-indexing changes                         */
+/*          Sect.3-B-ii-a     Align CM and U.S. CONNUMS, product chars.    */
+/*          Sect.3-D-i        Indexed inputs                               */
+/*          Sect.3-D-ii       Time-specific indices                        */
 /*          Sect.3-F          Cost of manufacturing, G&A, interest, and    */
-/*                              cost of production                         */
+/*                            cost of production                           */
 /***************************************************************************/
 
-/*-----------------------------------------------------------    -------*/
+/*----------------------------------------------------------------------*/
 /* 3-A     CALL UP COST DATA, INCLUDING A SEPARATE CV DATABASE, IF      */
 /*          PROVIDED. MAKE PRE-INDEXING CHANGES TO DATA.                */
 /*                                                                      */
@@ -764,24 +728,16 @@ RUN;
 /*          which supplied the surrogate information.                   */
 /*----------------------------------------------------------------------*/
 
-%MACRO SETUP1_COSTDATA;
+DATA COST;
+    SET COMPANY.&COST_DATA /* <COMPANY.CVDATABASE> */;
 
-%IF %UPCASE(&USE_COSTDATA) = YES %THEN
-%DO;
-    DATA COST;
-        SET COMPANY.&COST_DATA /* <COMPANY.CVDATABASE> */;
+    /*------------------------------------------------------*/
+    /* 3-A-i: Insert pre-indexing changes.                  */
+    /*------------------------------------------------------*/
 
-        /*------------------------------------------------------*/
-        /* 3-A-i: Insert pre-indexing changes.                  */
-        /*------------------------------------------------------*/
+    /* <Make pre-indexing changes to cost here> */
 
-        /* <Make pre-indexing changes to cost here> */
-
-        RUN;
-    %END;
-%MEND SETUP1_COSTDATA;
-
-%SETUP1_COSTDATA
+RUN;
 
 /*ep*/
 
@@ -829,56 +785,53 @@ RUN;
     %GLOBAL FIND_SURROGATES;
     %LET FIND_SURROGATES = NO; /*Default value. Do not edit. */
 
-    %IF %UPCASE(&USE_COSTDATA)=YES %THEN
+    %IF %UPCASE(&MATCH_NO_PRODUCTION)=YES %THEN
     %DO;
-        %IF %UPCASE(&MATCH_NO_PRODUCTION)=YES %THEN
+        %G8_FIND_NOPRODUCTION  /* Finds products needing surrogate     */
+                               /* costs by looking for total production*/
+                               /* quantities per product (across all   */
+                               /* POR time periods, where applicable)  */
+                               /* that are less than or equal to zero, */
+                               /* or have missing values. If this is   */
+                               /* incorrect, please make adjustments   */
+                               /* above in sect. 3-A-i before executing*/
+                               /* the G8_FIND_NOPRODUCTION macro.      */
+
+        /*-------------------------------------------------------------*/
+        /*     3-B-ii ATTACH PRODUCT CHARACTERISTICS, WHEN REQUIRED    */
+        /*                                                             */
+        /*     When product characteristic variables are not in the    */
+        /*     data, they will be taken from both the CM and U.S.      */
+        /*     sales databases. To do this, the CM and U.S. control    */
+        /*     numbers must be of the same type (character v. numeric) */
+        /*     and length, if character. Likewise for the product      */
+        /*     characteristic variables. If you need to make adjust-   */
+        /*     ments to the control numbers and/or product charac-     */
+        /*     teristic variables, do that here before the execution   */
+        /*     of the G9_COST_PRODCHARS macros below.                  */
+        /*-------------------------------------------------------------*/
+
+        /*-------------------------------------------------------*/
+        /* 3-B-ii-a: INSERT CHANGES TO CONTROL NUMBERS AND       */
+        /*      PRODUCT CHARACTERISTICS IN U.S. SALES DATA.      */
+        /*                                                       */
+        /*     Edits to U.S. control numbers and product charac- */
+        /*     teristics should be done before executing the     */
+        /*     G9_COST_PRODCHARS macro.                          */
+        /*-------------------------------------------------------*/
+
+        %IF %UPCASE(&COST_PROD_CHARS) = NO %THEN
         %DO;
-            %G8_FIND_NOPRODUCTION  /* Finds products needing surrogate     */
-                                   /* costs by looking for total production*/
-                                   /* quantities per product (across all   */
-                                   /* POR time periods, where applicable)  */
-                                   /* that are less than or equal to zero, */
-                                   /* or have missing values. If this is   */
-                                   /* incorrect, please make adjustments   */
-                                   /* above in sect. 3-A-i before executing*/
-                                   /* the G8_FIND_NOPRODUCTION macro.      */
+            DATA USSALES (KEEP=&USCVPROD &USCHAR);
+                SET COMPANY.&USDATA;
 
-            /*-------------------------------------------------------------*/
-            /*     3-B-ii ATTACH PRODUCT CHARACTERISTICS, WHEN REQUIRED    */
-            /*                                                             */
-            /*     When product characteristic variables are not in the    */
-            /*     data, they will be taken from both the CM and U.S.      */
-            /*     sales databases. To do this, the CM and U.S. control    */
-            /*     numbers must be of the same type (character v. numeric) */
-            /*     and length, if character. Likewise for the product      */
-            /*     characteristic variables. If you need to make adjust-   */
-            /*     ments to the control numbers and/or product charac-     */
-            /*     teristic variables, do that here before the execution   */
-            /*     of the G9_COST_PRODCHARS macros below.                  */
-            /*-------------------------------------------------------------*/
+                /* Make changes to U.S. control numbers and product */
+                /* characteristic variables here, if required.      */
 
-            /*-------------------------------------------------------*/
-            /* 3-B-ii-a: INSERT CHANGES TO CONTROL NUMBERS AND       */
-            /*      PRODUCT CHARACTERISTICS IN U.S. SALES DATA.      */
-            /*                                                       */
-            /*     Edits to U.S. control numbers and product charac- */
-            /*     teristics should be done before executing the     */
-            /*     G9_COST_PRODCHARS macro.                          */
-            /*-------------------------------------------------------*/
-
-            %IF %UPCASE(&COST_PROD_CHARS) = NO %THEN
-            %DO;
-                DATA USSALES (KEEP=&USCVPROD &USCHAR);
-                    SET COMPANY.&USDATA;
-
-                    /* Make changes to U.S. control numbers and product */
-                    /* characteristic variables here, if required.      */
-
-                RUN;
-            %END;
-
-            %G9_COST_PRODCHARS
+            RUN;
         %END;
+
+        %G9_COST_PRODCHARS
     %END;
 %MEND NOPRODUCTION;
 
@@ -894,49 +847,46 @@ RUN;
 /*--------------------------------------------------------------------*/
 
 %MACRO SETUP_COST_PERIODS;
-    %IF %UPCASE(&USE_COSTDATA)=YES %THEN
+    %IF %UPCASE(&COMPARE_BY_TIME) = YES %THEN
     %DO;
-        %IF %UPCASE(&COMPARE_BY_TIME) = YES %THEN
+
+        /*-------------------------------------------------------------*/
+        /*     3-C-i SEPARATE PRODUCTS WITH TIME-SPECIFIC COSTS FROM   */
+        /*           THOSE  WITH ANNUALIZED COSTS.                     */
+        /*                                                             */
+        /*     If there are both products with time-specific costs and */
+        /*     those with annualized costs, then separate them here    */
+        /*     before time periods are attached in sect. 3-C-ii. Put   */
+        /*     products with annualized costs in a dataset called      */
+        /*     'COST' and those with time-specific costs into a        */
+        /*     dataset called 'ANNUALCOST.'                            */
+        /*-------------------------------------------------------------*/
+
+        %IF %UPCASE(&TIME_ANNUALIZED) NE NA %THEN
         %DO;
-
-            /*-------------------------------------------------------------*/
-            /*     3-C-i SEPARATE PRODUCTS WITH TIME-SPECIFIC COSTS FROM   */
-            /*           THOSE  WITH ANNUALIZED COSTS.                     */
-            /*                                                             */
-            /*     If there are both products with time-specific costs and */
-            /*     those with annualized costs, then separate them here    */
-            /*     before time periods are attached in sect. 3-C-ii. Put   */
-            /*     products with annualized costs in a dataset called      */
-            /*     'COST' and those with time-specific costs into a        */
-            /*     dataset called 'ANNUALCOST.'                            */
-            /*-------------------------------------------------------------*/
-
-            %IF %UPCASE(&TIME_ANNUALIZED) NE NA %THEN
-            %DO;
-                DATA COST ANNUALCOST;
-                    SET COST;
-                    IF &COST_TIME_PERIOD IN(&TIME_ANNUALIZED) THEN
-                        OUTPUT ANNUALCOST;
-                    ELSE
-                        OUTPUT COST;
-                RUN;
-            %END;
-
-            /*-------------------------------------------------------------*/
-            /* 3-C-ii. COMPARE COST DATA TO A LIST OF ALL TIME PERIODS,    */
-            /*         FILL IN MISSING LINES IN THE COST DATA, IF ANY.     */
-            /*                                                             */
-            /* The G10_TIME_PROD_LIST macro immediately below uses the     */
-            /* macro variables in Sect. 1-E-iii-a above for TIME_INSIDE_POR*/
-            /* and TIME_OUTSIDE_POR to make a list of all possible time    */
-            /* periods. If all time periods are not represented in the     */
-            /* cost data, the missing lines are added to the database,     */
-            /* using annualized costs from a non-missing line to supply    */
-            /* information on non-indexed variables.                       */
-            /*-------------------------------------------------------------*/
-
-            %G10_TIME_PROD_LIST(&CMCHAR)
+            DATA COST ANNUALCOST;
+                SET COST;
+                IF &COST_TIME_PERIOD IN(&TIME_ANNUALIZED) THEN
+                    OUTPUT ANNUALCOST;
+                ELSE
+                    OUTPUT COST;
+            RUN;
         %END;
+
+        /*-------------------------------------------------------------*/
+        /* 3-C-ii. COMPARE COST DATA TO A LIST OF ALL TIME PERIODS,    */
+        /*         FILL IN MISSING LINES IN THE COST DATA, IF ANY.     */
+        /*                                                             */
+        /* The G10_TIME_PROD_LIST macro immediately below uses the     */
+        /* macro variables in Sect. 1-E-iii-a above for TIME_INSIDE_POR*/
+        /* and TIME_OUTSIDE_POR to make a list of all possible time    */
+        /* periods. If all time periods are not represented in the     */
+        /* cost data, the missing lines are added to the database,     */
+        /* using annualized costs from a non-missing line to supply    */
+        /* information on non-indexed variables.                       */
+        /*-------------------------------------------------------------*/
+
+        %G10_TIME_PROD_LIST(&CMCHAR)
     %END;
 %MEND SETUP_COST_PERIODS;
 
@@ -980,26 +930,24 @@ RUN;
 /*-------------------------------------------------------------------------*/
 
 %MACRO CALC_INDICES;
-    %IF %UPCASE(&USE_COSTDATA)=YES %THEN
+    %IF %UPCASE(&COMPARE_BY_TIME) = YES %THEN
     %DO;
-        %IF %UPCASE(&COMPARE_BY_TIME) = YES %THEN
+        %IF %UPCASE(&INDEX_SOURCE) NE RESP %THEN
         %DO;
-            %IF %UPCASE(&INDEX_SOURCE) NE RESP %THEN
-            %DO;
-                %LET INPUT1 = <  >;           /* Variable to be indexed,   */
-                                              /* unadjusted, as it appears */
-                                                  /* in the cost database. */
-                %LET INPUT1_ADJUSTED = <&INPUT1>; /* Value of variable to  */
-                                                  /* be indexed after      */
-                                              /* adjustments, including any*/
-                                              /* major-input adjustment.   */
-                                              /* If there is no adjustment,*/
-                                              /* use the default "&INPUT1" */
-                                              /* (no quotes)               */
-                /*
-                    %LET INPUT2 = <  >;
-                    %LET INPUT2_ADJUSTED = <&INPUT2>;
-                */
+            %LET INPUT1 = <  >;           /* Variable to be indexed,   */
+                                          /* unadjusted, as it appears */
+                                          /* in the cost database.     */
+            %LET INPUT1_ADJUSTED = <&INPUT1>; /* Value of variable to  */
+                                              /* be indexed after      */
+                                          /* adjustments, including any*/
+                                          /* major-input adjustment.   */
+                                          /* If there is no adjustment,*/
+                                          /* use the default "&INPUT1" */
+                                          /* (no quotes)               */
+            /*
+                %LET INPUT2 = <  >;
+                %LET INPUT2_ADJUSTED = <&INPUT2>;
+            */
 
 /*-------------------------------------------------------------------------*/
 /* 3-D-ii INSERTING INDICES INTO THE COST DATA                             */
@@ -1040,86 +988,85 @@ RUN;
 /*     the POR, a G12_INSERT_INDICES_OUT macro.                            */
 /*-------------------------------------------------------------------------*/
 
-                %IF %UPCASE(&INDEX_SOURCE) = INPUT %THEN
+            %IF %UPCASE(&INDEX_SOURCE) = INPUT %THEN
+            %DO;
+                /* List of values of indices for periods in POR, in */
+                /* order as time periods in TIME_INSIDE_POR macro,  */
+                /* same separated by blank space, no quotes around  */
+                /* values.                                          */
+
+                %LET CONDITION_A = <NA>;
+
+                /* E.g., 1.0  1.1  1.2  1.3  */
+
+                %LET     INDEX1A_IN_POR = <  >;
+
+                /* List of values of indices for periods outside of */
+                /* POR, in same order as time periods in            */
+                /* TIME_OUTSIDE_POR macro, separated by blank space,*/
+                /* no quotes around values. E.g., 0.7  0.8  0.9     */
+
+                %LET     INDEX1A_OUT_POR = <  >;
+
+				/*
+                    %LET CONDITION_B = <NA>;
+                    %LET     INDEX1B_IN_POR = <  >;
+                    %LET     INDEX1B_OUT_POR = <  > ;
+                */
+
+                DATA COSTPOR;
+                    SET COSTPOR;
+
+                    /* Ex. for condition A with input 1: */
+
+            %G11_INSERT_INDICES_IN(&INPUT1,&CONDITION_A,&INDEX1A_IN_POR)
+
+                   /* Ex. for condition B with input 1: */
+         /*
+             %G11_INSERT_INDICES_IN(&INPUT1,&CONDITION_B,&INDEX1B_IN_POR)
+         */
+
+                   /* Ex. for condition A with input 2: */
+         /*
+             %G11_INSERT_INDICES_IN(&INPUT2,&CONDITION_A,&INDEX2A_IN_POR)
+         */
+
+                   /* Ex. for condition B with input 2: */
+         /*
+             %G11_INSERT_INDICES_IN(&INPUT2,&CONDITION_B,&INDEX2B_IN_POR)
+         */
+
+                RUN;
+
+                %IF %UPCASE(&TIME_OUTSIDE_POR) NE NA %THEN
                 %DO;
+                    DATA COSTOUTPOR;
+                       SET COSTOUTPOR;
 
-                    /* List of values of indices for periods in POR, in */
-                    /* order as time periods in TIME_INSIDE_POR macro,  */
-                    /* same separated by blank space, no quotes around  */
-                    /* values.                                          */
+                        /* Ex. for condition A with input 1 */
 
-                    %LET CONDITION_A = <NA>;
+           %G12_INSERT_INDICES_OUT(&INPUT1,&CONDITION_A,&INDEX1A_OUT_POR)
 
-                    /* E.g., 1.0  1.1  1.2  1.3  */
+                        /* Ex. for condition B with input 1 */
 
-                    %LET     INDEX1A_IN_POR = <  >;
+        /*
+            %G12_INSERT_INDICES_OUT(&INPUT1,&CONDITION_B,&INDEX1B_OUT_POR)
+        */
 
-                    /* List of values of indices for periods outside of */
-                    /* POR, in same order as time periods in            */
-                    /* TIME_OUTSIDE_POR macro, separated by blank space,*/
-                    /* no quotes around values. E.g., 0.7  0.8  0.9     */
+                        /* Ex. for condition A with input 2 */
 
-                    %LET     INDEX1A_OUT_POR = <  >;
+        /*
+            %G12_INSERT_INDICES_OUT(&INPUT2,&CONDITION_A,&INDEX2A_OUT_POR)
+        */
 
-                    /*
-                        %LET CONDITION_B = <NA>;
-                        %LET     INDEX1B_IN_POR = <  >;
-                        %LET     INDEX1B_OUT_POR = <  > ;
-                    */
+                        /* Ex. for condition B with input 2 */
 
-                    DATA COSTPOR;
-                        SET COSTPOR;
-
-                       /* Ex. for condition A with input 1: */
-
-                 %G11_INSERT_INDICES_IN(&INPUT1,&CONDITION_A,&INDEX1A_IN_POR)
-
-                       /* Ex. for condition B with input 1: */
-             /*
-                 %G11_INSERT_INDICES_IN(&INPUT1,&CONDITION_B,&INDEX1B_IN_POR)
-             */
-
-                       /* Ex. for condition A with input 2: */
-             /*
-                 %G11_INSERT_INDICES_IN(&INPUT2,&CONDITION_A,&INDEX2A_IN_POR)
-             */
-
-                       /* Ex. for condition B with input 2: */
-             /*
-                 %G11_INSERT_INDICES_IN(&INPUT2,&CONDITION_B,&INDEX2B_IN_POR)
-             */
-
+        /*
+            %G12_INSERT_INDICES_OUT(&INPUT2,&CONDITION_B,&INDEX2B_OUT_POR)
+        */
                     RUN;
-
-                    %IF %UPCASE(&TIME_OUTSIDE_POR) NE NA %THEN
-                    %DO;
-                        DATA COSTOUTPOR;
-                            SET COSTOUTPOR;
-
-                            /* Ex. for condition A with input 1 */
-
-               %G12_INSERT_INDICES_OUT(&INPUT1,&CONDITION_A,&INDEX1A_OUT_POR)
-
-                            /* Ex. for condition B with input 1 */
-
-             /*
-               %G12_INSERT_INDICES_OUT(&INPUT1,&CONDITION_B,&INDEX1B_OUT_POR)
-             */
-
-                            /* Ex. for condition A with input 2 */
-
-             /*
-             %G12_INSERT_INDICES_OUT(&INPUT2,&CONDITION_A,&INDEX2A_OUT_POR)*/
-             */
-
-                            /* Ex. for condition B with input 2 */
-
-             /*
-               %G12_INSERT_INDICES_OUT(&INPUT2,&CONDITION_B,&INDEX2B_OUT_POR)
-             */
-                        RUN;
-                    %END;
                 %END;
+             %END;
 
 /*---------------------------------------------------------------------*/
 /* 3-D-ii-b CALCULATING INDICES WITHIN THIS PROGRAM                    */
@@ -1139,30 +1086,30 @@ RUN;
 /*     particular grouping for more than one input.                    */
 /*---------------------------------------------------------------------*/
 
-                %IF %UPCASE(&INDEX_SOURCE) = CALC %THEN
-                %DO;
-                    %LET INDEX_GROUP1 = <??>; /* List the variables to be  */
-                                              /* used to group/sort the    */
-                                              /* data for calculating      */
-                                              /* indices on input1.        */
+            %IF %UPCASE(&INDEX_SOURCE) = CALC %THEN
+            %DO;
+                %LET INDEX_GROUP1 = <??>; /* List the variables to be  */
+                                          /* used to group/sort the    */
+                                          /* data for calculating      */
+                                          /* indices on input1.        */
+                /*
+                    %LET INDEX_GROUP2 = <??>;
+                */
+                                      /* List the variables to be used */
+                                      /* to group/sort the data for    */
+                                      /* calculating indices on input2.*/
+                %MACRO RUN_INDICES;
+                    %INDICES(&INPUT1,&INPUT1_ADJUSTED,&INDEX_GROUP1)
+
+                    /* Ex. for input1 and grouping1  */
                     /*
-                        %LET INDEX_GROUP2 = <??>;
+                       %INDICES(&INPUT2,&INPUT2_ADJUSTED,&INDEX_GROUP2)*/
                     */
-                                          /* List the variables to be used */
-                                          /* to group/sort the data for    */
-                                          /* calculating indices on input2.*/
-                    %MACRO RUN_INDICES;
-                        %INDICES(&INPUT1,&INPUT1_ADJUSTED,&INDEX_GROUP1)
+                                      /* Ex. for input2 and grouping2  */
+                 %MEND RUN_INDICES;
 
-                        /* Ex. for input1 and grouping1  */
-                        /*
-                           %INDICES(&INPUT2,&INPUT2_ADJUSTED,&INDEX_GROUP2)*/
-                        */
-                                          /* Ex. for input2 and grouping2  */
-                     %MEND RUN_INDICES;
-
-                     %G13_CALC_INDICES
-                 %END;
+                 %G13_CALC_INDICES
+             %END;
 
 /*--------------------------------------------------------------------*/
 /* 3-D-iii CALCULATE TIME-SPECIFIC INDEXED INPUT VALUES               */
@@ -1175,15 +1122,14 @@ RUN;
 /*     G14_INDEX_CALC macro for each.                                 */
 /*--------------------------------------------------------------------*/
 
-                /* Ex. for input 1 */
+            /* Ex. for input 1 */
 
-                %G14_INDEX_CALC(&INPUT1,&INPUT1_ADJUSTED,&INPUT1._INDEX)
+            %G14_INDEX_CALC(&INPUT1,&INPUT1_ADJUSTED,&INPUT1._INDEX)
 
-                /* Ex. for input 2 */
-                /*
-                    %G14_INDEX_CALC(&INPUT2,&INPUT2_ADJUSTED,&INPUT2._INDEX)
-                */
-            %END;
+            /* Ex. for input 2 */
+            /*
+                %G14_INDEX_CALC(&INPUT2,&INPUT2_ADJUSTED,&INPUT2._INDEX)
+            */
         %END;
     %END;
 %MEND CALC_INDICES;
@@ -1211,69 +1157,61 @@ RUN;
 /* specific products.                                                      */
 /***************************************************************************/
 
-%MACRO SETUP2_COSTDATA;
+DATA COST;
+    SET COST &ANNUAL_COST; /* Macro variable ANNUAL_COST will be a null */
+                               /* value when there is no annualized data.   */
 
-    %IF %UPCASE(&USE_COSTDATA) = YES %THEN
-    %DO;
+    IF &COST_QTY IN (.,0) THEN
+        &COST_QTY = 1;
 
-        DATA COST;
-            SET COST &ANNUAL_COST; /* Macro variable ANNUAL_COST will be a null value when there is no annualized data. */
+    TCOMCOP = <  >;     /* Total cost of manufacturing. For       */
+                        /* inputs with time-specific values,      */
+                        /* build up total cost of manufacturing   */
+                        /* using FINAL_{old input variable name}. */
 
-            IF &COST_QTY IN (.,0) THEN
-                &COST_QTY = 1;
+/*-------------------------------------------------------------*/
+/*  If you have both time-specific and annualized costs, you   */
+/*  will need separate equations for total cost of manufactur- */
+/*  ing. Deactivate the single line above for TCOMCOP and      */
+/*  instead use the language below.                            */
+/*-------------------------------------------------------------*/
 
-            TCOMCOP = <  >;     /* Total cost of manufacturing. For       */
-                                /* inputs with time-specific values,      */
-                                /* build up total cost of manufacturing   */
-                                /* using FINAL_{old input variable name}. */
+    /* For annualized costs. */
+    /*
+        IF &COST_TIME_PERIOD IN(&TIME_ANNUALIZED) THEN
+            TCOMCOP = <  >;
+    */
 
-/*----------------------------------------------------------------*/
-/*     If you have both time-specific and annualized costs, you   */
-/*     will need separate equations for total cost of manufactur- */
-/*     ing. Deactivate the single line above for TCOMCOP and      */
-/*     instead use the language below.                            */
-/*----------------------------------------------------------------*/
+    /* For time-specific costs */
+    /*
+        ELSE
+            TCOMCOP = <  >;
+    */
 
-            /* For annualized costs. */
-            /*
-            IF &COST_TIME_PERIOD IN(&TIME_ANNUALIZED) THEN
-                TCOMCOP = <  >;
-            */
+/*------------------------------------------------------------*/
+/* If you have time-specific costs and at least one control   */
+/* number has time periods with no production, you will need  */
+/* to recalculate GNA and interest expenses using the TCOMCOP */
+/* based on the FINAL_{input name} variables, even if the GNA */
+/* and interest ratios have not changed.                      */
+/*------------------------------------------------------------*/
 
-            /* For time-specific costs */
-            /*
-            ELSE
-                TCOMCOP = <  >;
-            */
+    VCOMCOP = <TCOMCOP - FOH>; /* Variable cost of manufacturing */
+                               /* equal to TCOMCOP less fixed    */
+                               /* costs.                         */
+    GNACOP = <  >;             /* General and administrative     */
+                               /* expense.                       */
+    INTEXCOP = <  >;           /* Interest expense.              */
 
-/*----------------------------------------------------------------*/
-/*     If you have time-specific costs and at least one control   */
-/*     number has time periods with no production, you will need  */
-/*     to recalculate GNA and interest expenses using the TCOMCOP */
-/*     based on the FINAL_{input name} variables, even if the GNA */
-/*     and interest ratios have not changed.                      */
-/*----------------------------------------------------------------*/
-
-            VCOMCOP = <TCOMCOP - FOH>; /* Variable cost of manufacturing */
-                                       /* equal to TCOMCOP less fixed    */
-                                       /* costs.                         */
-            GNACOP = <  >;             /* General and administrative     */
-                                       /* expense.                       */
-            INTEXCOP = <  >;           /* Interest expense.              */
-            TOTALCOP = TCOMCOP + GNACOP + INTEXCOP;     /* Total cost of */
-                                                        /* production.   */
-        RUN;
-    %END;
-%MEND SETUP2_COSTDATA;
-
-%SETUP2_COSTDATA
+    TOTALCOP = TCOMCOP + GNACOP + INTEXCOP;     /* Total cost of */
+                                                /* production.   */
+RUN;
 
 /*ep*/
 
-/*-------------------------------------------------------------------------*/
-/* 3-F: SELECT TCOM AND VCOM FROM SALES DATA OR SEPARATE COST DATA.        */
-/*          WEIGHT-AVERAGE COST DATA, WHEN REQUIRED.                       */
-/*-------------------------------------------------------------------------*/
+/*-----------------------------------------------*/
+/* 3-F: WEIGHT-AVERAGE COST DATA, WHEN REQUIRED. */
+/*-----------------------------------------------*/
 
 %G15_CHOOSE_COSTS
 
@@ -1508,13 +1446,13 @@ DATA CMSALES;
         /* Net price for price comparisons. */
         /* Deduct imputed credit expenses . */
 
-        CMNETPRI  = CMGUP + CMGUPADJ - CMDISREB – CMMOVE
+        CMNETPRI  = CMGUP + CMGUPADJ - CMDISREB - CMMOVE
                   - CMDSELL - CMCRED - CMCOMM - CMPACK;
 
         /* Net price for the cost test.    */
         /* Do NOT deduct imputed expenses. */
 
-        CMNPRICOP = CMGUP + CMGUPADJ - CMDISREB – CMMOVE
+        CMNPRICOP = CMGUP + CMGUPADJ - CMDISREB - CMMOVE
                   - CMDSELL - CMISELL - CMCOMM - CMPACK;
 
         /* Net price for calculating the credit */
@@ -1856,9 +1794,9 @@ RUN;
 %MACRO WTAVGVARS;
     %GLOBAL WGTAVGVARS;
 
-    %IF %UPCASE(&USE_EXRATES1) = YES OR %UPCASE(&USE_EXRATES2) = YES %THEN
+    %IF %UPCASE(&CM_MULTI_CUR) = YES %THEN
     %DO;
-        %LET WGTAVGVARS = <CMGUP CMGUPADJ CMDISREB CMMOVE
+    %IF %UPCASE(&CM_MULTI_CUR) = YES OR %UPCASE(&MIXEDCURR) = YES %THEN
                            CMCRED CMDSELL CMCOMM CMICC CMISELL
                            CMINDCOM CMPACK>;
     %END;
@@ -1871,11 +1809,12 @@ RUN;
 /*     amounts will be automatically weight-averaged.                      */
 /*-------------------------------------------------------------------------*/
 
-     %IF %UPCASE(&USE_EXRATES1) = NO AND %UPCASE(&USE_EXRATES2) = NO %THEN
-     %DO;
-         %LET WGTAVGVARS = CMNETPRI CMCRED CMDSELL CMCOMM
-                           CMICC CMISELL CMINDCOM;
-     %END;
+    %ELSE
+    %IF %UPCASE(&CM_MULTI_CUR) = NO AND %UPCASE(&MIXEDCURR) = NO %THEN
+    %DO;
+        %LET WGTAVGVARS = CMNETPRI CMCRED CMDSELL CMCOMM
+                          CMICC CMISELL CMINDCOM;
+    %END;
 %MEND WTAVGVARS;
 
 %WTAVGVARS
