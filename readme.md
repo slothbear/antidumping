@@ -1,3 +1,7 @@
+> This repository contains data files from the Department of Commerce
+> You can find the source data at http://enforcement.trade.gov/sas/programs/amcp.html
+> The readme below is a copy of the text at that site.
+
 ## Antidumping Margin Calculation Programs
 
 On this page you will find the generic antidumping (AD) margin calculation
