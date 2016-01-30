@@ -2,7 +2,7 @@
 /*                     ANTIDUMPING MARKET-ECONOMY                   */
 /*                           MACROS PROGRAM                         */
 /*                                                                  */
-/*               LAST PROGRAM UPDATE – NOVEMBER 9, 2015             */
+/*              LAST PROGRAM UPDATE – JANUARY 13, 2016              */
 /*                                                                  */
 /********************************************************************/
 /*                              GENERAL MACROS                      */
@@ -518,9 +518,16 @@ RUN;
 
 %MEND G7_EXRATES;
 
-/***************************************************/
-/* G-8 IDENTIFY PRODUCTS REQUIRING SURROGATE COSTS */
-/***************************************************/
+/**************************************************************/
+/* G-8 IDENTIFY PRODUCTS REQUIRING SURROGATE COSTS            */
+/*                                                            */
+/*     CONNUMUs in the CM and U.S. datasets that have sales   */
+/*     but no production in the POI/POR must be in the COP    */
+/*     dataset with a production quantity of 0 (zero). If     */
+/*     respondent does not report these CONNUMs in the cost   */
+/*     dataset, the analyst must add these CONNUMs to the COP */
+/*     dataset with a production quantity of 0 (zero).        */
+/**************************************************************/
 
 %MACRO G8_FIND_NOPRODUCTION;
     PROC SORT DATA = COST OUT = COST;
@@ -629,7 +636,7 @@ RUN;
                     SET USCONNUMLIST;
                         RENAME &USCVPROD = &CMCPPROD;
                         %MACRO RENAMECHARS;
-                            %LET I = 1
+                            %LET I = 1;
                             %LET RENAMECALC = ;
                             %DO %UNTIL (%SCAN(&USCHAR, &I, %STR( )) = %STR());
                                 %LET RENAMECALC = &RENAMECALC
@@ -2666,7 +2673,7 @@ RUN;
 
     PROC MEANS NOPRINT DATA = CM;
         BY &CMMANF &CMPRIM CMLOT &MONTH &CMCONNUM &CM_TIME_PERIOD;
-        ID &CMCHAR VCOMCOP;
+        ID &CMCHAR AVGVCOM;
         VAR &WGTAVGVARS;
         WEIGHT &CMQTY;
         OUTPUT OUT = CMAVG (DROP = _FREQ_ _TYPE_) MEAN = &WGTAVGVARS;
@@ -2674,7 +2681,7 @@ RUN;
 
     DATA COMPANY.&RESPONDENT._&SEGMENT._&STAGE._CMWTAV;
         SET CMAVG;
-        RENAME &CMCONNUM = CMCONNUM VCOMCOP = CMVCOM;
+        RENAME &CMCONNUM = CMCONNUM AVGVCOM = CMVCOM;
         %MANUF_RENAME
         %PRIME_RENAME
         %TIME_PERIOD_RENAME
@@ -5750,7 +5757,7 @@ RUN;
                         VAR REASON;
                         LABEL REASON = " ";
                         TITLE3 "NO SEPARATE ASSESMENT CALCULATIONS WILL BE DONE USING THE MIXED ALTERNATIVE METHOD";
-                        TITLE4 = "(ASSESSMENTS WILL BE CALCULATED USING THE A-to-T ALTERNATIVE METHOD ONLY)";
+                        TITLE4 "(ASSESSMENTS WILL BE CALCULATED USING THE A-to-T ALTERNATIVE METHOD ONLY)";
                     RUN;
                 %END;
                 %ELSE
@@ -6026,7 +6033,7 @@ RUN;
         %LET ASSESS_TITLE4 = "STANDARD METHOD, OFFSETTING POSITIVE COMPARISON RESULTS WITH NEGATIVES";
         %PRINT_ASSESS(IMPSTND)
     %END;
-	%ELSE
+  %ELSE
     %IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
     %DO;
         %LET ASSESS_FOOTNOTE1 = "FOR SALES THAT FAIL THE COHEN'S-D TEST, AD DUTIES DUE ARE THE SUM OF C AND D (IF C>|D|) OR ZERO.";
@@ -6034,7 +6041,7 @@ RUN;
         %LET ASSESS_TITLE4 = "MIXED ALTERNATIVE METHOD: FOR SALES FAILING COHEN'S-D ONLY, OFFSET POSITIVE COMPARISON RESULTS WITH NEGATIVES";
         %PRINT_ASSESS(MIXED)
     %END;
-	%ELSE
+  %ELSE
     %IF &ABOVE_DEMINIMIS_ALT = YES %THEN
     %DO;
         %LET ASSESS_FOOTNOTE1 = "THE ANTIDUMPING DUTIES DUE ARE THE SUM OF THE POSITIVE RESULTS (C)";
@@ -6058,7 +6065,7 @@ RUN;
         %LET LABEL_ALT = "AD VALOREM*WEIGHTED AVERAGE*MARGIN RATE*(PERCENT)*A-to-T ALTERNATIVE*METHOD*==================";
         %LET CDFORMAT = PCT_MARGIN.;
     %END;
-	%ELSE
+  %ELSE
     %IF %UPCASE(&PER_UNIT_RATE) = YES %THEN
     %DO;
         %LET PREFIX = PER_UNIT_RATE;

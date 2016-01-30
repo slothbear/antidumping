@@ -4,7 +4,7 @@ DM 'CLEAR LOG; CLEAR OUTPUT'; RESETLINE;
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                    ANALYSIS OF COMPARISON-MARKET SALES                  */
 /*                                                                         */
-/*                  LAST PROGRAM UPDATED NOVEMBER 10, 2015                 */
+/*                   LAST PROGRAM UPDATED JANUARY 13, 2016                 */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In Comparison Market Sales, Convert Date Variable, If    */
@@ -728,6 +728,16 @@ RUN;
 /*          which supplied the surrogate information.                   */
 /*----------------------------------------------------------------------*/
 
+/**********************************************************/
+/* CONNUMUs in the CM and U.S. datasets that have sales   */
+/* but no production in the POI/POR must be in the COP    */
+/* dataset with a production quantity of 0 (zero). If     */
+/* respondent does not report these CONNUMs in the cost   */
+/* dataset, the analyst must add these CONNUMs to the COP */
+/* dataset with a production quantity of 0 (zero).        */
+/**********************************************************/
+
+
 DATA COST;
     SET COMPANY.&COST_DATA /* <COMPANY.CVDATABASE> */;
 
@@ -1008,7 +1018,7 @@ RUN;
 
                 %LET     INDEX1A_OUT_POR = <  >;
 
-				/*
+        /*
                     %LET CONDITION_B = <NA>;
                     %LET     INDEX1B_IN_POR = <  >;
                     %LET     INDEX1B_OUT_POR = <  > ;
