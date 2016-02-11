@@ -4,7 +4,7 @@ DM 'CLEAR LOG; CLEAR OUTPUT'; RESETLINE;
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                    ANALYSIS OF COMPARISON-MARKET SALES                  */
 /*                                                                         */
-/*                   LAST PROGRAM UPDATED JANUARY 13, 2016                 */
+/*                   LAST PROGRAM UPDATED FEBRUARY 10, 2016                */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In Comparison Market Sales, Convert Date Variable, If    */
@@ -356,12 +356,12 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 /*     and complete the rest of this section.             */
 /*--------------------------------------------------------*/
 
-%LET MATCH_NO_PRODUCTION= <YES/NO>; /*(T) Find surrogate costs for         */
-                                    /*    products not produced during the */
-                                    /*    POR?  Type "YES" or "NO"         */
-                                    /*    (without quotes). If "YES,"      */
-                                    /*    complete the indented macro      */
-                                    /*    variables that follow.           */
+%LET MATCH_NO_PRODUCTION = <YES/NO>; /*(T) Find surrogate costs for        */
+                                     /*    products not produced during    */
+                                     /*    the POR?  Type "YES" or "NO"    */
+                                     /*    (without quotes). If "YES,"     */
+                                     /*    complete the indented macro     */
+                                     /*    variables that follow.          */
 %LET    COST_PROD_CHARS = <YES/NO>; /*(T) Are the product physical         */
                                     /*    characteristic variables in the  */
                                     /*    cost database? Type "YES" or     */
@@ -416,8 +416,6 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
                                 /*    for CEP profit? Type "YES" or "NO"   */
                                 /*    (without quotes). If you type "YES," */
                                 /*    you must have a cost database.       */
-%LET RUN_COSTTEST = <YES/NO>;   /*(T) Run the cost test? Type "YES" or     */
-                                /*    "NO" (without quotes).               */
 %LET RUN_CMLOTADJ = <YES/NO>;   /*(T) Run LOT price pattern calculation?   */
                                 /* Type "YES" or "NO" (without quotes).    */
 
@@ -1018,7 +1016,7 @@ RUN;
 
                 %LET     INDEX1A_OUT_POR = <  >;
 
-        /*
+				/*
                     %LET CONDITION_B = <NA>;
                     %LET     INDEX1B_IN_POR = <  >;
                     %LET     INDEX1B_OUT_POR = <  > ;
