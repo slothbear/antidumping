@@ -4,7 +4,7 @@ DM 'CLEAR LOG; CLEAR OUTPUT'; RESETLINE;
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                    ANALYSIS OF COMPARISON-MARKET SALES                  */
 /*                                                                         */
-/*                   LAST PROGRAM UPDATED FEBRUARY 10, 2016                */
+/*                     LAST PROGRAM UPDATED MARCH 2, 2016                  */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In Comparison Market Sales, Convert Date Variable, If    */
@@ -1805,6 +1805,7 @@ RUN;
     %IF %UPCASE(&CM_MULTI_CUR) = YES %THEN
     %DO;
     %IF %UPCASE(&CM_MULTI_CUR) = YES OR %UPCASE(&MIXEDCURR) = YES %THEN
+        %LET WGTAVGVARS = <CMGUP CMGUPADJ CMDISREB CMMOVE
                            CMCRED CMDSELL CMCOMM CMICC CMISELL
                            CMINDCOM CMPACK>;
     %END;
