@@ -2,7 +2,7 @@
 /*                     ANTIDUMPING MARKET-ECONOMY                   */
 /*                           MACROS PROGRAM                         */
 /*                                                                  */
-/*              LAST PROGRAM UPDATE – JANUARY 13, 2016              */
+/*                 LAST PROGRAM UPDATE – MAY 04, 2016               */
 /*                                                                  */
 /********************************************************************/
 /*                              GENERAL MACROS                      */
@@ -6033,7 +6033,7 @@ RUN;
         %LET ASSESS_TITLE4 = "STANDARD METHOD, OFFSETTING POSITIVE COMPARISON RESULTS WITH NEGATIVES";
         %PRINT_ASSESS(IMPSTND)
     %END;
-  %ELSE
+
     %IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
     %DO;
         %LET ASSESS_FOOTNOTE1 = "FOR SALES THAT FAIL THE COHEN'S-D TEST, AD DUTIES DUE ARE THE SUM OF C AND D (IF C>|D|) OR ZERO.";
@@ -6041,7 +6041,7 @@ RUN;
         %LET ASSESS_TITLE4 = "MIXED ALTERNATIVE METHOD: FOR SALES FAILING COHEN'S-D ONLY, OFFSET POSITIVE COMPARISON RESULTS WITH NEGATIVES";
         %PRINT_ASSESS(MIXED)
     %END;
-  %ELSE
+
     %IF &ABOVE_DEMINIMIS_ALT = YES %THEN
     %DO;
         %LET ASSESS_FOOTNOTE1 = "THE ANTIDUMPING DUTIES DUE ARE THE SUM OF THE POSITIVE RESULTS (C)";
@@ -6065,7 +6065,7 @@ RUN;
         %LET LABEL_ALT = "AD VALOREM*WEIGHTED AVERAGE*MARGIN RATE*(PERCENT)*A-to-T ALTERNATIVE*METHOD*==================";
         %LET CDFORMAT = PCT_MARGIN.;
     %END;
-  %ELSE
+	%ELSE
     %IF %UPCASE(&PER_UNIT_RATE) = YES %THEN
     %DO;
         %LET PREFIX = PER_UNIT_RATE;
