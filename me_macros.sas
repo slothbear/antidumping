@@ -2,7 +2,7 @@
 /*                     ANTIDUMPING MARKET-ECONOMY                   */
 /*                           MACROS PROGRAM                         */
 /*                                                                  */
-/*                 LAST PROGRAM UPDATE – MAY 04, 2016               */
+/*                 LAST PROGRAM UPDATE – JUNE 13, 2016              */
 /*                                                                  */
 /********************************************************************/
 /*                              GENERAL MACROS                      */
@@ -4532,8 +4532,9 @@ RUN;
                                 COHEN_D=(BASE_AVG_&DP_GROUP._PRICE - TEST_AVG_&DP_GROUP._PRICE)/STD_POOLED;
                                 IF ABS(COHEN_D) GE 0.8 THEN &DP_GROUP._RESULT = "Pass";
                             END;
-                            ELSE IF BASE_AVG_&DP_GROUP._PRICE NE TEST_AVG_&DP_GROUP._PRICE
-                                THEN &DP_GROUP._RESULT = "Pass";
+                            ELSE
+                            IF FUZZ(BASE_AVG_&DP_GROUP._PRICE - TEST_AVG_&DP_GROUP._PRICE) ^= 0 THEN
+                                &DP_GROUP._RESULT = "Pass";
                         END;
                     END;
                 END;
