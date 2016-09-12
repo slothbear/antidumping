@@ -1,3 +1,9 @@
+%LET _CLIENTTASKLABEL='Macros';
+%LET _CLIENTPROJECTPATH='E:\Operations\ADCVDTR\Market Economy SAS Programs\Market Economy Programs with Version Control.egp';
+%LET _CLIENTPROJECTNAME='Market Economy Programs with Version Control.egp';
+%LET _SASPROGRAMFILE=;
+
+GOPTIONS ACCESSIBLE;
 /********************************************************************/
 /*                     ANTIDUMPING MARKET-ECONOMY                   */
 /*                           MACROS PROGRAM                         */
@@ -2574,7 +2580,6 @@ RUN;
                  BY RECOVERED &CMMANF &CMPRIM &CMCONNUM &CM_TIME_PERIOD;
                  IF FIRST.RECOVERED THEN
                      COUNT = 0;
-
                  COUNT + 1;
 
                  IF COUNT LE 20 THEN
@@ -6087,3 +6092,10 @@ RUN;
         FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
     RUN;
 %MEND US19_FINAL_CASH_DEPOSIT;
+
+
+GOPTIONS NOACCESSIBLE;
+%LET _CLIENTTASKLABEL=;
+%LET _CLIENTPROJECTPATH=;
+%LET _CLIENTPROJECTNAME=;
+%LET _SASPROGRAMFILE=;
