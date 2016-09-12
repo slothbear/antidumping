@@ -1,10 +1,8 @@
-DM 'CLEAR LOG; CLEAR OUTPUT'; RESETLINE;
-
 /***************************************************************************/
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                    ANALYSIS OF COMPARISON-MARKET SALES                  */
 /*                                                                         */
-/*                     LAST PROGRAM UPDATED MARCH 2, 2016                  */
+/*                    LAST PROGRAM UPDATED AUGUST 9, 2016                  */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In Comparison Market Sales, Convert Date Variable, If    */
@@ -1015,8 +1013,7 @@ RUN;
                 /* no quotes around values. E.g., 0.7  0.8  0.9     */
 
                 %LET     INDEX1A_OUT_POR = <  >;
-
-				/*
+                /*
                     %LET CONDITION_B = <NA>;
                     %LET     INDEX1B_IN_POR = <  >;
                     %LET     INDEX1B_OUT_POR = <  > ;

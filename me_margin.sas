@@ -1,10 +1,8 @@
-DM 'CLEAR LOG; CLEAR OUTPUT'; RESETLINE;
-
 /***************************************************************************/
 /*                         ANTIDUMPING MARKET-ECONOMY                      */
 /*                             MARGIN CALCUALTION                          */
 /*                                                                         */
-/*                    LAST PROGRAM UPDATE OCTOBER 9, 2015                  */
+/*                    LAST PROGRAM UPDATE AUGUST 9, 2016                   */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
@@ -468,7 +466,6 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
                           /*    will then be matched to CV. Type "CV"      */
                           /*    (without quotes) to compare U.S. sales     */
                           /*    directly to CV.                            */
-
 /*----------------------------------------------------------------*/
 /*     1-E-v. COMPARISON MARKET INFORMATION                       */
 /*                                                                */
@@ -1501,7 +1498,7 @@ DATA USSALES;
                            /* sales incurred outside of the U.S. Do NOT    */
                            /* include commissions on CEP sales incurred in */
                            /* the U.S. here, instead include these in      */
-                           /* CEPSELL.                                     */
+                           /* CEPOTHER.                                    */
     USICC = <0>;           /* Imputed inventory carrying costs, excluding  */
                            /* CEP inventory carrying costs.                */
     USISELL = <0>;         /* Indirect selling expenses, excluding USICC   */
@@ -1625,7 +1622,6 @@ RUN;
         %MACRO MULTIPLE_CURR;
             %IF %UPCASE(&CM_MULTI_CUR) = YES %THEN
             %DO;
-
 /*------------------------------------------------------------------------*/
 /* 5-A: If the CM database has more than one currency, edit the formula   */
 /*   for CM net price and, if required, inventory carrying costs (CMICC), */
