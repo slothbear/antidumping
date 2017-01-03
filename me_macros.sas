@@ -1,14 +1,8 @@
-%LET _CLIENTTASKLABEL='Macros';
-%LET _CLIENTPROJECTPATH='E:\Operations\ADCVDTR\Market Economy SAS Programs\Market Economy Programs with Version Control.egp';
-%LET _CLIENTPROJECTNAME='Market Economy Programs with Version Control.egp';
-%LET _SASPROGRAMFILE=;
-
-GOPTIONS ACCESSIBLE;
 /********************************************************************/
 /*                     ANTIDUMPING MARKET-ECONOMY                   */
 /*                           MACROS PROGRAM                         */
 /*                                                                  */
-/*                 LAST PROGRAM UPDATE – JUNE 13, 2016              */
+/*               LAST PROGRAM UPDATE – NOVEMBER 08, 2016            */
 /*                                                                  */
 /********************************************************************/
 /*                              GENERAL MACROS                      */
@@ -2580,6 +2574,7 @@ RUN;
                  BY RECOVERED &CMMANF &CMPRIM &CMCONNUM &CM_TIME_PERIOD;
                  IF FIRST.RECOVERED THEN
                      COUNT = 0;
+
                  COUNT + 1;
 
                  IF COUNT LE 20 THEN
@@ -3105,63 +3100,84 @@ RUN;
 
 %MEND US2_SALETYPE;
 
-**************************************************************************************;
-** US-3: CONVERT NON-U.S. DOLLAR VARIABLES INTO U.S. DOLLAR AMOUNTS                    **;
-**************************************************************************************;
+/**********************************************************************/
+/** US-3: CONVERT NON-U.S. DOLLAR VARIABLES INTO U.S. DOLLAR AMOUNTS **/
+/**********************************************************************/
 
 %MACRO US3_USD_CONVERSION;
 
-    %MACRO CONVERT(EX_VARS,USE_EXRATE,EXRATE);
+/* New - Replace the above macro with this Macro. This uses Array and doesn't loop thru. Cleaner log, reduces confusion*/
+/* New - DROP THE ORIGINAL NON-CONVERTED VARIABLES */
 
-    %IF %UPCASE(&USE_EXRATE) EQ YES %THEN
+%MACRO CONVERT_TO_USD (USE_EXRATES = , EXDATA = , VARS_TO_USD =);
+    %IF %UPCASE(&USE_EXRATES) = YES %THEN
     %DO;
-        %IF %UPCASE(&EX_VARS) NE NA %THEN
-        %DO;
+        DATA USSALES;
+            SET USSALES;
 
-            %GLOBAL VARNAME_USD;
+            /*************************************************/
+            /** THE FOLLOWING ARRAY USES THE MACRO VARIABLE **/
+            /** VAR_TO_USD TO CONVERT ADJUSTMENTS EXPRESSED **/
+            /** IN FOREIGN CURRENCY TO U.S. DOLLARS.        **/
+            /*************************************************/
 
-            %MACRO USD_VARLIST;
-                %LET I = 1;
-                %LET VARNAME_USD = ;
-                %DO %UNTIL (%SCAN(&EX_VARS, &I, %STR( )) = %STR());
-                    %LET VARNAME_USD = &VARNAME_USD
-                        %SYSFUNC(COMPRESS(%SCAN(&EX_VARS,&I,%STR( ))))_USD;
-                    %LET I = %EVAL(&I + 1);
-                %END;
-            %MEND USD_VARLIST;
-            %USD_VARLIST
+            ARRAY CONVERT (*) &VARS_TO_USD;
 
-            DATA USSALES;
-                SET USSALES;
+            %LET I = 1;
 
-                %MACRO USD_VARCALC;
-                    %LET I = 1;
-                    %GLOBAL VARCALC_USD VARNAME_USD;
-                    %LET VARCALC_USD = ;
-                    %DO %UNTIL (%SCAN(&EX_VARS, &I, %STR( )) = %STR());
-                        %LET VARCALC_USD = &VARCALC_USD
-                        %SYSFUNC(COMPRESS(%SCAN(&EX_VARS,&I,%STR( ))))_USD
-                            = %SYSFUNC(COMPRESS(%SCAN(&EX_VARS,&I,%STR( ))))*&EXRATE  %NRSTR(;);
-                        &VARCALC_USD;
-                        %LET I = %EVAL(&I + 1);
-                    %END;
-                %MEND USD_VARCALC;
-                %USD_VARCALC
+            /****************************************************/
+            /** CREATE A LIST OF REVISED VARIABLES NAMES WITH  **/
+            /** THE SUFFIX _USD. LOOP THROUGH THE VARIABLES IN **/
+            /** THE ORIGINAL LIST AND ADD THE REVISED VARIABLE **/
+            /** NAMES TO THE MACRO VARIABLE VARS_IN_USD.       **/
+            /****************************************************/
 
-            RUN;
+            %LET VARS_IN_USD = ;
+            %DO %UNTIL (%SCAN(&VARS_TO_USD, &I, %STR( )) = %STR());
+                %LET VARS_IN_USD = &VARS_IN_USD
+                %SYSFUNC(COMPRESS(%SCAN(&VARS_TO_USD, &I, %STR( )) _USD));
+                %LET I = %EVAL(&I + 1);
+            %END;
+            %LET VARS_IN_USD = %CMPRES(&VARS_IN_USD);
 
-            PROC PRINT DATA = USSALES (OBS=&PRINTOBS);
-                VAR &USDATE &EXRATE &EX_VARS &VARNAME_USD;
-                TITLE3 "SAMPLE OF FOREIGN CURRENCY VARIABLES CONVERTED INTO U.S. DOLLARS USING &EXRATE.";
-            RUN;
+            ARRAY CONVERTED (*) &VARS_IN_USD;
 
-        %END;
+            /*********************************************************/
+            /** CONVERT THE ORIGINAL VARIABLES IN THE ARRAY CONVERT **/
+            /** TO U.S DOLLARS USING THE DAILY EXCHANGE RATE AND    **/
+            /** ASSIGN THE NEW VALUES TO NEW VARIABLES WITH THE     **/
+            /** ORIGINAL NAME AND THE SUFFIX _USD THAT ARE IN THE   **/
+            /** ARRAY CONVERTED.                                    **/
+            /**                                                     **/
+            /** FOR EXAMPLE, IF THE VARIABLE COAL_SV IS DENOMINATED **/
+            /** IN A FOREIGN CURRENCY, THE VARIABLE COAL_SV_USD IS  **/
+            /** CREATED AND DENOMINATED IN U.S. DOLLARS.            **/
+            /*********************************************************/
+
+            DO I = 1 TO DIM(CONVERT);
+                CONVERTED(I) = CONVERT(I) * EXRATE_&EXDATA;
+            END;
+        RUN;
+
+        PROC PRINT DATA = USSALES (OBS=&PRINTOBS);
+            VAR &USDATE EXRATE_&EXDATA &VARS_TO_USD &VARS_IN_USD;
+            TITLE3 "SAMPLE OF FOREIGN CURRENCY VARIABLES CONVERTED INTO U.S. DOLLARS USING EXRATE_&EXDATA";
+        RUN;
+
+        /************************************************/
+        /** DROP THE ORIGINAL NON-CONVERTED VARIABLES. **/
+        /************************************************/
+
+        DATA USSALES;
+            SET USSALES (DROP = &VARS_TO_USD);
+        RUN;
     %END;
+%MEND CONVERT_TO_USD;
 
-    %MEND CONVERT;
-
-    %CONVERT(&EX1_VARS,&USE_EXRATES1,&EXRATE1);
-    %CONVERT(&EX2_VARS,&USE_EXRATES2,&EXRATE2);
+OPTIONS NOSYMBOLGEN;
+%CONVERT_TO_USD (USE_EXRATES = &USE_EXRATES1, EXDATA = &EXDATA1, VARS_TO_USD = &EX1_VARS);
+%CONVERT_TO_USD (USE_EXRATES = &USE_EXRATES2, EXDATA = &EXDATA2, VARS_TO_USD = &EX2_VARS);
+OPTIONS SYMBOLGEN;
 
 %MEND US3_USD_CONVERSION;
 
@@ -4208,29 +4224,29 @@ RUN;
 
             PROC FORMAT;
                 VALUE $REGION
-                    "PR"                 = "TERRITORY"
+                    "PR", "VI"          = "TERRITORY"
 
                     "CT", "ME", "MA",
                     "NH", "RI", "VT",
                     "NJ", "NY", "PA"    = "NORTHEAST"
 
-                      "IN", "IL", "MI",
+                    "IN", "IL", "MI",
                     "OH", "WI", "IA",
                     "KS", "MN", "MO",
                     "NE", "ND", "SD"    = "MIDWEST"
 
-                      "AL", "AR", "DC",
+                    "AL", "AR", "DC",
                     "DE", "FL", "GA",
                     "KY", "LA", "MD",
                     "MS", "NC", "TN",
                     "OK", "SC", "TX",
                     "VA", "WV"            = "SOUTH"
 
-                     "AK", "AZ", "CA",
+                    "AK", "AZ", "CA",
                     "CO", "HI", "ID",
                     "MT", "NM", "NV",
                     "OR", "UT", "WY",
-                        "WA"                = "WEST";
+                    "WA"                  = "WEST";
             RUN;
 
             %LET REGION_PRINT_VARS = &DP_REGION DP_REGION;
@@ -5037,15 +5053,19 @@ RUN;
                 %MEND FUPDOL;
                 %FUPDOL
                 IF SALE_TYPE = 'EP' THEN
-                     NV = FUPDOL - COMOFFSET&SUFFIX + USCOMM&SUFFIX + USDIRSELL&SUFFIX + USCREDIT&SUFFIX ;
-                ELSE NV = FUPDOL - COMOFFSET&SUFFIX + USCOMM&SUFFIX + USDIRSELL&SUFFIX - CEPOFFSET&SUFFIX;
+                     NV = FUPDOL - COMOFFSET&SUFFIX + USCOMM&SUFFIX + USDIRSELL&SUFFIX + USCREDIT&SUFFIX;
+                ELSE
+                     NV = FUPDOL - COMOFFSET&SUFFIX + USCOMM&SUFFIX + USDIRSELL&SUFFIX - CEPOFFSET&SUFFIX;
+
                 UMARGIN = NV - USNETPRI&SUFFIX;
                 EMARGIN = UMARGIN * &USQTY;
-                USVALUE = USNETPRI&SUFFIX * &USQTY;
-                PCTMARG = UMARGIN / USNETPRI&SUFFIX * 100;
-                IF UMARGIN = . OR NV = . OR USNETPRI&SUFFIX = .
-                THEN OUTPUT NONVMARG_&OUTDATA;
-                ELSE OUTPUT COMPANY.&RESPONDENT._&SEGMENT._&STAGE._&OUTDATA;
+                USVALUE = ABS(USNETPRI&SUFFIX) * &USQTY;
+                PCTMARG = UMARGIN / ABS(USNETPRI&SUFFIX) * 100;
+
+                IF UMARGIN = . OR NV = . OR USNETPRI&SUFFIX = . THEN
+                     OUTPUT NONVMARG_&OUTDATA;
+                ELSE
+                     OUTPUT COMPANY.&RESPONDENT._&SEGMENT._&STAGE._&OUTDATA;
         RUN;
 
         PROC PRINT DATA = NONVMARG_&OUTDATA (OBS=&PRINTOBS);
@@ -6071,7 +6091,7 @@ RUN;
         %LET LABEL_ALT = "AD VALOREM*WEIGHTED AVERAGE*MARGIN RATE*(PERCENT)*A-to-T ALTERNATIVE*METHOD*==================";
         %LET CDFORMAT = PCT_MARGIN.;
     %END;
-	%ELSE
+    %ELSE
     %IF %UPCASE(&PER_UNIT_RATE) = YES %THEN
     %DO;
         %LET PREFIX = PER_UNIT_RATE;
@@ -6092,10 +6112,3 @@ RUN;
         FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
     RUN;
 %MEND US19_FINAL_CASH_DEPOSIT;
-
-
-GOPTIONS NOACCESSIBLE;
-%LET _CLIENTTASKLABEL=;
-%LET _CLIENTPROJECTPATH=;
-%LET _CLIENTPROJECTNAME=;
-%LET _SASPROGRAMFILE=;
