@@ -2,7 +2,7 @@
 /*                         ANTIDUMPING MARKET-ECONOMY                      */
 /*                             MARGIN CALCUALTION                          */
 /*                                                                         */
-/*                    LAST PROGRAM UPDATE AUGUST 9, 2016                   */
+/*                   LAST PROGRAM UPDATE SEPTEMBER 15, 2016                */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
@@ -105,11 +105,12 @@
 
 %LET BEGINDAY = <DDMONYYYY>;    /*(T) Day 1 of first month of U.S. sales   */
 %LET ENDDAY   = <DDMONYYYY>;    /*(T) Last day of last month of U.S. sales */
+%LET BEGINPERIOD = <DDMONYYYY>; /*(T) Day 1 of first month of official     */
+                                /*    POI/POR.                             */
+
 %LET BEGINWIN = <DDMONYYYY>;    /*(T) Day 1 of first month of window period*/
                                 /*    in administrative reviews. Not       */
                                 /*    required for investigations.         */
-%LET BEGINPERIOD = <DDMONYYYY>; /*(T) Day 1 of first month of official     */
-                                /*    POI/POR.                             */
 
 /*--------------------------------------------------------------*/
 /* 1-B-ii:     ADDITIONAL FILTERING OF U.S. SALES, IF REQUIRED  */
@@ -269,8 +270,8 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 
 %LET USDATA      = <  >;   /*(D) U.S. sales dataset filename.            */
 %LET     USCONNUM = <  >;  /*(V) Control number                          */
-%LET     USCVPROD = <  >;  /*(V) Variable (e.g., control number, product */
-                           /*    code) linking sales to cost data.       */
+%LET     USCVPROD = <  >;  /*(V) Variable (usually CONNUMU) linking      */
+                           /*    sales to cost data.                     */
 %LET     USCHAR   = <  >;  /*(V) Product matching characteristics. List  */
                            /*    them from left to right importance,     */
                            /*    with no punctuation separating them.    */
@@ -425,8 +426,8 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 /*-------------------------------------------------------------*/
 
 %LET COST_DATA  = <  >;  /*(D) Cost data set                               */
-%LET COST_MATCH = <  >;  /*(V) The variable (e.g., control number, product */
-                         /*    code) linking cost data to sales data.      */
+%LET COST_MATCH = <  >;  /*(V) The variable (usually CONNUM)               */
+                         /*    linking cost data to sales data.            */
 %LET COST_QTY = <  >;    /*(V) Production quantity                         */
 %LET COST_MANUF = <NA>;  /*(V) Manufacturer code. If not applicable, type  */
                          /*    "NA" (without quotes).                      */
@@ -466,6 +467,7 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
                           /*    will then be matched to CV. Type "CV"      */
                           /*    (without quotes) to compare U.S. sales     */
                           /*    directly to CV.                            */
+
 /*----------------------------------------------------------------*/
 /*     1-E-v. COMPARISON MARKET INFORMATION                       */
 /*                                                                */
@@ -609,36 +611,19 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 /* 1-G: FORMAT, PROGRAM AND PRINT OPTIONS                           */
 /*------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------*/
-/* 1-G-i Options that frequently require edits                  */
-/*--------------------------------------------------------------*/
-/*--------------------------------------------------*/
-/* Before setting the following two options, go to  */
-/* the Print Setup dialog box (on the menu bar,     */
-/* choose File, Print Setup) and set the font,      */
-/* font size, and page orientation. SAS will set    */
-/* printer page size and line size based on what    */
-/* you choose.                                      */
-/*                                                  */
-/* set the PAGESIZE and LINESIZE options in this    */
-/* program to be at least two less than the page    */
-/* size and line size parameters in the print setup */
-/* dialog box. This will prevent each page of your  */
-/* output from being cut off on the right side      */
-/* and/or spilling over on to a second page.        */
-/*--------------------------------------------------*/
-
-OPTIONS LINESIZE = <   >; /* (T) Number of characters to be printed */
-                          /*     on a line - ex. 124                */
-OPTIONS PAGESIZE = <   >; /* (T) Number of lines to be printed on a */
-                          /*     page - ex. 39                      */
+OPTIONS PAPERSIZE = LETTER;
+OPTIONS ORIENTATION = LANDSCAPE;
+OPTIONS TOPMARGIN = ".25IN"
+        BOTTOMMARGIN = ".25IN"
+        LEFTMARGIN = ".25IN"
+        RIGHTMARGIN = ".25IN";
 
 /*-------------------------------------------------------------*/
-/* 1-G-ii Options that usually do not require edits.           */
+/* 1-G-i Options that usually do not require edits.            */
 /*-------------------------------------------------------------*/
 
 /*-------------------------------------------------------------*/
-/*     1-G-ii-a Printing Formats                               */
+/*     1-G-i-a Printing Formats                                */
 /*                                                             */
 /*  In sections where a large number of observations may       */
 /*  print, the program limits the number of observations       */
@@ -667,7 +652,7 @@ OPTIONS PAGESIZE = <   >; /* (T) Number of lines to be printed on a */
                                   /* spaces and two decimal places.   */
 
 /*----------------------------------------------------------*/
-/*     1-G-ii-b Programming Options                         */
+/*     1-G-i-b Programming Options                          */
 /*----------------------------------------------------------*/
 
 %LET DEL_WORKFILES = NO; /*(T) Delete all work library files?  Default    */
@@ -1622,6 +1607,7 @@ RUN;
         %MACRO MULTIPLE_CURR;
             %IF %UPCASE(&CM_MULTI_CUR) = YES %THEN
             %DO;
+
 /*------------------------------------------------------------------------*/
 /* 5-A: If the CM database has more than one currency, edit the formula   */
 /*   for CM net price and, if required, inventory carrying costs (CMICC), */

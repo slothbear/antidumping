@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                    ANALYSIS OF COMPARISON-MARKET SALES                  */
 /*                                                                         */
-/*                    LAST PROGRAM UPDATED AUGUST 9, 2016                  */
+/*                  LAST PROGRAM UPDATED SEPTEMBER 15, 2016                */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In Comparison Market Sales, Convert Date Variable, If    */
@@ -228,9 +228,8 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 
 %LET CMDATA = <  >;             /*(D) CM sales dataset filename.           */
 %LET   CMCONNUM = <  >;         /*(V) Control number                       */
-%LET   CMCPPROD = <  >;         /*(V) Variable (e.g., control number,      */
-                                /*    product code) linking sales to       */
-                                /*    cost data.                           */
+%LET   CMCPPROD = <  >;         /*(V) Variable (usually CONNUMH) linking   */
+                                /*    sales to cost data.                  */
 %LET   CMCHAR = <  >;           /*(V) Product matching characteristics.    */
                                 /*    List them from left to right         */
                                 /*    in order of importance, with no      */
@@ -282,9 +281,8 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 
 %LET     COST_DATA = <  >;    /*(D) Cost dataset name                   */
 %LET     COST_QTY = <  >;     /*(V) Production quantity                 */
-%LET     COST_MATCH = <  >;   /*(V) The variable (e.g., control number, */
-                              /*    product code) linking cost data to  */
-                              /*    sales data.                         */
+%LET     COST_MATCH = <  >;   /*(V) The variable (usually CONNUM)       */
+                              /*    linking cost data to sales data.    */
 %LET     COST_MANUF = <NA>;   /*(V) Manufacturer code. If not           */
                               /*    applicable, type "NA" (without      */
                               /*    quotes).                            */
@@ -421,36 +419,19 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 /* 1-G: FORMAT, PROGRAM AND PRINT OPTIONS                           */
 /*------------------------------------------------------------------*/
 
-/*--------------------------------------------------------------*/
-/* 1-G-i Options that frequently require edits                  */
-/*--------------------------------------------------------------*/
-/*--------------------------------------------------*/
-/* Before setting the following two options, go to  */
-/* the Print Setup dialog box (on the menu bar,     */
-/* choose File, Print Setup) and set the font,      */
-/* font size, and page orientation. SAS will set    */
-/* printer page size and line size based on what    */
-/* you choose.                                      */
-/*                                                  */
-/* set the PAGESIZE and LINESIZE options in this    */
-/* program to be at least two less than the page    */
-/* size and line size parameters in the print setup */
-/* dialog box. This will prevent each page of your  */
-/* output from being cut off on the right side      */
-/* and/or spilling over on to a second page.        */
-/*--------------------------------------------------*/
-
-OPTIONS LINESIZE = <   >; /* (T) Number of characters to be printed */
-                          /*     on a line - ex. 124                */
-OPTIONS PAGESIZE = <   >; /* (T) Number of lines to be printed on a */
-                          /*     page - ex. 39                      */
+OPTIONS PAPERSIZE = LETTER;
+OPTIONS ORIENTATION = LANDSCAPE;
+OPTIONS TOPMARGIN = ".25IN"
+        BOTTOMMARGIN = ".25IN"
+        LEFTMARGIN = ".25IN"
+        RIGHTMARGIN = ".25IN";
 
 /*-------------------------------------------------------------*/
-/* 1-G-ii Options that usually do not require edits.           */
+/* 1-G-i Options that usually do not require edits.            */
 /*-------------------------------------------------------------*/
 
 /*-------------------------------------------------------------*/
-/*     1-G-ii-a Printing Formats                               */
+/*     1-G-i-a Printing Formats                                */
 /*                                                             */
 /*  In sections where a large number of observations may       */
 /*  print, the program limits the number of observations       */
@@ -479,7 +460,7 @@ OPTIONS PAGESIZE = <   >; /* (T) Number of lines to be printed on a */
                                   /* spaces and two decimal places.   */
 
 /*----------------------------------------------------------*/
-/*     1-G-ii-b Programming Options                         */
+/*     1-G-i-b Programming Options                          */
 /*----------------------------------------------------------*/
 
 %LET DEL_WORKFILES = NO; /*(T) Delete all work library files?  Default    */
@@ -1013,6 +994,7 @@ RUN;
                 /* no quotes around values. E.g., 0.7  0.8  0.9     */
 
                 %LET     INDEX1A_OUT_POR = <  >;
+
                 /*
                     %LET CONDITION_B = <NA>;
                     %LET     INDEX1B_IN_POR = <  >;
