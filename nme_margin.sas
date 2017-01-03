@@ -27,7 +27,7 @@ DM "CLEAR LOG; CLEAR OUTPUT"; RESETLINE;
 /*                                                          */
 /*              NME MARGIN CALCULATION PROGRAM              */
 /*                                                          */
-/*          GENERIC VERSION LAST UPDATED 01/19/2016         */
+/*          GENERIC VERSION LAST UPDATED 10/13/2016         */
 /*                                                          */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS        */
 /* PART 2:  GET U.S., FOP, AND SV DATA                      */
@@ -54,7 +54,6 @@ DM "CLEAR LOG; CLEAR OUTPUT"; RESETLINE;
 /* PART 18: IMPORTER-SPECIFIC DUTY ASSESSMENT RATES         */
 /*          (REVIEWS ONLY)                                  */
 /* PART 19: REPRINT THE FINAL CASH DEPOSIT RATE             */
-/* PART 20: REVIEW LOG FOR POTENTIAL PROBLEMS               */
 /*                                                          */
 /*----------------------------------------------------------*/
 
@@ -800,28 +799,12 @@ LIBNAME COMPANY '<         >'; /*(T) */
 /* AND/OR SPILLING OVER ON TO A SECOND PAGE.        */
 /*--------------------------------------------------*/
 
-OPTIONS LINESIZE = <   >; /* (T) NUMBER OF CHARACTERS TO BE PRINTED ON A LINE - EX. 124 */
-OPTIONS PAGESIZE = <   >; /* (T) NUMBER OF LINES TO BE PRINTED ON A PAGE - EX. 39       */
-
-
-
-
-
-/*------------------------------------------------------------------------------*/
-/*                                                                              */
-/* >>>>>>>>>>>>>>>>>>>>>>> READ THE FOLLOWING COMMENT <<<<<<<<<<<<<<<<<<<<<<<<< */
-/*                                                                              */
-/*------------------------------------------------------------------------------*/
-
-/*------------------------------------------------------------------------------*/
-/* UNDER NORMAL CIRCUMSTANCES, DO NOT CHANGE ANYTHING BELOW THIS COMMENT BLOCK. */
-/* IF YOU CHANGE ANYTHING BELOW THIS COMMENT BLOCK, DOCUMENT ANY CHANGES IN THE */
-/* ANALYSIS MEMO AND MAKE SURE TO LET YOUR PANELIST KNOW ABOUT THESE CHANGES.   */
-/*------------------------------------------------------------------------------*/
-
-
-
-
+OPTIONS PAPERSIZE = LETTER;
+OPTIONS ORIENTATION = LANDSCAPE;
+OPTIONS TOPMARGIN = ".25IN"
+           BOTTOMMARGIN = ".25IN"
+           LEFTMARGIN = ".25IN"
+           RIGHTMARGIN = ".25IN";
 
 TITLE1 "NME MARGIN CALCULATION PROGRAM - &PRODUCT FROM &COUNTRY - (&BEGINPERIOD - &ENDPERIOD)";
 TITLE2 "&SEGMENT &STAGE FOR RESPONDENT &RESPONDENT";
@@ -956,6 +939,9 @@ OPTIONS NOMLOGIC;	                       /* PRINTS ADDITIONAL MACRO INFORMATION 
 DATA USSALES;
     SET COMPANY.&USDATA;
     USOBS = _N_;
+
+	/* <Insert changes here, if required.> */
+
 RUN;
 
 %MACRO SORT_US_SALES;
@@ -984,6 +970,9 @@ RUN;
 DATA FOP;
     SET COMPANY.&FOPDATA;
     &FOPDATA._OBSORDER = _N_;
+
+	/* <Insert changes here, if required.> */
+
 RUN;
 
 %MACRO SORT_FOP_SALES;
@@ -1007,6 +996,18 @@ PROC PRINT DATA = FOP (OBS = &PRINTOBS);
 RUN;
 
 /*ep*/
+
+/*------------------------------------------------------------------------------*/
+/*                                                                              */
+/* >>>>>>>>>>>>>>>>>>>>>>> READ THE FOLLOWING COMMENT <<<<<<<<<<<<<<<<<<<<<<<<< */
+/*                                                                              */
+/*------------------------------------------------------------------------------*/
+
+/*------------------------------------------------------------------------------*/
+/* UNDER NORMAL CIRCUMSTANCES, DO NOT CHANGE ANYTHING BELOW THIS COMMENT BLOCK. */
+/* IF YOU CHANGE ANYTHING BELOW THIS COMMENT BLOCK, DOCUMENT ANY CHANGES IN THE */
+/* ANALYSIS MEMO AND MAKE SURE TO LET YOUR PANELIST KNOW ABOUT THESE CHANGES.   */
+/*------------------------------------------------------------------------------*/
 
 /*---------------------------------------------------*/
 /* CONVERT SURROGATE VALUE NAMES INTO A SAS DATASET. */
@@ -1927,8 +1928,9 @@ RUN;
 				                COHEN_D=(BASE_AVG_&DP_GROUP._PRICE - TEST_AVG_&DP_GROUP._PRICE)/STD_POOLED;
 								IF ABS(COHEN_D) GE 0.8 THEN &DP_GROUP._RESULT = "Pass";
 							END;
-							ELSE IF BASE_AVG_&DP_GROUP._PRICE NE TEST_AVG_&DP_GROUP._PRICE
-								THEN &DP_GROUP._RESULT = "Pass";
+							ELSE IF FUZZ(BASE_AVG_&DP_GROUP._PRICE - TEST_AVG_&DP_GROUP._PRICE) ^= 0
+        						THEN &DP_GROUP._RESULT = "Pass";
+
 						END;
 					END;
 				END;
@@ -2464,7 +2466,7 @@ RUN;
 				UMARGIN = NV - USNETPRI&SUFFIX;
 				EMARGIN = UMARGIN * &USQTY;
 				USVALUE = USNETPRI&SUFFIX * &USQTY;
-				PCTMARG = UMARGIN / USNETPRI&SUFFIX * 100;
+				PCTMARG = UMARGIN /ABS(USNETPRI&SUFFIX) * 100;
 				IF UMARGIN = . OR NV = . OR USNETPRI&SUFFIX = .
 				THEN OUTPUT NONVMARG_&OUTDATA;
 				ELSE OUTPUT COMPANY.&RESPONDENT._&SEGMENT._&STAGE._&OUTDATA;
@@ -3740,91 +3742,6 @@ RUN;
 %MEND FINAL_CASH_DEPOSIT;
 
 %FINAL_CASH_DEPOSIT
-
-/*--------------------------------------------*/
-/* PART 20: REVIEW LOG FOR POTENTIAL PROBLEMS */
-/*--------------------------------------------*/
-
-DM 'LOG; LOG; FILE "H:\TEMPSASLOG.LOG";';
-
-DATA REVIEWLOG;
-    LENGTH LINE $200;
-	INFILE "H:\TEMPSASLOG.LOG" TRUNCOVER;
-
-    INPUT LINE $ 1-200;
-RUN;
-
-DATA REVIEWLOG1;
-	SET REVIEWLOG;
-
-    IF (TRANWRD(LINE, "*", TRIMN(""))) IN
-	   ("WARNING: SHEET name will be ignored if conflict occurs with RANGE name specified."
-        "SYMBOLGEN:  Macro variable _IMEXSERROR_ resolves to SERROR"
-	    "WARNING: If the variable was"
-	    "missing group designations before going into the next round."
-	    "missing group information will not be tested, but will") THEN
-		DELETE;
-
-    IF (INDEX(LINE, 'converted') NE 0)
-       OR (INDEX(LINE, 'ERROR') NE 0)
-       OR (INDEX(LINE, 'missing') NE 0)
-       OR (INDEX(LINE, 'repeats') NE 0)
-       OR (INDEX(LINE, 'uninitialized') NE 0)
-       OR (INDEX(LINE, 'WARNING') NE 0) THEN
-          OUTPUT;
-RUN;
-
-DATA REVIEWLOGBLANK;
-    SET REVIEWLOG1 POINT = I NOBS = NOBS END = END;
-
-
-    IF _N_ = 1 AND NOBS = 0 THEN
-    DO;
-        LINE = "NO INSTANCES OF CONVERTED, ERROR, MISSING, REPEATS, UNINITIALIZED, OR WARNING FOUND";
-        OUTPUT;
-        STOP;
-    END;
-	ELSE
-		STOP;
-RUN;
-
-DATA REVIEWLOG2;
-	SET REVIEWLOG;
-
-	IF _N_ = 1 THEN
-	DO;
-		LINE = "-------------------------------------------------------------------------------------";
-		OUTPUT;
-	END;
-
-	IF (INDEX(STRIP(LINE), 'NOTE: The data set WORK.NEGDATA') NE 0)
-	OR (INDEX(STRIP(LINE), 'NOTE: The data set WORK.OUTDATES') NE 0)
-	OR (INDEX(STRIP(LINE), 'NOTE: The data set WORK.NOFOP') NE 0)
-	OR (INDEX(STRIP(LINE), 'NOTE: The data set WORK.NOEXRATE') NE 0)
-	OR (INDEX(STRIP(LINE), 'NOTE: The data set WORK.NEGATIVE_NVALUES') NE 0)
-	OR (INDEX(STRIP(LINE), 'NOTE: The data set WORK.NEGATIVE_USPRICES') NE 0)
-	OR (INDEX(STRIP(LINE), 'NOTE: The data set WORK.NO_DP_REGION_TEST') NE 0)
-	OR (INDEX(STRIP(LINE), 'NOTE: The data set WORK.NO_DP_PERIOD_TEST') NE 0)
-	OR (INDEX(STRIP(LINE), 'NOTE: The data set WORK.NO_DP_PURCHASER_TEST') NE 0) THEN
-		OUTPUT;
-RUN;
-
-DATA REVIEWLOG3;
-	SET REVIEWLOGBLANK REVIEWLOG1 REVIEWLOG2;
-RUN;
-
-PROC PRINT DATA = REVIEWLOG3 DOUBLE NOOBS SPLIT = '*' ;
-    LABEL LINE = '00'x;
-	TITLE3;
-    TITLE4 "RESULTS OF CHECKING THE LOG FOR THE FOLLOWING WORDS INDICATIVE OF POTENTIAL PROBLEMS:";
-    TITLE5 "CONVERTED, ERROR, MISSING, REPEATS, UNINITIALIZED, OR WARNING";
-	TITLE6;
-	TITLE7 "THE DATASETS NEGDATA, OUTDATES, NOFOP, NOEXRATE, NEGATIVE_NVALUES, NEGATIVE_USPRICES,";
-	TITLE8 "NO_DP_REGION_TEST, NO_DP_PERIOD_TEST, AND NO_DP_PURCHASER_TEST NORMALLY HAVE ZERO OBSERVATIONS";
-	TITLE9 "IF THEY DON'T HAVE ZERO OBSERVATIONS, DETERMINE IF THERE IS PROBLEM";
-RUN;
-
-DM 'DELETE "H:\TEMPSASLOG.LOG"';
 
 DATA _NULL_;
 	CALL SYMPUT('EDAY', UPCASE(STRIP(PUT(DATE(), DOWNAME.))));
