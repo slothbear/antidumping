@@ -1,26 +1,27 @@
 /***************************************************************************/
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
-/*                    ANALYSIS OF COMPARISON-MARKET SALES                  */
+/*                      ANALYSIS OF HOME MARKET SALES                      */
 /*                                                                         */
-/*                  LAST PROGRAM UPDATED SEPTEMBER 15, 2016                */
+/*                  LAST PROGRAM UPDATED DECEMBER 30, 2016                 */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
-/* Part 2:  Bring In Comparison Market Sales, Convert Date Variable, If    */
-/*          Necessary, Merge Exchange Rates Into CM Sales, As Required     */
+/* Part 2:  Bring in Home Market Sales, Convert Date Variable, If          */
+/*          Necessary, Merge Exchange Rates into HM Sales, As Required     */
 /* Part 3:  Cost Information                                               */
-/* Part 4:  Comparison Market Net Price Calculations                       */
+/* Part 4:  Home Market Net Price Calculations                             */
 /* Part 5:  Arm's-Length Test of Affiliated Party Sales                    */
 /* Part 6:  Add the Downstream Sales for Affiliated Parties That Failed    */
 /*          the Arm's-Length Test and Resold Merchandise                   */
-/* Part 7:  CM Values for CEP Profit Calculations                          */
+/* Part 7:  HM Values for CEP Profit Calculations                          */
 /* Part 8:  Cost Test                                                      */
-/* Part 9:  Weight-Averaged Comparison Market Values for Price-To-Price    */
+/* Part 9:  Weight-Averaged Home Market Values for Price-To-Price          */
 /*          Comparisons with U.S. Sales                                    */
 /* Part 10: Calculate Selling Expense and Profit Ratios for                */
 /*          Constructed-Value Comparisons                                  */
-/* Part 11: CM Level of Trade Adjustment                                   */
+/* Part 11: HM Level of Trade Adjustment                                   */
 /* Part 12: Delete All Work Files in the SAS Memory Buffer, If Desired     */
 /* Part 13: Calculate Run Time for This Program, If Desired                */
+/* Part 14: Review Log for Errors, Warnings, Uninitialized etc.            */
 /***************************************************************************/
 
 /*---------------------------------------------------------------------*/
@@ -47,19 +48,49 @@
 /*          then submit it.                                            */
 /*---------------------------------------------------------------------*/
 
-/*------------------------------------------------------------*/
-/* NAME OF PROGRAMMER: <Case Analyst Name>                    */ /*(T)*/
-/*                                                            */
-/* PROGRAM NAME:       <Program Name>                         */ /*(T)*/
-/* PROGRAM LOCATION:   <C:\>                                  */ /*(T)*/
-/*------------------------------------------------------------*/
-
 /************************************************************************/
 /* PART 1: DATABASE AND GENERAL PROGRAM INFORMATION                     */
 /************************************************************************/
 
+/*---------------------------------------------------------------------*/
+/* 1-A: LOCATION OF DATA AND MACROS PROGRAM                            */
+/*                                                                     */
+/*     LIBNAME =      The name (i.e., COMPANY) and location of the     */
+/*                    sub-directory containing the SAS datasets for    */
+/*                    this program.                                    */
+/*                    EXAMPLE: E:\Operations\Fiji\AR_2016\Hangers\Acme */
+/*                                                                     */
+/*     FILENAME =     Full path of the Macro Program for this case,    */
+/*                    consisting of the sub-directory containing the   */
+/*                    Macro Program and its file name.                 */
+/*---------------------------------------------------------------------*/
+
+LIBNAME COMPANY '<E:\....>';                   /* (T) Location of company and  */
+                                               /* exchange rate data sets.     */
+FILENAME MACR   '<E:\...\ME Macros.sas>';      /* (T) Location & name of AD-ME */
+                                               /* All Macros Program.          */
+%INCLUDE MACR;                                 /* Use the AD-ME All Macros     */
+                                               /* Program.                     */
+FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   */
+                                               /* Common Macros Program        */
+%INCLUDE C_MACS;                               /* Use the Common Macros        */
+                                               /* Program.                     */
+
+/*-----------------------------------------------------------------------------*/
+/* WRITE LOG TO THE PROGRAM DIRECTORY - DO NOT MOVE/CHANGE THIS SECTION        */
+/*-----------------------------------------------------------------------------*/
+
+%LET MNAME = %SYSFUNC(SCAN(%SYSFUNC(pathname(C_MACS)), 1, '.'));
+%LET LOG = %SYSFUNC(substr(&MNAME, 1, %SYSFUNC(length(&MNAME)) - %SYSFUNC(indexc(%SYSFUNC(
+           reverse(%SYSFUNC(trim(&MNAME)))), '\'))))%STR(\)%SYSFUNC(DEQUOTE(&_CLIENTTASKLABEL.))%STR(.log);
+
+FILENAME LOGFILE "&LOG.";
+
+PROC PRINTTO LOG=LOGFILE NEW;
+RUN;
+
 /*------------------------------------------------------------------*/
-/* 1-A:     PROCEEDING TYPE                                         */
+/* 1-B:     PROCEEDING TYPE                                         */
 /*------------------------------------------------------------------*/
 
 %LET CASE_TYPE = <AR/INV>;  /*(T) For an investigation, type 'INV' */
@@ -68,7 +99,7 @@
                             /*    type 'AR' (without quotes)       */
 
 /*----------------------------------------------------------------------*/
-/* 1-B: DATE INFORMATION                                                */
+/* 1-C: DATE INFORMATION                                                */
 /*                                                                      */
 /*          Dates should be in SAS DATE9 format (e.g., 01JAN2010).      */
 /*                                                                      */
@@ -88,37 +119,18 @@
 /*          window period.                                              */
 /*                                                                      */
 /*          TIME-SPECIFIC COMPARISONS: When making time-specific        */
-/*          price-to-price comparisons of CM and US sales, comparisons  */
+/*          price-to-price comparisons of HM and US sales, comparisons  */
 /*          are not made outside of designated time periods. In such    */
-/*           cases, set BEGINWIN to the first day of the first time     */
+/*          cases, set BEGINWIN to the first day of the first time      */
 /*          period. Likewise, set ENDDAY to the last day of the last    */
 /*          time period.                                                */
 /*----------------------------------------------------------------------*/
 
-%LET BEGINDAY = <DDMONYYYY>;  /*(T) Day 1 of first month of CM sales to be */
+%LET BEGINDAY = <DDMONYYYY>;  /*(T) Day 1 of first month of HM sales to be */
                               /*    captured for comparison to U.S. sales. */
-%LET ENDDAY   = <DDMONYYYY>;  /*(T) Last day of last month of CM sales to  */
+%LET ENDDAY   = <DDMONYYYY>;  /*(T) Last day of last month of HM sales to  */
                               /*    be captured for comparison to          */
                               /*    U.S. sales.                            */
-
-/*-------------------------------------------------------------------*/
-/* 1-C: LOCATION OF DATA AND MACROS PROGRAM                          */
-/*                                                                   */
-/*     LIBNAME =      The name (i.e., COMPANY) and location of the   */
-/*                 sub-directory containing the SAS datasets for     */
-/*                    this program.                                  */
-/*                                                                   */
-/*     %INCLUDE =     Full path of the Macro Program for this case,  */
-/*                    consisting of the sub-directory containing the */
-/*                    Macro Program and its file name.               */
-/*-------------------------------------------------------------------*/
-
-LIBNAME COMPANY '<C:\....>';                 /* Location of company and  */
-                                             /* exchange rate data sets. */
-FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
-                                             /* All Macros Program.      */
-%INCLUDE MACR;                               /* Use the AD-ME All Macros */
-                                             /* Program.                 */
 
 /*-------------------------------------------------------------------------*/
 /* 1-D: TITLES, FOOTNOTES AND AUTOMATIC NAMES FOR OUTPUT DATASETS          */
@@ -146,11 +158,11 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 /*      applicable, are the following:                                     */
 /*                                                                         */
 /*          {RESPONDENT_SEGMENT_STAGE}_COST    = Wt-avg costs              */
-/*          {RESPONDENT_SEGMENT_STAGE}_CMCEP   = CM revenue/expenses for   */
+/*          {RESPONDENT_SEGMENT_STAGE}_HMCEP   = HM revenue/expenses for   */
 /*                                               CEP profit                */
 /*          {RESPONDENT_SEGMENT_STAGE}_CVSELL  = Selling & profit ratios   */
 /*                                               for CV                    */
-/*          {RESPONDENT_SEGMENT_STAGE}_CMWTAV  = Wt-avg CM data            */
+/*          {RESPONDENT_SEGMENT_STAGE}_HMWTAV  = Wt-avg HM data            */
 /*          {RESPONDENT_SEGMENT_STAGE}_LOTADJ  = LOT adjustment factors    */
 /*                                                                         */
 /*          All output datasets will be placed in the COMPANY directory.   */
@@ -174,7 +186,7 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
                          /*    underscores.                               */
 
 /*-------------------------------------------------------------------*/
-/* 1-E: DATABASE INFORMATION FOR CM SALES, COSTS & EXCHANGE RATES    */
+/* 1-E: DATABASE INFORMATION FOR HM SALES, COSTS & EXCHANGE RATES    */
 /*                                                                   */
 /*     Where information may not be relevant (e.g., re: manufacturer */
 /*     and prime/non-prime merchandise), 'NA' (not applicable) will  */
@@ -184,27 +196,27 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 /*---------------------------------------------------------------*/
 /*     1-E-i. EXCHANGE RATE INFORMATION:                         */
 /*                                                               */
-/*      The CM program needs to use exchange rates if there are  */
-/*      reported adjustments in non-CM currency. If there are    */
-/*      no non-CM currencies, define the macro variables         */
+/*      The HM program needs to use exchange rates if there are  */
+/*      reported adjustments in non-HM currency. If there are    */
+/*      no non-HM currencies, define the macro variables         */
 /*      USE_EXRATES1 and USE_EXRATES2 as NO.                     */
 /*                                                               */
-/*      If there are non-CM currencies, define the macro         */
-/*      variable USE_EXRATES1 as YES for the first non-CM        */
+/*      If there are non-HM currencies, define the macro         */
+/*      variable USE_EXRATES1 as YES for the first non-HM        */
 /*      currency and define the macro variable EXDATA1 as the    */
 /*      name of the exchange rate dataset. If there is a second  */
-/*      non-CM currency, define the macro variable USE_EXRATES2  */
+/*      non-HM currency, define the macro variable USE_EXRATES2  */
 /*      as YES and define the macro variable EXDATA2 as the      */
 /*      name of the second exchange rate dataset. If there are   */
-/*      more than two non-CM currencies, please contact a SAS    */
+/*      more than two non-HM currencies, please contact a SAS    */
 /*      Support Team member for assistance.                      */
 /*                                                               */
-/*      When non-CM currencies are reported, there are three     */
+/*      When non-HM currencies are reported, there are three     */
 /*      ways to refer to exchange rate variables in your         */
-/*      CMProgram programming. If the first non-CM currency is   */
+/*      HMProgram. If the first non-HM currency is               */
 /*      from Mexico, you can code the first exchange rate        */
 /*      variable as EXRATE_MEXICO, &EXRATE1, or EXRATE_&EXDATA1. */
-/*      If the second non-CM currency is from Canada, you can    */
+/*      If the second non-HM currency is from Canada, you can    */
 /*      code the second exchange rate variable as EXRATE_CANADA, */
 /*      &EXRATE2, or EXRATE_&EXDATA2.                            */
 /*                                                               */
@@ -222,39 +234,39 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
                                /*  "NO" (without quotes).                */
 %LET     EXDATA2   = <  >;     /*(D) Exchange rate dataset name.         */
 
-/*--------------------------------------------------------------*/
-/* 1-E-ii. COMPARISON MARKET INFORMATION                        */
-/*--------------------------------------------------------------*/
+/*--------------------------------------------------------*/
+/* 1-E-ii. HOME MARKET INFORMATION                        */
+/*--------------------------------------------------------*/
 
-%LET CMDATA = <  >;             /*(D) CM sales dataset filename.           */
-%LET   CMCONNUM = <  >;         /*(V) Control number                       */
-%LET   CMCPPROD = <  >;         /*(V) Variable (usually CONNUMH) linking   */
+%LET HMDATA = <  >;             /*(D) HM sales dataset filename.           */
+%LET   HMCONNUM = <  >;         /*(V) Control number                       */
+%LET   HMCPPROD = <  >;         /*(V) Variable (usually CONNUMH) linking   */
                                 /*    sales to cost data.                  */
-%LET   CMCHAR = <  >;           /*(V) Product matching characteristics.    */
+%LET   HMCHAR = <  >;           /*(V) Product matching characteristics.    */
                                 /*    List them from left to right         */
                                 /*    in order of importance, with no      */
                                 /*    punctuation separating them.         */
-%LET   CMDATE = <  >;           /*(V) Sale date.                           */
-%LET   CMQTY = <  >;            /*(V) Quantity.                            */
-%LET   CMGUP  = <  >;           /*(V) Gross price. Need not be in          */
+%LET   HMDATE = <  >;           /*(V) Sale date.                           */
+%LET   HMQTY = <  >;            /*(V) Quantity.                            */
+%LET   HMGUP  = <  >;           /*(V) Gross price. Need not be in          */
                                 /*    consistent currency, used only to    */
                                 /*    check for zero, negative & missing   */
                                 /*    values.                              */
-%LET   CMLOT  = <NA>;           /*(V) Level of trade. If not reported in   */
+%LET   HMLOT  = <NA>;           /*(V) Level of trade. If not reported in   */
                                 /*    the database and not required, type  */
                                 /*    "NA" (without quotes).               */
-                                /*    You may also type "NA" if CM & US    */
+                                /*    You may also type "NA" if HM & US    */
                                 /*    both have only 1 LOT & those LOTs    */
                                 /*    are the same.                        */
-%LET   CMMANUF = <NA>;          /*(V) Manufacturer code. If not            */
+%LET   HMMANUF = <NA>;          /*(V) Manufacturer code. If not            */
                                 /*    applicable, type "NA" (without       */
                                 /*    quotes).                             */
-%LET   CMPRIME  = <NA>;         /*(V) Prime/seconds code. If not           */
+%LET   HMPRIME  = <NA>;         /*(V) Prime/seconds code. If not           */
                                 /*    applicable, type "NA" (without       */
                                 /*    quotes).                             */
-%LET   CM_TIME_PERIOD = <  >;   /*(V) Variable in CM data for cost-related */
+%LET   HM_TIME_PERIOD = <  >;   /*(V) Variable in HM data for cost-related */
                                 /*     time periods, if applicable         */
-%LET   CM_MULTI_CUR = <YES/NO>; /*(T) Is CM data in more than one          */
+%LET   HM_MULTI_CUR = <YES/NO>; /*(T) Is HM data in more than one          */
                                 /*    currency? Type "YES" or "NO"         */
                                 /*    (without quotes).                    */
 %LET   MIXEDCURR = <YES/NO/NA>; /*(T) Are there mixed-currency variables   */
@@ -274,7 +286,7 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 /*---------------------------------------------------------------*/
 /* 1-E-iii. COST OF PRODUCTION DATA                              */
 /*                                                               */
-/*     If the respondent has reported both a CM COP database and */
+/*     If the respondent has reported both a HM COP database and */
 /*     a U.S. CV database, it is best to combine them below in   */
 /*     Part 3 and calculate one weight-averaged cost database.   */
 /*---------------------------------------------------------------*/
@@ -390,29 +402,29 @@ FILENAME MACR   '<C:\...\MacrosProgram.SAS'; /* Location & name of AD-ME */
 /*          that YES or NO answers are expected. Answer all YES/NO      */
 /*          questions.                                                  */
 /*                                                                      */
-/*          If you select YES for THE RUN_ARMSLENGTH or RUN_CMLOTADJ    */
+/*          If you select YES for THE RUN_ARMSLENGTH or RUN_HMLOTADJ    */
 /*          macro variables, also complete the ones immediately         */
 /*          following and indented.                                     */
 /*                                                                      */
-/*            Note: Results of the CMLOTADJ calculation are meaningless */
+/*            Note: Results of the HMLOTADJ calculation are meaningless */
 /*          unless the following criteria are met:                      */
-/*               1. There are two or more levels of trade in CM data    */
-/*               2. At least one of those two CM levels of trade also   */
+/*               1. There are two or more levels of trade in HM data    */
+/*               2. At least one of those two HM levels of trade also   */
 /*                   exist in the U.S. data.                            */
 /*----------------------------------------------------------------------*/
 
 %LET RUN_ARMSLENGTH = <YES/NO>; /*(T) Run the Arm's-Length test? Type      */
                                 /*    "YES" or "NO" (without quotes).      */
-%LET     CMCUST    = <   >;     /*(V) Customer identifier/code             */
-%LET     CMAFFL    = <   >;     /*(V) Customer affiliation code            */
+%LET     HMCUST    = <   >;     /*(V) Customer identifier/code             */
+%LET     HMAFFL    = <   >;     /*(V) Customer affiliation code            */
 %LET     NAFVALUE  = < 1 >;     /*(T) Value in data indicating             */
                                 /*    unaffiliated sales. Default is       */
                                 /*    numeric value of 1.                  */
-%LET RUN_CMCEPTOT = <YES/NO>;   /*(T) Calculate CM revenue and expenses    */
+%LET RUN_HMCEPTOT = <YES/NO>;   /*(T) Calculate HM revenue and expenses    */
                                 /*    for CEP profit? Type "YES" or "NO"   */
                                 /*    (without quotes). If you type "YES," */
                                 /*    you must have a cost database.       */
-%LET RUN_CMLOTADJ = <YES/NO>;   /*(T) Run LOT price pattern calculation?   */
+%LET RUN_HMLOTADJ = <YES/NO>;   /*(T) Run LOT price pattern calculation?   */
                                 /* Type "YES" or "NO" (without quotes).    */
 
 /*------------------------------------------------------------------*/
@@ -494,7 +506,7 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 /*               AND MACROS NEEDED TO EXECUTE THE PROGRAM.          */
 /*------------------------------------------------------------------*/
 
-%LET SALESDB = CMSALES;
+%LET SALESDB = HMSALES;
 
 %G1_RUNTIME_SETUP
 %G2_TITLE_SETUP
@@ -503,28 +515,28 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 /*----------------------------------------------------------------------*/
 /* 1-I: PRIME AND MANUFACTURER MACROS AND MACRO VARIABLES               */
 /*                                                                      */
-/*          In the programming language, the macro variables &CMPRIM,   */
-/*          &CMMANF and &COPMANF are used. Their values are determined  */
+/*          In the programming language, the macro variables &HMPRIM,   */
+/*          &HMMANF and &COPMANF are used. Their values are determined  */
 /*          by the answers in Sect.1-E-ii above.                        */
-/*          For example, if you typed %LET CMMANUF=NA, then the macro   */
-/*          variable &CMMANF will be set to a null/blank value.         */
-/*          Otherwise, &CMMANF will be equal to the variable specified  */
-/*          in %LET CMMANUF=<???>.                                      */
+/*          For example, if you typed %LET HMMANUF=NA, then the macro   */
+/*          variable &HMMANF will be set to a null/blank value.         */
+/*          Otherwise, &HMMANF will be equal to the variable specified  */
+/*          in %LET HMMANUF=<???>.                                      */
 /*                                                                      */
-/*          Similarly, &CMPRIM and &COPMANF will either be a null/blank */
+/*          Similarly, &HMPRIM and &COPMANF will either be a null/blank */
 /*          values, or set equal to the variables specified in          */
-/*          %LET CMPRIME=<???> and %LET COPMANUF=<???>.                 */
+/*          %LET HMPRIME=<???> and %LET COPMANUF=<???>.                 */
 /*----------------------------------------------------------------------*/
 
-%CM1_PRIME_MANUF_MACROS
+%HM1_PRIME_MANUF_MACROS
 
 /*************************************************************************/
-/* PART 2: BRING IN COMPARISON MARKET SALES, CONVERT DATE VARIABLE,      */
-/*         IF NECESSARY, MERGE EXCHANGE RATES INTO CM SALES, AS REQUIRED */
+/* PART 2: BRING IN HOME MARKET SALES, CONVERT DATE VARIABLE,            */
+/*         IF NECESSARY, MERGE EXCHANGE RATES INTO HM SALES, AS REQUIRED */
 /*************************************************************************/
 
 /*----------------------------------------------------------------------*/
-/* 2-A: BRING IN COMPARISON MARKET SALES                                */
+/* 2-A: BRING IN HOME MARKET SALES                                      */
 /*                                                                      */
 /*          Alter the SET statement, if necessary, to bring in more     */
 /*          than one SAS database. If you need to rename variables,     */
@@ -532,7 +544,7 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 /*          in order to do align the various databases, make such       */
 /*          changes here.                                               */
 /*                                                                      */
-/*          Changes to CM data using exchange rates and costs should    */
+/*          Changes to HM data using exchange rates and costs should    */
 /*          wait until Part 4, below, after the cost and exchange rate  */
 /*          databases are attached.                                     */
 /*                                                                      */
@@ -540,8 +552,8 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 /*          following the execution of the G4_LOT macro in Sect 2-C-ii  */
 /*----------------------------------------------------------------------*/
 
-DATA CMSALES;
-    SET COMPANY.&CMDATA;
+DATA HMSALES;
+    SET COMPANY.&HMDATA;
 
     /*------------------------------------------------------------------*/
     /* 2-B: Insert and annotate any changes below.                      */
@@ -552,12 +564,12 @@ DATA CMSALES;
     /*-----------------------------------------------------------------------
     /* 2-C: LEVEL OF TRADE                                                 */
     /*                                                                     */
-    /*      The variable CMLOT will be created containing the levels       */
+    /*      The variable HMLOT will be created containing the levels       */
     /*          of trade. It is this variable that is used in the          */
-    /*          programming. If you typed '%LET CMLOT = NA' in             */
-    /*          Sect.1-E-ii above, the variable CMLOT will be set to 0     */
-    /*          (zero). Otherwise, CMLOT will be set equal to the variable */
-    /*          specified in %LET CMLOT = <???>.                           */
+    /*          programming. If you typed '%LET HMLOT = NA' in             */
+    /*          Sect.1-E-ii above, the variable HMLOT will be set to 0     */
+    /*          (zero). Otherwise, HMLOT will be set equal to the variable */
+    /*          specified in %LET HMLOT = <???>.                           */
     /*---------------------------------------------------------------------*/
 
     /*------------------------------------------------------------------*/
@@ -576,7 +588,7 @@ DATA CMSALES;
     /* 2-C-ii: CREATE THE LEVEL OF TRADE PROGRAMMING VARIABLE           */
     /*------------------------------------------------------------------*/
 
-    %G4_LOT(&CMLOT,CMLOT)
+    %G4_LOT(&HMLOT,HMLOT)
 
 RUN;
 
@@ -613,11 +625,11 @@ RUN;
 /*          In an administrative review, a month variable will be      */
 /*          created giving each month in the window period a unique    */
 /*          number. In the first calendar year of the review, the      */
-/*          value of CMMONTH will be equal to the normal numeric       */
+/*          value of HMMONTH will be equal to the normal numeric       */
 /*          month designation (e.g., Jan=1, Feb=2). In the second      */
-/*          calendar year of the review, CMMONTH will be equal to      */
+/*          calendar year of the review, HMMONTH will be equal to      */
 /*          the numeric month designation + 12 (e.g., Jan=1+12=13).    */
-/*          Similarly, in a third calendar year, CMMONTH = month+24.   */
+/*          Similarly, in a third calendar year, HMMONTH = month+24.   */
 /*---------------------------------------------------------------------*/
 
 %G6_CHECK_SALES
@@ -651,7 +663,7 @@ RUN;
 /*          needed:                                                        */
 /*                                                                         */
 /*          Sect.3-A-i        Pre-indexing changes                         */
-/*          Sect.3-B-ii-a     Align CM and U.S. CONNUMS, product chars.    */
+/*          Sect.3-B-ii-a     Align HM and U.S. CONNUMS, product chars.    */
 /*          Sect.3-D-i        Indexed inputs                               */
 /*          Sect.3-D-ii       Time-specific indices                        */
 /*          Sect.3-F          Cost of manufacturing, G&A, interest, and    */
@@ -706,14 +718,13 @@ RUN;
 /*----------------------------------------------------------------------*/
 
 /**********************************************************/
-/* CONNUMUs in the CM and U.S. datasets that have sales   */
+/* CONNUMUs in the HM and U.S. datasets that have sales   */
 /* but no production in the POI/POR must be in the COP    */
 /* dataset with a production quantity of 0 (zero). If     */
 /* respondent does not report these CONNUMs in the cost   */
 /* dataset, the analyst must add these CONNUMs to the COP */
 /* dataset with a production quantity of 0 (zero).        */
 /**********************************************************/
-
 
 DATA COST;
     SET COMPANY.&COST_DATA /* <COMPANY.CVDATABASE> */;
@@ -788,8 +799,8 @@ RUN;
         /*     3-B-ii ATTACH PRODUCT CHARACTERISTICS, WHEN REQUIRED    */
         /*                                                             */
         /*     When product characteristic variables are not in the    */
-        /*     data, they will be taken from both the CM and U.S.      */
-        /*     sales databases. To do this, the CM and U.S. control    */
+        /*     data, they will be taken from both the HM and U.S.      */
+        /*     sales databases. To do this, the HM and U.S. control    */
         /*     numbers must be of the same type (character v. numeric) */
         /*     and length, if character. Likewise for the product      */
         /*     characteristic variables. If you need to make adjust-   */
@@ -873,7 +884,7 @@ RUN;
         /* information on non-indexed variables.                       */
         /*-------------------------------------------------------------*/
 
-        %G10_TIME_PROD_LIST(&CMCHAR)
+        %G10_TIME_PROD_LIST(&HMCHAR)
     %END;
 %MEND SETUP_COST_PERIODS;
 
@@ -1024,7 +1035,6 @@ RUN;
          */
 
                 RUN;
-
                 %IF %UPCASE(&TIME_OUTSIDE_POR) NE NA %THEN
                 %DO;
                     DATA COSTOUTPOR;
@@ -1213,7 +1223,7 @@ RUN;
 /*ep*/
 
 /*-------------------------------------------------------------------------*/
-/* 3-H: MERGE COSTS WITH CMSALES AND OUTPUT A COST DATABASE FOR USE WITH   */
+/* 3-H: MERGE COSTS WITH HMSALES AND OUTPUT A COST DATABASE FOR USE WITH   */
 /*      U.S. SALES DATA                                                    */
 /*                                                                         */
 /* The output database will be named using the standardized naming         */
@@ -1228,7 +1238,7 @@ RUN;
 /*ep*/
 
 /***************************************************************************/
-/* PART 4: COMPARISON MARKET NET PRICE CALCULATIONS                        */
+/* PART 4: HOME MARKET NET PRICE CALCULATIONS                              */
 /***************************************************************************/
 
 /*-------------------------------------------------------------------------*/
@@ -1296,7 +1306,7 @@ RUN;
 
 %SETUP_MIXEDCURR_VAR;
 
-%CM2_MIXEDCURR(&SALESDB)
+%HM2_MIXEDCURR(&SALESDB)
 
 /*ep*/
 
@@ -1307,7 +1317,7 @@ RUN;
 /*     each currency, you must first turn off the macros that use a        */
 /*     currency-indicating variable. You can do this either by typing      */
 /*     'LET MIXEDCURR = NA' in 1-E-ii above, or by deactivating both the   */
-/*     SETUP_MIXEDCURR_VAR and CM2_MIXEDCURR macros immediately above in   */
+/*     SETUP_MIXEDCURR_VAR and HM2_MIXEDCURR macros immediately above in   */
 /*     section 4-A-i. Then, immediately below, activate the data step and  */
 /*     write your own case-specific language. The language you write       */
 /*     should split mixed-currency variables into multiple single-currency */
@@ -1315,8 +1325,8 @@ RUN;
 /*-------------------------------------------------------------------------*/
 
     /*
-    DATA CMSALES;
-        SET CMSALES;
+    DATA HMSALES;
+        SET HMSALES;
 
         < Put case-specific language splitting mixed-currency
           variables here >
@@ -1332,40 +1342,40 @@ RUN;
 /*     equal to zero.                                                      */
 /*                                                                         */
 /*     The final aggregate variables should be in the currency in which    */
-/*     costs are incurred (usually CM currency). For example, if you have  */
-/*     two movement expenses in CM currency (INLFTCH and INFLTWH)and one   */
-/*     in US dollars (INSUREH), first create CM- and USD-specific movement */
+/*     costs are incurred (usually HM currency). For example, if you have  */
+/*     two movement expenses in HM currency (INLFTCH and INFLTWH)and one   */
+/*     in US dollars (INSUREH), first create HM- and USD-specific movement */
 /*     variables, leaving them in their original currency. Then set the    */
-/*     aggregate variable (CMMOVE) equal to the sum of the two currency-   */
-/*     specific variables, converting into CM currency as needed. Here is  */
-/*     an example using the variables above and a CM market of Brazil:     */
+/*     aggregate variable (HMMOVE) equal to the sum of the two currency-   */
+/*     specific variables, converting into HM currency as needed. Here is  */
+/*     an example using the variables above and a HM market of Brazil:     */
 /*                                                                         */
-/*              MOVE_CM = INLFTCH + INFLTWH;                               */
+/*              MOVE_HM = INLFTCH + INFLTWH;                               */
 /*              MOVE_USD = INSUREH;                                        */
-/*              CMMOVE = MOVE_CM + (MOVE_USD/EXRATE_BRAZIL);               */
+/*              HMMOVE = MOVE_HM + (MOVE_USD/EXRATE_BRAZIL);               */
 /*                                                                         */
 /*     NOTE1:   Remember to use the new, split names for mixed-variables   */
 /*              from section 4-A-i above.                                  */
 /*                                                                         */
 /*     NOTE2:   It is the unconverted, single-currency aggregate variables */
-/*              (i.e., MOVE_CM and MOVE_USD in the example) and NOT CMMOVE */
+/*              (i.e., MOVE_HM and MOVE_USD in the example) and NOT HMMOVE */
 /*              that should be weight-averaged at the end of this program  */
 /*              for price-2-price comparisons with U.S. sales.             */
 /*              (See Sect. 9-B-i below.)                                   */
 /*                                                                         */
 /*     When you have aggregate variables whose components are all in a     */
-/*     currency other than the CM currency, first create an unconverted    */
+/*     currency other than the HM currency, first create an unconverted    */
 /*     currency-specific aggregate variable and then do the conversion in  */
-/*     the final CM aggregate variable. If, in the example earlier in this */
+/*     the final HM aggregate variable. If, in the example earlier in this */
 /*     note, INFLTCH, INFLTWH and INSUREH were all in U.S. dollars, you    */
 /*     would type:                                                         */
 /*                                                                         */
 /*          MOVE_USD = INLFTCH + INFLTWH + INSUREH;                        */
-/*          CMMOVE = MOVE_USD/EXRATE_BRAZIL;                               */
+/*          HMMOVE = MOVE_USD/EXRATE_BRAZIL;                               */
 /*                                                                         */
 /*     You would then have an unconverted aggregate variable (i.e.,        */
 /*     MOVE_USD) to use in the final weight average in Sect. Part 10-B-i.  */
-/*     (Note:  you would NOT use the converted CMMOVE in the weight        */
+/*     (Note:  you would NOT use the converted HMMOVE in the weight        */
 /*     average in this case.)                                              */
 /*-------------------------------------------------------------------------*/
 
@@ -1373,56 +1383,56 @@ RUN;
 /* 4-B-i: CALCULATION OF AGGREGATE VARIABLES:                              */
 /*-------------------------------------------------------------------------*/
 
-DATA CMSALES;
-    SET CMSALES;
+DATA HMSALES;
+    SET HMSALES;
 
     %GLOBAL NETPRICE;
     %MACRO NETPRICE;
-        CMGUP  = <&CMGUP>; /* Gross unit price. Default is to use        */
-                           /* the variable selected for the &CMGUP       */
+        HMGUP  = <&HMGUP>; /* Gross unit price. Default is to use        */
+                           /* the variable selected for the &HMGUP       */
                            /* macro in Sect. 1-E-ii above                */
-        CMGUPADJ  = <0>;   /* Price adjustments to be added to CMGUP     */
-        CMDISREB  = <0>;   /* Discounts, rebates & other price           */
-                           /* adjustments to be subtracted from CMGUP    */
-        CMMOVE    = <0>;   /* Movement expenses                          */
-        CMCRED    = <0>;   /* Imputed credit expense                     */
-        CMDSELL   = <0>;   /* Direct selling expenses, excluding CMCRED  */
-        CMICC     = <0>;   /* Imputed inventory carrying expenses        */
-        CMISELL   = <0>;   /* Indirect selling expenses, excluding CMICC */
+        HMGUPADJ  = <0>;   /* Price adjustments to be added to HMGUP     */
+        HMDISREB  = <0>;   /* Discounts, rebates & other price           */
+                           /* adjustments to be subtracted from HMGUP    */
+        HMMOVE    = <0>;   /* Movement expenses                          */
+        HMCRED    = <0>;   /* Imputed credit expense                     */
+        HMDSELL   = <0>;   /* Direct selling expenses, excluding HMCRED  */
+        HMICC     = <0>;   /* Imputed inventory carrying expenses        */
+        HMISELL   = <0>;   /* Indirect selling expenses, excluding HMICC */
                            /*                                            */
-        CMCOMM    = <0>;   /* Commissions                                */
-        CMPACK    = <0>;   /* Packing                                    */
+        HMCOMM    = <0>;   /* Commissions                                */
+        HMPACK    = <0>;   /* Packing                                    */
 
         /*-----------------------------------------------------------*/
         /* 4-B-i-a: Indirect selling expenses for commission offsets.*/
         /*-----------------------------------------------------------*/
 
-        CMINDCOM  = <0>;   /* Set default value of zero for when     */
-                           /* CMCOMM is greater than zero.           */
+        HMINDCOM  = <0>;   /* Set default value of zero for when     */
+                           /* HMCOMM is greater than zero.           */
 
         /*-----------------------------------------------------------*/
-        /* 4-B-i-b: When the variables going into both CMISELL and   */
-        /*          CMICC are reported entirely in CM currency, use  */
+        /* 4-B-i-b: When the variables going into both HMISELL and   */
+        /*          HMICC are reported entirely in HM currency, use  */
         /*          the default language immediately following.      */
         /*-----------------------------------------------------------*/
 
-        IF CMCOMM = 0 THEN
-            CMINDCOM = CMISELL + CMICC;
+        IF HMCOMM = 0 THEN
+            HMINDCOM = HMISELL + HMICC;
 
         /*-----------------------------------------------------------*/
-        /*  4-B-i-c: If either CMISELL or CMICC are split into       */
-        /*           multiple currencies or reported in non-CM       */
+        /*  4-B-i-c: If either HMISELL or HMICC are split into       */
+        /*           multiple currencies or reported in non-HM       */
         /*           currency, deactivate the default language above */
         /*           and activate the exemplary language immediately */
         /*           following adjusting for circumstances.          */
         /*-----------------------------------------------------------*/
 
         /*
-        IF CMCOMM = 0 THEN
+        IF HMCOMM = 0 THEN
         DO;
-          CMINDCOM_MXN = INDIRSH_MXN + CMICC;
-          CMINDCOM_USD = INDIRSH_USD;
-          CMINDCOM = CMINDCOM_MXN + (CMINDCOM_USD/EXRATE_MEXICO);
+          HMINDCOM_MXN = INDIRSH_MXN + HMICC;
+          HMINDCOM_USD = INDIRSH_USD;
+          HMINDCOM = HMINDCOM_MXN + (HMINDCOM_USD/EXRATE_MEXICO);
         END;
         */
 
@@ -1433,19 +1443,19 @@ DATA CMSALES;
         /* Net price for price comparisons. */
         /* Deduct imputed credit expenses . */
 
-        CMNETPRI  = CMGUP + CMGUPADJ - CMDISREB - CMMOVE
-                  - CMDSELL - CMCRED - CMCOMM - CMPACK;
+        HMNETPRI  = HMGUP + HMGUPADJ - HMDISREB - HMMOVE
+                  - HMDSELL - HMCRED - HMCOMM - HMPACK;
 
         /* Net price for the cost test.    */
         /* Do NOT deduct imputed expenses. */
 
-        CMNPRICOP = CMGUP + CMGUPADJ - CMDISREB - CMMOVE
-                  - CMDSELL - CMISELL - CMCOMM - CMPACK;
+        HMNPRICOP = HMGUP + HMGUPADJ - HMDISREB - HMMOVE
+                  - HMDSELL - HMISELL - HMCOMM - HMPACK;
 
         /* Net price for calculating the credit */
         /* ratio for CV selling expenses.       */
 
-        CVCREDPR = CMGUP + CMGUPADJ - CMDISREB - CMMOVE;
+        CVCREDPR = HMGUP + HMGUPADJ - HMDISREB - HMMOVE;
     %MEND NETPRICE;
 
     %NETPRICE
@@ -1453,8 +1463,8 @@ RUN;
 
 /*ep*/
 
-PROC PRINT DATA = CMSALES (OBS = &PRINTOBS);
-    TITLE3 "SAMPLE OF NET PRICE CALCULATIONS FOR COMPARISON-MARKET SALES ";
+PROC PRINT DATA = HMSALES (OBS = &PRINTOBS);
+    TITLE3 "SAMPLE OF NET PRICE CALCULATIONS FOR HOME MARKET SALES";
 RUN;
 
 /*ep*/
@@ -1463,7 +1473,7 @@ RUN;
 /* PART 5: ARMS-LENGTH TEST OF AFFILIATED PARTY SALES                      */
 /***************************************************************************/
 
-%CM3_ARMSLENGTH
+%HM3_ARMSLENGTH
 
 /*ep*/
 
@@ -1473,7 +1483,7 @@ RUN;
 /*                                                                         */
 /*     Merge exchange rates and cost data with downstream sales. Create    */
 /*     level of trade information, and calculate aggregate variables and   */
-/*     net prices. Combine downstream and CM data.                         */
+/*     net prices. Combine downstream and HM data.                         */
 /*                                                                         */
 /*     Activate the language in all of Sect. 6 and adjust accordingly.     */
 /***************************************************************************/
@@ -1481,52 +1491,52 @@ RUN;
 %MACRO DOWNSTREAM;
     %LET DOWNSTREAMDATA = <  >;   /* (D) Downstream sales dataset filename.*/
     %LET SALESDB = DOWNSTREAM;    /*     Do not edit. Allows certain macros*/
-                                  /*     (G5_DATE_CONVERT,CM2_MIXEDCURR)   */
+                                  /*     (G5_DATE_CONVERT,HM2_MIXEDCURR)   */
                                   /*     to work on downstream sales.      */
     DATA DOWNSTREAM;
         SET COMPANY.&DOWNSTREAMDATA;
 
 /*-------------------------------------------------------------------------*/
-/*     6-A-i: ALIGN VARIABLES IN CM AND DOWNSTREAM DATABASES               */
+/*     6-A-i: ALIGN VARIABLES IN HM AND DOWNSTREAM DATABASES               */
 /*                                                                         */
 /*     Variables in the downstream sales database must have the same names */
-/*     and types (i.e., character v numeric) as those in the CM sales data */
+/*     and types (i.e., character v numeric) as those in the HM sales data */
 /*     for the macro variables in Sect. 1-E-ii above, which are:           */
 /*                                                                         */
-/*          CMDATE                                                         */
-/*          CMQTY                                                          */
-/*          CMGUP                                                          */
-/*          CMMANUF                                                        */
-/*          CMPRIM                                                         */
-/*          CMLOT                                                          */
-/*          CMCONNUM                                                       */
-/*          CMCPMATCH                                                      */
-/*          CMCHAR                                                         */
+/*          HMDATE                                                         */
+/*          HMQTY                                                          */
+/*          HMGUP                                                          */
+/*          HMMANUF                                                        */
+/*          HMPRIM                                                         */
+/*          HMLOT                                                          */
+/*          HMCONNUM                                                       */
+/*          HMCPMATCH                                                      */
+/*          HMCHAR                                                         */
 /*                                                                         */
 /*     If the variable names or types in the downstream data are           */
-/*     different than those in the original CM sales data, make the        */
+/*     different than those in the original HM sales data, make the        */
 /*     required adjustments.                                               */
 /*-------------------------------------------------------------------------*/
 
         <Rename variables on downstream sales and change variable
-         types, if necessary, to match CM sales data. Make other
+         types, if necessary, to match HM sales data. Make other
          changes to downstream sales data here.>
 
 /*-------------------------------------------------------------------------*/
-/*     6-A-ii: CREATE THE CMLOT VARIABLE FOR DOWNSTREAM SALES              */
+/*     6-A-ii: CREATE THE HMLOT VARIABLE FOR DOWNSTREAM SALES              */
 /*                                                                         */
-/*     Note:  If in section 1-E-ii above for CM sales "LET CMLOT = NA"     */
-/*     (because CM sales were the same LOT as U.S. sales), but downstream  */
-/*     sales are at a different LOT, replace "NA" for the CM sales with a  */
+/*     Note:  If in section 1-E-ii above for HM sales "LET HMLOT = NA"     */
+/*     (because HM sales were the same LOT as U.S. sales), but downstream  */
+/*     sales are at a different LOT, replace "NA" for the HM sales with a  */
 /*     variable name. If no LOT variable was reported, create one in both  */
-/*     the CM and downstream databases. The newly created variables should */
+/*     the HM and downstream databases. The newly created variables should */
 /*     have the same name and type (i.e., character v numeric).            */
 /*-------------------------------------------------------------------------*/
 
         <Create a LOT variable for downstream sales or edit an
          existing variable here, when required.>
 
-        %G4_LOT(&CMLOT,CMLOT)
+        %G4_LOT(&HMLOT,HMLOT)
     RUN;
 
 /*---------------------------------------------------------------------*/
@@ -1563,20 +1573,20 @@ RUN;
 
 /*----------------------------------------------------------------------*/
 /*      6-D-i:  SPLIT MIXED-CURRENCY VARIABLES WITH SAME LANGUAGE USED  */
-/*                     FOR ORIGINAL CM SALES                            */
+/*                     FOR ORIGINAL HM SALES                            */
 /*                                                                      */
 /*     If the language in Part 4-A-i is also applicable to downstream   */
 /*     sales, then just execute the two macros immediately below, i.e., */
-/*     %SETUP_MIXEDCURR_VAR and %CM2_MIXEDCURR(DOWNSTREAM), by          */
+/*     %SETUP_MIXEDCURR_VAR and %HM2_MIXEDCURR(DOWNSTREAM), by          */
 /*     activating them.                                                 */
 /*----------------------------------------------------------------------*/
 
         <%SETUP_MIXEDCURR_VAR>
-        <%CM2_MIXEDCURR(DOWNSTREAM)>
+        <%HM2_MIXEDCURR(DOWNSTREAM)>
 
 /*----------------------------------------------------------------------*/
 /*      6-D-ii: SPLIT MIXED-CURRENCY VARIABLES USING LANGUAGE           */
-/*              DIFFERENT THAN THAT FOR ORIGINAL CM SALES               */
+/*              DIFFERENT THAN THAT FOR ORIGINAL HM SALES               */
 /*                                                                      */
 /*     If the language in Part 4-A-i is not applicable to downstream    */
 /*     sales, then edit the language below.                             */
@@ -1610,7 +1620,7 @@ RUN;
     %MEND SETUP_MIXEDCURR_VAR;
 
     %SETUP_MIXEDCURR_VAR
-    %CM2_MIXEDCURR(DOWNSTREAM)
+    %HM2_MIXEDCURR(DOWNSTREAM)
 
 /*---------------------------------------------------------------*/
 /*      6-D-ii-b: When there is no currency-indicating variable, */
@@ -1630,14 +1640,13 @@ RUN;
 /*--------------------------------------------------------------------*/
 /*      6-D-iii-a:  AGGREGATE VARIABLES AND NET PRICE CALCULATIONS    */
 /*             ARE THE SAME FOR DOWNSTREAM SALES AS FOR THE ORIGINAL  */
-/*                CM SALES                                            */
+/*                HM SALES                                            */
 /*                                                                    */
 /*     If the calculations for the aggregate variables and net prices */
-/*     are the same for the downstream sales as for the original CM   */
-/*     original CM sales, you need only activate the %NETPRICE macro  */
+/*     are the same for the downstream sales as for the original HM   */
+/*     original HM sales, you need only activate the %NETPRICE macro  */
 /*     immediately below this note.                                   */
 /*--------------------------------------------------------------------*/
-
         <%NETPRICE>   /* Activate this line to duplicate the     */
                       /* calculations of the aggregate variables */
                       /* and net prices from Section 4-B.        */
@@ -1645,13 +1654,13 @@ RUN;
 /*-------------------------------------------------------------------*/
 /*      6-D-iii-b: AGGREGATE VARIABLES AND NET PRICE CALCULATIONS    */
 /*             ARE DIFFERENT FOR DOWNSTREAM SALES THAN FOR THE       */
-/*               ORIGINAL CM SALES                                   */
+/*               ORIGINAL HM SALES                                   */
 /*                                                                   */
 /*     If not all aggregate variable calculations are the same, you  */
 /*     will need to copy out the aggregate variable and net price    */
 /*     calculations from section 4-B and edit accordingly for the    */
 /*     downstream sales. For every aggregate variable used in        */
-/*     Section 4-B above for the original CM sales, including        */
+/*     Section 4-B above for the original HM sales, including        */
 /*     currency-specific ones, you will need to specify a value for  */
 /*     the downstream sales. If you do not specify a value for a     */
 /*     particular aggregate variable, that variable will be assigned */
@@ -1668,39 +1677,39 @@ RUN;
     RUN;
 
 /*-------------------------------------------------------------------------*/
-/*      6-E: COMBINE ORIGINAL CM SALES WITH DOWNSTREAM SALES               */
+/*      6-E: COMBINE ORIGINAL HM SALES WITH DOWNSTREAM SALES               */
 /*-------------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------------*/
-/*     6-E-i: CREATION OF NEEDED VARIABLES IN CM SALES BEFORE COMBINING    */
+/*     6-E-i: CREATION OF NEEDED VARIABLES IN HM SALES BEFORE COMBINING    */
 /*            WITH DOWNSTREAM SALES                                        */
 /*                                                                         */
 /*     You may need to create new currency-specific aggregate variables in */
-/*     the original CM sales for any aggregate variable in the downstream  */
-/*     sales that is not already in the CM sales data. If you do, activate  /
+/*     the original HM sales for any aggregate variable in the downstream  */
+/*     sales that is not already in the HM sales data. If you do, activate  /
 /*     the language immediately following and edit accordingly. You should */
 /*     assign values equal to zero for those new aggregate variables in the*/
-/*     original CM sales before they are combined with downstream sales in */
+/*     original HM sales before they are combined with downstream sales in */
 /*     next step. If you do not assign a zero, then missing values will be */
-/*     assigned, instead, once the CM and downstream sales databases are   */
+/*     assigned, instead, once the HM and downstream sales databases are   */
 /*     combined.                                                           */
 /*-------------------------------------------------------------------------*/
 
-    DATA CMSALES;
-       SET CMSALES;
-        <In CMSALES, add aggregate variables that appear in
-         downstream data but are not in CM data, and set the
+    DATA HMSALES;
+       SET HMSALES;
+        <In HMSALES, add aggregate variables that appear in
+         downstream data but are not in HM data, and set the
          values of those variables to zero.>
     RUN;
 
 /*------------------------------------------------------------*/
-/*     6-E-ii: COMBINE ORIGINAL CM SALES AND DOWNSTREAM SALES */
+/*     6-E-ii: COMBINE ORIGINAL HM SALES AND DOWNSTREAM SALES */
 /*------------------------------------------------------------*/
 
-    %LET SALESDB = CMSALES;
+    %LET SALESDB = HMSALES;
 
-    DATA CMSALES;
-        SET CMSALES DOWNSTREAM;
+    DATA HMSALES;
+        SET HMSALES DOWNSTREAM;
     RUN;
 %MEND DOWNSTREAM;
 
@@ -1709,13 +1718,13 @@ RUN;
 /*ep*/
 
 /***************************************************************************/
-/* PART 7: CM VALUES FOR CEP PROFIT CALCULATIONS                           */
+/* PART 7: HM VALUES FOR CEP PROFIT CALCULATIONS                           */
 /*                                                                         */
 /*     If required, an output dataset will be created using the            */
-/*     standardized naming convention, 'RESPONDENT_SEGMENT_STAGE'_CMCEP.   */
+/*     standardized naming convention, 'RESPONDENT_SEGMENT_STAGE'_HMCEP.   */
 /***************************************************************************/
 
-%CM4_CEPTOT
+%HM4_CEPTOT
 
 /*ep*/
 
@@ -1723,101 +1732,101 @@ RUN;
 /* PART 8: COST TEST                                                       */
 /***************************************************************************/
 
-%CM5_COSTTEST
+%HM5_COSTTEST
 
 /*ep*/
 
 /***************************************************************************/
-/* PART 9:  WEIGHT-AVERAGED COMPARISON MARKET VALUES FOR PRICE-TO-PRICE    */
+/* PART 9:  WEIGHT-AVERAGED HOME MARKET VALUES FOR PRICE-TO-PRICE          */
 /*               COMPARISONS WITH U.S. SALES                               */
 /*                                                                         */
 /*     Create an output dataset using the standardized naming convention,  */
-/*     'RESPONDENT_SEGMENT_STAGE'_CMWTAVG. Rename certain variables to     */
-/*     standardized names: CMCONNUM, CMLOT and, if applicable, CMMANF,     */
-/*     CMPRIME, VCOMCM and TCOMCM.                                         */
+/*     'RESPONDENT_SEGMENT_STAGE'_HMWTAVG. Rename certain variables to     */
+/*     standardized names: HMCONNUM, HMLOT and, if applicable, HMMANF,     */
+/*     HMPRIME, VCOMHM and TCOMHM.                                         */
 /***************************************************************************/
 
 /*-------------------------------------------------------------------------*/
-/* 9-A: SELECT CM DATA TO WEIGHT AVERAGE                                   */
+/* 9-A: SELECT HM DATA TO WEIGHT AVERAGE                                   */
 /*                                                                         */
 /*     If there is a Cost Test, then above-cost sales will be used in the  */
-/*     calculation of weighted-average CM sales. If there was no Cost      */
-/*     then all CM sales, after the Arms-Length Test and inclusion of      */
+/*     calculation of weighted-average HM sales. If there was no Cost      */
+/*     then all HM sales, after the Arms-Length Test and inclusion of      */
 /*     downstream sales, if required, will be used.                        */
 /*-------------------------------------------------------------------------*/
 
-     %CM6_DATA_4_WTAVG
+     %HM6_DATA_4_WTAVG
 
 /*ep*/
 
 /*-------------------------------------------------------------------------*/
-/* 9-B: SELECT CM VARIABLES TO WEIGHT AVERAGE                              */
+/* 9-B: SELECT HM VARIABLES TO WEIGHT AVERAGE                              */
 /*                                                                         */
-/*     CM weighted-average values will be converted into U.S. dollars in   */
+/*     HM weighted-average values will be converted into U.S. dollars in   */
 /*     the Margin Program using exchange rates on the U.S. sale dates.     */
 /*     Therefore, it is IMPORTANT TO WEIGHT-AVERAGE ONLY SINGLE-CURRENCY   */
-/*     CM VARIABLES IN THEIR ORIGINAL CURRENCY.                            */
+/*     HM VARIABLES IN THEIR ORIGINAL CURRENCY.                            */
 /*-------------------------------------------------------------------------*/
 
 /*-------------------------------------------------------------------------*/
-/* 9-B-i: CM DATA IS IN MORE THAN ONE CURRENCY                             */
+/* 9-B-i: HM DATA IS IN MORE THAN ONE CURRENCY                             */
 /*                                                                         */
-/*     If amounts in the CM database were reported in more than one        */
+/*     If amounts in the HM database were reported in more than one        */
 /*     currency, then edit the %LET WTAVGVARS macro variable directly      */
 /*     below.                                                              */
 /*                                                                         */
 /*     Look at the aggregate variable calculations Part 4-B-i. Those       */
 /*     aggregate variables that are comprised entirely of variables        */
-/*     originally reported in the CM currency can be left as is. However,  */
+/*     originally reported in the HM currency can be left as is. However,  */
 /*     those aggregate variables that are either: 1) converted into a      */
 /*     currency other than the original, or 2) are a mixture of            */
 /*     currencies, must be edited. Mixed currency aggregate variables      */
 /*     must be split apart by currency. List all single-currency           */
 /*     components in original currency. Ex.: if you have in Part 4-B-i:    */
-/*     CMMOVE = MOVE_EURO + MOVE_USD/&EXRATE_EURO, replace the "CMMOVE"    */
+/*     HMMOVE = MOVE_EURO + MOVE_USD/&EXRATE_EURO, replace the "HMMOVE"    */
 /*     below with "MOVE_EURO" and "MOVE_USD"                               */
 /*-------------------------------------------------------------------------*/
 
 %MACRO WTAVGVARS;
     %GLOBAL WGTAVGVARS;
 
-    %IF %UPCASE(&CM_MULTI_CUR) = YES %THEN
+    %IF %UPCASE(&HM_MULTI_CUR) = YES %THEN
     %DO;
-    %IF %UPCASE(&CM_MULTI_CUR) = YES OR %UPCASE(&MIXEDCURR) = YES %THEN
-        %LET WGTAVGVARS = <CMGUP CMGUPADJ CMDISREB CMMOVE
-                           CMCRED CMDSELL CMCOMM CMICC CMISELL
-                           CMINDCOM CMPACK>;
+    %IF %UPCASE(&HM_MULTI_CUR) = YES OR %UPCASE(&MIXEDCURR) = YES %THEN
+        %LET WGTAVGVARS = <HMGUP HMGUPADJ HMDISREB HMMOVE
+                           HMCRED HMDSELL HMCOMM HMICC HMISELL
+                           HMINDCOM HMPACK>;
     %END;
 
 /*-------------------------------------------------------------------------*/
-/* 9-B-ii: CM DATA IS ALL IN ONE CURRENCY                                  */
+/* 9-B-ii: HM DATA IS ALL IN ONE CURRENCY                                  */
 /*                                                                         */
-/*     If amounts in the CM database were reported entirely in one         */
+/*     If amounts in the HM database were reported entirely in one         */
 /*     currency, and use of an exchange rate was not required, aggregate   */
 /*     amounts will be automatically weight-averaged.                      */
 /*-------------------------------------------------------------------------*/
 
     %ELSE
-    %IF %UPCASE(&CM_MULTI_CUR) = NO AND %UPCASE(&MIXEDCURR) = NO %THEN
+    %IF %UPCASE(&HM_MULTI_CUR) = NO AND %UPCASE(&MIXEDCURR) = NO %THEN
     %DO;
-        %LET WGTAVGVARS = CMNETPRI CMCRED CMDSELL CMCOMM
-                          CMICC CMISELL CMINDCOM;
+        %LET WGTAVGVARS = HMNETPRI HMCRED HMDSELL HMCOMM
+                          HMICC HMISELL HMINDCOM;
     %END;
 %MEND WTAVGVARS;
 
 %WTAVGVARS
 
 /*-------------------------------------------------------------------------*/
-/* 9-C: WEIGHT-AVERAGE CM DATA                                             */
+/* 9-C: WEIGHT-AVERAGE HM DATA                                             */
 /*                                                                         */
-/*     Standardize names of certain CM variables that will be carried to   */
-/*     the Margin Calculation Program: CMCONNUM, CMLOT and, if applicable, */
-/*     CMMANF, CMPRIME, CMVCOM and CM_TIME_PERIOD. Create and output       */
+/*     Standardize names of certain HM variables that will be carried to   */
+/*     the Margin Calculation Program: HMCONNUM, HMLOT and, if applicable, */
+/*     HMMANF, HMPRIME, HMVCOM and HM_TIME_PERIOD. Create and output       */
 /*     database using the standardized naming convention,                  */
-/*     'RESPONDENT_SEGMENT_STAGE'_CMWTAVG.                                 */
+/*     'RESPONDENT_SEGMENT_STAGE'_HMWTAVG.                                 */
 /*-------------------------------------------------------------------------*/
 
-%CM7_WTAVG_DATA
+%HM7_WTAVG_DATA
 
 /*ep*/
 
@@ -1826,21 +1835,21 @@ RUN;
 /*             CONSTRUCTED-VALUE COMPARISONS                               */
 /*                                                                         */
 /*     Create an output dataset using the standardized naming convention,  */
-/*     'RESPONDENT_SEGMENT_STAGE'_CMCV.                                    */
+/*     'RESPONDENT_SEGMENT_STAGE'_HMCV.                                    */
 /***************************************************************************/
 
-%CM8_CVSELL
+%HM8_CVSELL
 
 /*ep*/
 
 /***************************************************************************/
-/* PART 11: CM LEVEL OF TRADE ADJUSTMENT                                   */
+/* PART 11: HM LEVEL OF TRADE ADJUSTMENT                                   */
 /*                                                                         */
 /*     Create LOT adjustment factors. Output a dataset using the           */
 /*     standardized naming convention, 'RESPONDENT_SEGMENT_STAGE'_LOTADJ.  */
 /***************************************************************************/
 
-%CM9_LOTADJ
+%HM9_LOTADJ
 
 /*ep*/
 
@@ -1857,5 +1866,20 @@ RUN;
 /***************************************************************************/
 
 %G19_PROGRAM_RUNTIME
+
+/*ep*/
+
+/***************************************************************************/
+/* PART 14: REVIEW LOG AND REPORT SUMMARY AT THE END OF THE LOG FOR:       */
+/*          (A) GENERAL SAS ALERTS SUCH AS ERRORS, WARNINGS, MISSING, ETC. */
+/*          (B) PROGRAM SPECIFIC ALERTS THAT WE NEED TO LOOK OUT FOR.      */
+/***************************************************************************/
+
+PROC PRINTTO LOG = LOG;
+RUN;
+
+OPTIONS NOSYMBOLGEN NOMLOGIC MPRINT;
+%C_MAC2_READLOG (LOG = &LOG., ME_OR_NME = MEHOME);
+OPTIONS SYMBOLGEN MLOGIC MPRINT;
 
 /*ep*/
