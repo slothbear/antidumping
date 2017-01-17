@@ -21,7 +21,7 @@
 /* Part 11: HM Level of Trade Adjustment                                   */
 /* Part 12: Delete All Work Files in the SAS Memory Buffer, If Desired     */
 /* Part 13: Calculate Run Time for This Program, If Desired                */
-/* Part 14: Review Log for Errors, Warnings, Uninitialized etc.            */
+/* Part 14: Review Log for Errors, Warnings, Uninitialized etc.            */    
 /***************************************************************************/
 
 /*---------------------------------------------------------------------*/
@@ -82,7 +82,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 
 %LET MNAME = %SYSFUNC(SCAN(%SYSFUNC(pathname(C_MACS)), 1, '.'));
 %LET LOG = %SYSFUNC(substr(&MNAME, 1, %SYSFUNC(length(&MNAME)) - %SYSFUNC(indexc(%SYSFUNC(
-           reverse(%SYSFUNC(trim(&MNAME)))), '\'))))%STR(\)%SYSFUNC(DEQUOTE(&_CLIENTTASKLABEL.))%STR(.log);
+           reverse(%SYSFUNC(trim(&MNAME)))), '\'))))%STR(\)%SYSFUNC(DEQUOTE(&_CLIENTTASKLABEL.))%STR(.log);  
 
 FILENAME LOGFILE "&LOG.";
 
@@ -554,12 +554,12 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 
 DATA HMSALES;
     SET COMPANY.&HMDATA;
-
+ 
     /*------------------------------------------------------------------*/
     /* 2-B: Insert and annotate any changes below.                      */
     /*------------------------------------------------------------------*/
 
-    /* <Insert changes here, if required.> */
+    /* <Insert changes here, if required.> */          
 
     /*-----------------------------------------------------------------------
     /* 2-C: LEVEL OF TRADE                                                 */
@@ -997,19 +997,19 @@ RUN;
 
                 /* E.g., 1.0  1.1  1.2  1.3  */
 
-                %LET     INDEX1A_IN_POR = <  >;
+                %LET     INDEX1A_IN_POR = <  >; 
 
                 /* List of values of indices for periods outside of */
                 /* POR, in same order as time periods in            */
                 /* TIME_OUTSIDE_POR macro, separated by blank space,*/
                 /* no quotes around values. E.g., 0.7  0.8  0.9     */
 
-                %LET     INDEX1A_OUT_POR = <  >;
+                %LET     INDEX1A_OUT_POR = <  >; 
 
                 /*
                     %LET CONDITION_B = <NA>;
-                    %LET     INDEX1B_IN_POR = <  >;
-                    %LET     INDEX1B_OUT_POR = <  > ;
+                    %LET     INDEX1B_IN_POR = <  >; 
+                    %LET     INDEX1B_OUT_POR = <  > ; 
                 */
 
                 DATA COSTPOR;
@@ -1064,7 +1064,7 @@ RUN;
                     RUN;
                 %END;
              %END;
-
+ 
 /*---------------------------------------------------------------------*/
 /* 3-D-ii-b CALCULATING INDICES WITHIN THIS PROGRAM                    */
 /*                                                                     */
@@ -1181,7 +1181,7 @@ DATA COST;
 
     /* For time-specific costs */
     /*
-        ELSE
+        ELSE                     
             TCOMCOP = <  >;
     */
 
@@ -1415,7 +1415,7 @@ DATA HMSALES;
         /*          HMICC are reported entirely in HM currency, use  */
         /*          the default language immediately following.      */
         /*-----------------------------------------------------------*/
-
+ 
         IF HMCOMM = 0 THEN
             HMINDCOM = HMISELL + HMICC;
 
@@ -1427,10 +1427,10 @@ DATA HMSALES;
         /*           following adjusting for circumstances.          */
         /*-----------------------------------------------------------*/
 
-        /*
-        IF HMCOMM = 0 THEN
+        /*               
+        IF HMCOMM = 0 THEN  
         DO;
-          HMINDCOM_MXN = INDIRSH_MXN + HMICC;
+          HMINDCOM_MXN = INDIRSH_MXN + HMICC; 
           HMINDCOM_USD = INDIRSH_USD;
           HMINDCOM = HMINDCOM_MXN + (HMINDCOM_USD/EXRATE_MEXICO);
         END;
@@ -1492,7 +1492,7 @@ RUN;
     %LET DOWNSTREAMDATA = <  >;   /* (D) Downstream sales dataset filename.*/
     %LET SALESDB = DOWNSTREAM;    /*     Do not edit. Allows certain macros*/
                                   /*     (G5_DATE_CONVERT,HM2_MIXEDCURR)   */
-                                  /*     to work on downstream sales.      */
+                                  /*     to work on downstream sales.      */                                      
     DATA DOWNSTREAM;
         SET COMPANY.&DOWNSTREAMDATA;
 
@@ -1518,7 +1518,7 @@ RUN;
 /*     required adjustments.                                               */
 /*-------------------------------------------------------------------------*/
 
-        <Rename variables on downstream sales and change variable
+        <Rename variables on downstream sales and change variable 
          types, if necessary, to match HM sales data. Make other
          changes to downstream sales data here.>
 
@@ -1533,10 +1533,10 @@ RUN;
 /*     have the same name and type (i.e., character v numeric).            */
 /*-------------------------------------------------------------------------*/
 
-        <Create a LOT variable for downstream sales or edit an
+        <Create a LOT variable for downstream sales or edit an 
          existing variable here, when required.>
 
-        %G4_LOT(&HMLOT,HMLOT)
+        %G4_LOT(&HMLOT,HMLOT) 
     RUN;
 
 /*---------------------------------------------------------------------*/
@@ -1633,7 +1633,7 @@ RUN;
 /*      6-D-iii: AGGREGATE VARIABLE AND NET PRICE CALCULATIONS ON */
 /*               DOWNSTREAM SALES                                 */
 /*----------------------------------------------------------------*/
-
+          
     DATA DOWNSTREAM;
         SET DOWNSTREAM;
 
@@ -1667,9 +1667,9 @@ RUN;
 /*     missing values in the downstream sales.                       */
 /*-------------------------------------------------------------------*/
 
-        <create values for all aggregate variables in section 4-B
+        <create values for all aggregate variables in section 4-B 
          and copy net price calculations>
-
+     
     RUN;
 
     PROC PRINT DATA = DOWNSTREAM (OBS = &PRINTOBS);
@@ -1699,7 +1699,7 @@ RUN;
        SET HMSALES;
         <In HMSALES, add aggregate variables that appear in
          downstream data but are not in HM data, and set the
-         values of those variables to zero.>
+         values of those variables to zero.> 
     RUN;
 
 /*------------------------------------------------------------*/

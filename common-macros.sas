@@ -4,7 +4,7 @@
 /*                                                                      */
 /*                  LAST PROGRAM UPDATE JANUARY 5, 2017                 */
 /*                                                                      */
-/* PART 1:  MACRO TO GET COUNTS OF THE DATASETS                         */
+/* PART 1:  MACRO TO GET COUNTS OF THE DATASETS                         */ 
 /* PART 2:  REVIEW AND REPORT GENERAL SAS LOG ALERTS SUCH AS ERRORS,    */
 /*          WARNINGS, UNINITIALIZED VARIABLES ETC. AND PROGRAM SPECIFIC */
 /*          ALERTS WE NEED TO WATCH FOR.                                */
@@ -25,8 +25,8 @@
        QUIT;
 
 %MEND CMAC1_COUNTER ;
-
-/*----------------------------------------------------------------------*/
+ 
+/*----------------------------------------------------------------------*/ 
 /* PART 2: REVIEW LOG AND REPORT SUMMARY AT THE END OF THE LOG FOR:     */
 /*     (A) GENERAL SAS ALERTS SUCH AS ERRORS, WARNINGS, UNINITIALIZED ETC. */
 /*     (B) PROGRAM SPECIFIC ALERTS THAT WE NEED TO LOOK OUT FOR.           */
@@ -34,7 +34,7 @@
 
 %MACRO C_MAC2_READLOG (LOG = , ME_OR_NME =);
 
-/*----------------------------------------------------------------------*/
+/*----------------------------------------------------------------------*/ 
 /*  PRINT FULL LOG TO THE SAS ENTERPRISE WINDOW                         */
 /*----------------------------------------------------------------------*/
 
@@ -44,7 +44,7 @@
           PUTLOG _INFILE_;
     RUN;
 
-/*----------------------------------------------------------------------*/
+/*----------------------------------------------------------------------*/ 
 /*  CHECK THE JOB LOG FOR ERRORS, WARNINGS, UNINTIALIZED VARIABLES,     */
 /*     CONVERTED, MISSING, REPEATS AND LICENSE.                            */
 /*     PRINT THE SUMMARY TO THE JOB LOG                                    */
@@ -94,7 +94,7 @@
 
         END;
 
-/*----------------------------------------------------------------------*/
+/*----------------------------------------------------------------------*/ 
 /*  CREATE MACRO VARAIBLES FOR REPORTING LATER                          */
 /*----------------------------------------------------------------------*/
         CALL SYMPUTX('ERROR',ERROR);
@@ -108,7 +108,7 @@
 
     RUN;
 
-/*----------------------------------------------------------------------*/
+/*----------------------------------------------------------------------*/ 
 /*  REVIEW THE JOB LOG FOR PROGRAM SPECIFIC ALERTS. GET COUNTS OF THE   */
 /*     DATASETS THAT WERE CREATED FOR VALIDATION PURPOSES. THE LIST OF     */
 /*     DATASETS CAN VARY BASED ON THE PROGRAM EXECUTED.                    */
@@ -119,7 +119,7 @@
            %CMAC1_COUNTER (DATASET = NEGDATA_HM, MVAR=NEGDATA_HM);
            %CMAC1_COUNTER (DATASET = OUTDATES_HM, MVAR=OUTDATES_HM);
            %CMAC1_COUNTER (DATASET = NOCOST, MVAR=NOCOST);
-           %CMAC1_COUNTER (DATASET = HMAFFOUT, MVAR=HMAFFOUT);
+           %CMAC1_COUNTER (DATASET = HMAFFOUT, MVAR=HMAFFOUT);        
 
     %END;
 
@@ -132,7 +132,7 @@
            %CMAC1_COUNTER (DATASET = NO_DP_REGION_TEST, MVAR=NO_DP_REGION_TEST);
            %CMAC1_COUNTER (DATASET = NO_DP_PURCHASER_TEST, MVAR=NO_DP_PURCHASER_TEST);
            %CMAC1_COUNTER (DATASET = NO_DP_PERIOD_TEST, MVAR=NO_DP_PERIOD_TEST);
-
+    
     %END;
 
     %ELSE %IF %UPCASE("&ME_OR_NME.") = "NME" %THEN %DO;
@@ -149,7 +149,7 @@
 
     %END;
 
-/*----------------------------------------------------------------------*/
+/*----------------------------------------------------------------------*/ 
 /*  PRINTING SUMMARY OF GENERAL SAS ALERTS AS WELL AS PROGRAM SPECIFIC  */
 /*     ALERTS SUMMARY TO THE JOB LOG                                       */
 /*----------------------------------------------------------------------*/
@@ -218,6 +218,6 @@
         %PUT *******************************************************************************;
 
     %END;
-
+    
 
 %MEND C_MAC2_READLOG;

@@ -29,7 +29,7 @@
 /* Part 17: Reprint the Final Cash Deposit Rate                            */
 /* Part 18: Delete All Work Files in the SAS Memory Buffer, If Desired     */
 /* Part 19: Calculate Run Time for This Program, If Desired                */
-/* Part 20: Review Log for Errors, Warnings, Uninit. etc.                  */
+/* Part 20: Review Log for Errors, Warnings, Uninit. etc.                  */ 
 /***************************************************************************/
 
 /*-------------------------------------------------------------------------*/
@@ -90,7 +90,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 
 %LET MNAME = %SYSFUNC(SCAN(%SYSFUNC(pathname(C_MACS)), 1, '.'));
 %LET LOG = %SYSFUNC(substr(&MNAME, 1, %SYSFUNC(length(&MNAME)) - %SYSFUNC(indexc(%SYSFUNC(
-           reverse(%SYSFUNC(trim(&MNAME)))), '\'))))%STR(\)%SYSFUNC(DEQUOTE(&_CLIENTTASKLABEL.))%STR(.log);
+           reverse(%SYSFUNC(trim(&MNAME)))), '\'))))%STR(\)%SYSFUNC(DEQUOTE(&_CLIENTTASKLABEL.))%STR(.log);  
 
 FILENAME LOGFILE "&LOG.";
 
@@ -698,10 +698,10 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 /*               AND MACROS NEEDED TO EXECUTE THE PROGRAM.          */
 /*------------------------------------------------------------------*/
 
-%LET SALESDB = USSALES;
+%LET SALESDB = USSALES; 
 %G1_RUNTIME_SETUP
-%G2_TITLE_SETUP
-%G3_COST_TIME_MVARS
+%G2_TITLE_SETUP     
+%G3_COST_TIME_MVARS     
 
 /*----------------------------------------------------------------------*/
 /* 1-I: PRIME AND MANUFACTURER MACROS AND MACRO VARIABLES               */
@@ -737,7 +737,7 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 /*     relevant for both U.S. and HM sales.                             */
 /*----------------------------------------------------------------------*/
 
-%US1_MACROS
+%US1_MACROS 
 
 /***************************************************************************/
 /* PART 2: BRING IN U.S. SALES, CONVERT DATE VARIABLE, IF NECESSARY, MERGE */
@@ -859,7 +859,7 @@ RUN;
 /*          exchange rate data, as required.                        */
 /*------------------------------------------------------------------*/
 
-%G7_EXRATES
+%G7_EXRATES 
 
 /*ep*/
 
@@ -872,7 +872,7 @@ RUN;
 /*     exchange rate. For example, if you type %LET EX1_VARS=DMOVEU,   */
 /*     then DMOVEU_USD = DMOVEU*&EXRATE1.                              */
 /*---------------------------------------------------------------------*/
-
+ 
 %US3_USD_CONVERSION
 
 /*ep*/
@@ -1008,7 +1008,7 @@ RUN;
     %LET FIND_SURROGATES = NO;  /*Default value, do not edit. */
 
     %IF %UPCASE(&COST_TYPE) = CV %THEN
-    %DO;
+    %DO; 
         %IF %UPCASE(&MATCH_NO_PRODUCTION)=YES %THEN
         %DO;
             %G8_FIND_NOPRODUCTION  /* Finds products needing surrogate */
@@ -1090,7 +1090,7 @@ RUN;
                     /*         on non-indexed variables.               */
                     /*-------------------------------------------------*/
 
-                    %G10_TIME_PROD_LIST(&USCHAR)
+                    %G10_TIME_PROD_LIST(&USCHAR) 
              %END;
         %END;
     %END;
@@ -1137,7 +1137,7 @@ RUN;
 
 %MACRO CALC_INDICES;
     %IF %UPCASE(&COST_TYPE) = CV %THEN
-    %DO;
+    %DO; 
         %IF %UPCASE(&COMPARE_BY_TIME) = YES %THEN
         %DO;
             %IF %UPCASE(&INDEX_SOURCE) NE RESP %THEN
@@ -1209,7 +1209,7 @@ RUN;
                     /* space, no quotes around values. E.g.,         */
                     /* 1.0  1.1  1.2  1.3                            */
 
-                    %LET    INDEX1A_OUT_POR = <  >;
+                    %LET    INDEX1A_OUT_POR = <  >; 
 
                     /* List of values of indices for periods outside */
                     /* of POR, in same order as time periods in      */
@@ -1303,7 +1303,7 @@ RUN;
                     /* data for calculating indices on input2.         */
                     /*
                     %LET INDEX_GROUP2 = <??>;
-                    */
+                    */ 
 
                     %MACRO RUN_INDICES;
                         /* Ex. for input1 and grouping1 */
@@ -1337,7 +1337,7 @@ RUN;
                 /* Ex. for input 2 */
                 /*
                 %G14_INDEX_CALC(&INPUT2,&INPUT2_ADJUSTED,&INPUT2._INDEX)
-                */
+                */ 
             %END;
         %END;
     %END;
@@ -1390,13 +1390,13 @@ RUN;
 /*-------------------------------------------------------------------*/
 
             /* For annualized costs. */
-            /*
+            /* 
                 IF &COST_TIME_PERIOD IN(&TIME_ANNUALIZED) THEN
                     TCOMCOP = <  >;
             */
 
             /* For time-specific costs */
-            /*
+            /* 
                 ELSE
                     TCOMCOP = <  >;
             */
@@ -1447,7 +1447,7 @@ RUN;
 /*                                                                    */
 /*--------------------------------------------------------------------*/
 
-%G17_FINALIZE_COSTDATA
+%G17_FINALIZE_COSTDATA 
 
 /*ep*/
 
@@ -1564,7 +1564,7 @@ DATA USSALES SALES;
 
     COUNT + 1;
 
-    IF UPCASE(SALE_TYPE) = 'EP' THEN
+    IF UPCASE(SALE_TYPE) = 'EP' THEN 
     DO;
         CEPRATIO = 0;
         CEPROFIT = 0;
@@ -1598,7 +1598,7 @@ RUN;
 /* 4-D: DEFINE CUSTOMS ENTERED VALUE FOR ADMINISTRATIVE REVIEWS            */
 /*-------------------------------------------------------------------------*/
 
-%US6_ENTVALUE
+%US6_ENTVALUE 
 
 /*ep*/
 
@@ -1626,7 +1626,7 @@ RUN;
 /*   indirect selling expenses (HMISELL), commissions (HMCOMM) and        */
 /*   surrogate commissions (HMINDCOM). Calculate all in HM currency.      */
 /*------------------------------------------------------------------------*/
-
+ 
                 HMNETPRI = <HMGUP + HMGUPADJ - HMDISREB - HMMOVE
                          -  HMCRED - HMDSELL - HMCOMM - HMPACK>;
                 <HMICC = ???;>     /* deactivate or delete if */
@@ -1678,13 +1678,13 @@ RUN;
 %MACRO LOT_ADJUSTMENT;
     %IF &CALC_P2P = YES %THEN
     %DO;
-        %US8_LOTADJ
+        %US8_LOTADJ 
 
         %IF %UPCASE(&LOT_ADJUST) = INPUT %THEN
         %DO;
-            DATA ISMODELS;
+            DATA ISMODELS; 
                 SET ISMODELS;
-                LOTHDATA = 'YES';
+                LOTHDATA = 'YES'; 
 
 /*------------------------------------------------------------------*/
 /*     7-A-i Create a line for each combination of U.S. and HM LOT. */
@@ -1735,7 +1735,7 @@ RUN;
 /*     offsets.                                                            */
 /***************************************************************************/
 
-%US10_LOT_ADJUST_OFFSETS
+%US10_LOT_ADJUST_OFFSETS 
 
 /*ep*/
 
@@ -1805,7 +1805,7 @@ RUN;
 /* PART 10: COMBINE PRICE-2-PRICE COMPARISONS WITH SALES COMPARED TO CV    */
 /***************************************************************************/
 
-%US12_COMBINE_P2P_CV
+%US12_COMBINE_P2P_CV  
 
 /*ep*/
 
@@ -1916,7 +1916,7 @@ RUN;
 /* 13-A Calculate FUPDOL for Price-to-Price Comparisons                 */
 /*----------------------------------------------------------------------*/
 
-%MACRO FUPDOL_P2P;
+%MACRO FUPDOL_P2P;  
     FUPDOL = ((HMNETPRI - DIFMER + LOTADJMT) * &XRATE1) + USPACK&SUFFIX;
 %MEND FUPDOL_P2P;
 
@@ -1924,7 +1924,7 @@ RUN;
 /* 13-B Calculate FUPDOL for Comparisons to Constructed Value           */
 /*----------------------------------------------------------------------*/
 
-%MACRO FUPDOL_CV;
+%MACRO FUPDOL_CV; 
     FUPDOL = ((TOTCV - DSELCV - CREDCV - COMMCV) * &XRATE1) + USPACK&SUFFIX;
 %MEND FUPDOL_CV;
 
@@ -2001,7 +2001,7 @@ RUN;
 /*      IMPTRAN:  Assessment, A-to-T Alternative Method                    */
 /***************************************************************************/
 
-%US18_ASSESSMENT
+%US18_ASSESSMENT 
 
 /*ep*/
 
