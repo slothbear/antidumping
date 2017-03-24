@@ -2,7 +2,7 @@
 /*                     ANTIDUMPING MARKET-ECONOMY                   */
 /*                           MACROS PROGRAM                         */
 /*                                                                  */
-/*               LAST PROGRAM UPDATE – DECEMBER 30, 2016            */
+/*                 LAST PROGRAM UPDATE – MARCH 1, 2017              */
 /*                                                                  */
 /********************************************************************/
 /*                              GENERAL MACROS                      */
@@ -5059,8 +5059,8 @@ OPTIONS SYMBOLGEN;
 
                 UMARGIN = NV - USNETPRI&SUFFIX;
                 EMARGIN = UMARGIN * &USQTY;
-                USVALUE = ABS(USNETPRI&SUFFIX) * &USQTY;
-                PCTMARG = UMARGIN / ABS(USNETPRI&SUFFIX) * 100;
+                USVALUE = USNETPRI&SUFFIX * &USQTY;
+                PCTMARG = UMARGIN / USNETPRI&SUFFIX * 100;
 
                 IF UMARGIN = . OR NV = . OR USNETPRI&SUFFIX = . THEN
                      OUTPUT NONVMARG_&OUTDATA; 

@@ -1,31 +1,8 @@
 /*--------------------------------------------------------------*/
-/* REPLACE ANGLE BRACKETS: '<' AND '>' WITH CASE SPECIFIC CODE. */
-/*                                                              */
-/* THE FOLLOWING LETTERS INDICATE WHAT THE PROGRAM EXPECTS IN   */
-/* PLACE OF ANGLE BRACKETS.                                     */
-/*                                                              */
-/* (D) - DATASET NAME(S)                                        */
-/* (E) - EQUATION(S)                                            */
-/* (T) - TEXT                                                   */
-/* (V) - VARIABLE NAME(S)                                       */
-/*--------------------------------------------------------------*/
-
-/*--------------------------------------------------------------*/
-/* EXECUTING/RUNNING THE PROGRAM:                               */
-/*                                                              */
-/* In addition to executing the entire program, you can do      */
-/* partial runs.  Executable points from which you can          */
-/* partially run the program are indicated by /*ep* on          */
-/* the left margin.  To do a partial run, just highlight the    */
-/* program from one of the executable points to the top,        */
-/* then submit it.                                              */
-/*--------------------------------------------------------------*/
-
-/*--------------------------------------------------------------*/
 /*                                                              */
 /*              NME MARGIN CALCULATION PROGRAM                  */
 /*                                                              */
-/*          GENERIC VERSION LAST UPDATED 12/30/2016             */
+/*          GENERIC VERSION LAST UPDATED 3/1/2017               */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */
@@ -53,6 +30,31 @@
 /*          (REVIEWS ONLY)                                      */
 /* PART 19: REPRINT THE FINAL CASH DEPOSIT RATE                 */
 /* PART 20: REVIEW LOG FOR ERRORS, WARNINGS, UNINIT., ETC.      */
+/*--------------------------------------------------------------*/
+
+/*-------------------------------------------------------------------------*/
+/*    EDITING THE PROGRAM:                                                 */
+/*                                                                         */
+/*          Places requiring edits are indicated by angle brackets         */
+/*          (i.e., '< >'). Replace angle brackets with case-specific       */
+/*          information.                                                   */
+/*                                                                         */
+/*          Types of Inputs:(D) = SAS dataset name                         */
+/*                          (E) = Equation                                 */
+/*                          (V) = Variable name                            */
+/*                          (T) = Text (no specific format),               */
+/*                                do NOT use punctuation marks             */
+/*-------------------------------------------------------------------------*/
+
+/*--------------------------------------------------------------*/
+/* EXECUTING/RUNNING THE PROGRAM:                               */
+/*                                                              */
+/* In addition to executing the entire program, you can do      */
+/* partial runs.  Executable points from which you can          */
+/* partially run the program are indicated by /*ep* on          */
+/* the left margin.  To do a partial run, just highlight the    */
+/* program from one of the executable points to the top,        */
+/* then submit it.                                              */
 /*--------------------------------------------------------------*/
 
 /*--------------------------------------------------------------*/
@@ -2467,7 +2469,7 @@ RUN;
                 UMARGIN = NV - USNETPRI&SUFFIX;
                 EMARGIN = UMARGIN * &USQTY;
                 USVALUE = USNETPRI&SUFFIX * &USQTY;
-                PCTMARG = UMARGIN /ABS(USNETPRI&SUFFIX) * 100;
+                PCTMARG = UMARGIN / USNETPRI&SUFFIX * 100;
                 IF UMARGIN = . OR NV = . OR USNETPRI&SUFFIX = . 
                 THEN OUTPUT NONVMARG_&OUTDATA; 
                 ELSE OUTPUT COMPANY.&RESPONDENT._&SEGMENT._&STAGE._&OUTDATA;
