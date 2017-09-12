@@ -2,7 +2,7 @@
 /*                                                              */
 /*              NME MARGIN CALCULATION PROGRAM                  */
 /*                                                              */
-/*          GENERIC VERSION LAST UPDATED 3/1/2017               */
+/*          GENERIC VERSION LAST UPDATED - AUGUST 30, 2017      */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */
@@ -76,28 +76,21 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                                /* Common Macros Program        */
 %INCLUDE C_MACS;                               /* Use the Common Macros        */
                                                /* Program.                     */
+%LET LOG_SUMMARY = YES;                        /* Default value is "YES" (no    */
+                                               /* quotes). Use "NO" (no quotes) */
+                                               /* to run program in parts for   */
+                                               /* troubleshooting.              */
 
-/*------------------------------------------------------------------*/
-/* WRITE LOG TO THE PROGRAM DIRECTORY                               */
-/*------------------------------------------------------------------*/
-
+/*--------------------------------------------*/
+/* GET PROGRAM PATH/NAME AND CREATE THE SAME  */
+/* NAME FOR THE LOG FILE WITH .LOG EXTENSION. */
+/*--------------------------------------------*/
+%GLOBAL MNAME LOG;
 %LET MNAME = %SYSFUNC(SCAN(%SYSFUNC(pathname(C_MACS)), 1, '.'));
 %LET LOG = %SYSFUNC(substr(&MNAME, 1, %SYSFUNC(length(&MNAME)) - %SYSFUNC(indexc(%SYSFUNC(
            reverse(%SYSFUNC(trim(&MNAME)))), '\'))))%STR(\)%SYSFUNC(DEQUOTE(&_CLIENTTASKLABEL.))%STR(.log);  
 
-FILENAME LOGFILE "&LOG.";
-
-PROC PRINTTO LOG=LOGFILE NEW;
-RUN;
-
-DATA _NULL_;
-    CALL SYMPUT('BDAY', UPCASE(STRIP(PUT(DATE(), DOWNAME.))));
-    CALL SYMPUT('BWDATE', UPCASE(STRIP(PUT(DATE(), WORDDATE18.))));
-    CALL SYMPUT('BTIME', UPCASE(STRIP(PUT(TIME(), TIMEAMPM8.))));
-    CALL SYMPUT('BDATETIME', (STRIP(PUT(DATETIME(), 20.))));
-RUN;
-
-%PUT NOTE: THIS PROGRAM WAS RUN ON &BDAY, &BWDATE, AT &BTIME..;
+%CMAC1_WRITE_LOG;
 
 /*--------------------------------------------------*/
 /* PART 1: IDENTIFY DATA, VARIABLES, AND PARAMETERS */
@@ -951,6 +944,15 @@ DATA USSALES;
 
 RUN;
 
+/*------------------------------------------------------------------*/
+/* GET USSALES COUNT FOR LOG REPORTING PURPOSES                     */
+/* DO NOT EDIT CMAC2_COUNTER MACRO                                  */
+/*------------------------------------------------------------------*/
+
+	%CMAC2_COUNTER (DATASET = USSALES, MVAR=ORIG_USSALES);
+
+/*ep*/
+
 %MACRO SORT_US_SALES;
     %IF %UPCASE(&CONNUMS) = YES %THEN
     %DO;
@@ -1649,7 +1651,7 @@ RUN;
                     END;
                     ELSE 
                     DO;
-                        IF 500 LT &DP_REGION LT 100000 THEN VALID_ZIP = "YES";
+                        IF 500 LT INPUT(&DP_REGION, 8.) LT 100000 THEN VALID_ZIP = "YES";
                         ELSE VALID_ZIP = "NO";
                     END;
                     
@@ -3759,12 +3761,5 @@ RUN;
 /*          (A) GENERAL SAS ALERTS SUCH AS ERRORS, WARNINGS, MISSING, ETC. */
 /*          (B) PROGRAM SPECIFIC ALERTS THAT WE NEED TO LOOK OUT FOR.      */
 /***************************************************************************/
-
-PROC PRINTTO LOG = LOG;
-RUN;
-
-OPTIONS NOSYMBOLGEN NOMLOGIC MPRINT;
-%C_MAC2_READLOG (LOG = &LOG., ME_OR_NME = NME);
-OPTIONS SYMBOLGEN MLOGIC MPRINT;
-
+%CMAC4_SCAN_LOG (ME_OR_NME =NME);
 /*ep*/

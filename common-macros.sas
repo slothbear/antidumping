@@ -2,22 +2,49 @@
 /*                    COMMON UTILITY MACROS PROGRAM                    */
 /*                     FOR USE FOR BOTH ME AND NME                     */
 /*                                                                     */
-/*                  LAST PROGRAM UPDATE MAY 24, 2017                   */
+/*                  LAST PROGRAM UPDATE AUGUST 30, 2017                */
 /*                                                                     */
-/* PART 1: MACRO TO GET COUNTS OF THE DATASETS                         */ 
-/* PART 2: REVIEW AND REPORT GENERAL SAS LOG ALERTS SUCH AS ERRORS,    */
+/* PART 1: MACRO TO WRITE LOG TO A PERMANENT FILE                      */ 
+/* PART 2: MACRO TO GET COUNTS OF THE DATASETS                         */ 
+/* PART 3: REVIEW AND REPORT GENERAL SAS LOG ALERTS SUCH AS ERRORS,    */
 /*         WARNINGS, UNINITIALIZED VARIABLES ETC. AND PROGRAM SPECIFIC */
 /*         ALERTS WE NEED TO WATCH FOR                                 */
-/* PART 3: IN TIME-SPECIFIC CASES, IDENTIFY CONNUM/TIME PERIODS WITH   */
+/* PART 4: CALL LOG SCAN MACRO ON DEMAND                               */ 
+/* PART 5: IN TIME-SPECIFIC CASES, IDENTIFY CONNUM/TIME PERIODS WITH   */
 /*         NO CORRESPONDING COP CONNUM/TIME PERIODS                    */
 /***********************************************************************/
 
+DATA _NULL_;
+	CALL SYMPUT('BDAY', UPCASE(STRIP(PUT(DATE(), DOWNAME.))));
+	CALL SYMPUT('BWDATE', UPCASE(STRIP(PUT(DATE(), WORDDATE18.))));
+	CALL SYMPUT('BTIME', UPCASE(STRIP(PUT(TIME(), TIMEAMPM8.))));
+	CALL SYMPUT('BDATETIME', (STRIP(PUT(DATETIME(), 20.))));
+RUN;
+
+%PUT NOTE: THIS PROGRAM WAS RUN ON &BDAY, &BWDATE, AT &BTIME..;
+
 /*--------------------------------------------------------------------*/
-/* PART 1: MACRO TO GET COUNTS OF THE DATASETS                        */
+/* PART 1: WRITE LOG TO THE PROGRAM LOCATION                          */
+/*--------------------------------------------------------------------*/
+
+%MACRO CMAC1_WRITE_LOG;
+	%IF &LOG_SUMMARY = YES %THEN %DO;
+
+		FILENAME LOGFILE "&LOG.";
+
+		PROC PRINTTO LOG=LOGFILE NEW;
+		RUN;
+
+	%END;
+%MEND CMAC1_WRITE_LOG;
+
+
+/*--------------------------------------------------------------------*/
+/* PART 2: MACRO TO GET COUNTS OF THE DATASETS                        */
 /*     THAT NEED BE TO REVIEWED                                       */
 /*--------------------------------------------------------------------*/
 
-%MACRO CMAC1_COUNTER (DATASET =, MVAR=);
+%MACRO CMAC2_COUNTER (DATASET =, MVAR=);
 
     %GLOBAL COUNT_&MVAR.;
     PROC SQL NOPRINT;
@@ -26,15 +53,15 @@
            FROM &DATASET.;
        QUIT;
 
-%MEND CMAC1_COUNTER ;
+%MEND CMAC2_COUNTER ;
  
 /*-------------------------------------------------------------------------*/ 
-/* PART 2: REVIEW LOG AND REPORT SUMMARY AT THE END OF THE LOG FOR:        */
+/* PART 3: REVIEW LOG AND REPORT SUMMARY AT THE END OF THE LOG FOR:        */
 /*     (A) GENERAL SAS ALERTS SUCH AS ERRORS, WARNINGS, UNINITIALIZED ETC. */
 /*     (B) PROGRAM SPECIFIC ALERTS THAT WE NEED TO LOOK OUT FOR.           */
 /*-------------------------------------------------------------------------*/
 
-%MACRO C_MAC2_READLOG (LOG = , ME_OR_NME =);
+%MACRO C_MAC3_READLOG (LOG = , ME_OR_NME =);
     /*---------------------------------------------*/ 
     /* PRINT FULL LOG TO THE SAS ENTERPRISE WINDOW */
     /*---------------------------------------------*/
@@ -91,6 +118,13 @@
             DIVISION_I = INDEX(UPCASE(LINE), 'DIVISION BY ZERO DETECTED');
             IF DIVISION_I THEN
                 DIVISION + 1;
+
+			Invalid_I = INDEX(UPCASE(LINE),'INVALID');
+            IF Invalid_I THEN
+                Invalid + 1;
+
+
+
         END;
 
         /*--------------------------------------------*/ 
@@ -105,6 +139,7 @@
         CALL SYMPUTX('CONVERTED', CONVERTED);
         CALL SYMPUTX('MISSING', MISSING);
         CALL SYMPUTX('DIVISION', DIVISION);
+		CALL SYMPUTX('INVALID', INVALID);
     RUN;
 
     /*----------------------------------------------------------------*/ 
@@ -115,38 +150,39 @@
 
     %IF %UPCASE("&ME_OR_NME.") = "MEHOME" %THEN
     %DO;
-        %CMAC1_COUNTER (DATASET = NEGDATA_HM, MVAR=NEGDATA_HM);
-        %CMAC1_COUNTER (DATASET = OUTDATES_HM, MVAR=OUTDATES_HM);
-        %CMAC1_COUNTER (DATASET = NOCOST, MVAR=NOCOST);
+        %CMAC2_COUNTER (DATASET = NEGDATA_HM, MVAR=NEGDATA_HM);
+        %CMAC2_COUNTER (DATASET = OUTDATES_HM, MVAR=OUTDATES_HM);
+        %CMAC2_COUNTER (DATASET = NOCOST, MVAR=NOCOST);
         %IF &RUN_ARMSLENGTH. = YES %THEN
         %DO;
-            %CMAC1_COUNTER (DATASET = HMAFFOUT, MVAR=HMAFFOUT);        
+            %CMAC2_COUNTER (DATASET = HMAFFOUT, MVAR=HMAFFOUT);        
         %END;  
-        %CMAC1_COUNTER (DATASET = HMBELOW, MVAR=HMBELOW); 
+        %CMAC2_COUNTER (DATASET = HMBELOW, MVAR=HMBELOW); 
+		%CMAC2_COUNTER (DATASET = HMABOVE, MVAR=HMABOVE); 
     %END;
     %ELSE
     %IF %UPCASE("&ME_OR_NME.") = "MEMARG" %THEN
     %DO;
-        %CMAC1_COUNTER (DATASET = NEGDATA_US, MVAR=NEGDATA_US);
-        %CMAC1_COUNTER (DATASET = OUTDATES_US, MVAR=OUTDATES_US);
-        %CMAC1_COUNTER (DATASET = NOCOST, MVAR=NOCOST);
-        %CMAC1_COUNTER (DATASET = NORATES, MVAR=NORATES);
-        %CMAC1_COUNTER (DATASET = NO_DP_REGION_TEST, MVAR=NO_DP_REGION_TEST);
-        %CMAC1_COUNTER (DATASET = NO_DP_PURCHASER_TEST, MVAR=NO_DP_PURCHASER_TEST);
-        %CMAC1_COUNTER (DATASET = NO_DP_PERIOD_TEST, MVAR=NO_DP_PERIOD_TEST);
+        %CMAC2_COUNTER (DATASET = NEGDATA_US, MVAR=NEGDATA_US);
+        %CMAC2_COUNTER (DATASET = OUTDATES_US, MVAR=OUTDATES_US);
+        %CMAC2_COUNTER (DATASET = NOCOST, MVAR=NOCOST);
+        %CMAC2_COUNTER (DATASET = NORATES, MVAR=NORATES);
+        %CMAC2_COUNTER (DATASET = NO_DP_REGION_TEST, MVAR=NO_DP_REGION_TEST);
+        %CMAC2_COUNTER (DATASET = NO_DP_PURCHASER_TEST, MVAR=NO_DP_PURCHASER_TEST);
+        %CMAC2_COUNTER (DATASET = NO_DP_PERIOD_TEST, MVAR=NO_DP_PERIOD_TEST);
     %END;
     %ELSE
     %IF %UPCASE("&ME_OR_NME.") = "NME" %THEN
     %DO;
-        %CMAC1_COUNTER (DATASET = NEGDATA, MVAR=NEGDATA);
-        %CMAC1_COUNTER (DATASET = OUTDATES, MVAR=OUTDATES);
-        %CMAC1_COUNTER (DATASET = NOFOP, MVAR=NOFOP);
-        %CMAC1_COUNTER (DATASET = NOEXRATE, MVAR=NOEXRATE);
-        %CMAC1_COUNTER (DATASET = NEGATIVE_NVALUES, MVAR=NEGATIVE_NVALUES);
-        %CMAC1_COUNTER (DATASET = NEGATIVE_USPRICES, MVAR=NEGATIVE_USPRICES);
-        %CMAC1_COUNTER (DATASET = NO_DP_REGION_TEST, MVAR=NO_DP_REGION_TEST);
-        %CMAC1_COUNTER (DATASET = NO_DP_PERIOD_TEST, MVAR=NO_DP_PERIOD_TEST);
-        %CMAC1_COUNTER (DATASET = NO_DP_PURCHASER_TEST, MVAR=NO_DP_PURCHASER_TEST);
+        %CMAC2_COUNTER (DATASET = NEGDATA, MVAR=NEGDATA);
+        %CMAC2_COUNTER (DATASET = OUTDATES, MVAR=OUTDATES);
+        %CMAC2_COUNTER (DATASET = NOFOP, MVAR=NOFOP);
+        %CMAC2_COUNTER (DATASET = NOEXRATE, MVAR=NOEXRATE);
+        %CMAC2_COUNTER (DATASET = NEGATIVE_NVALUES, MVAR=NEGATIVE_NVALUES);
+        %CMAC2_COUNTER (DATASET = NEGATIVE_USPRICES, MVAR=NEGATIVE_USPRICES);
+        %CMAC2_COUNTER (DATASET = NO_DP_REGION_TEST, MVAR=NO_DP_REGION_TEST);
+        %CMAC2_COUNTER (DATASET = NO_DP_PERIOD_TEST, MVAR=NO_DP_PERIOD_TEST);
+        %CMAC2_COUNTER (DATASET = NO_DP_PURCHASER_TEST, MVAR=NO_DP_PURCHASER_TEST);
     %END;
 
     /*---------------------------------------------------------------------*/ 
@@ -164,11 +200,12 @@
     %PUT # OF ERRORS                       = &ERROR;
     %PUT # OF WARNINGS                     = &WARNING;
     %PUT # OF UNINITIALIZED VARIABLES      = &UNINIT;
+	%PUT # OF MISSING VALUES               = &MISSING;
     %PUT # OF REPEATS OF BY VALUES         = &REPEAT;
     %PUT # OF CONVERTED VARIABLES          = &CONVERTED;
-    %PUT # OF MISSING VALUES               = &MISSING;
     %PUT # OF DIVISION BY ZERO DETECTED    = &DIVISION;
-    %PUT # OF LICENSE WARNINGS             = &LICENSE;
+	%PUT # OF INVALID DATA VALUES          = &INVALID;
+	%PUT # OF LICENSE WARNINGS             = &LICENSE;
     %PUT ******************************************************************************;
     %PUT ;
     %PUT ******************************************************************************;
@@ -179,7 +216,8 @@
     %PUT ******************************************************************************;
 
     %IF %UPCASE("&ME_OR_NME.") = "MEHOME" %THEN
-    %DO;
+    %DO;  
+	    %PUT # OF TOTAL HM SALES GOING IN (HMSALES)                              = %CMPRES(&COUNT_ORIG_HMSALES);
         %PUT # OF HM SALES WITH PRICES AND/OR QTY <=0 (NEGDATA_HM)               = %CMPRES(&COUNT_NEGDATA_HM);
         %PUT # OF HM SALES OUTSIDE DATE RANGE (OUTDATES_HM)                      = %CMPRES(&COUNT_OUTDATES_HM);
         %IF &RUN_ARMSLENGTH. = YES %THEN
@@ -187,13 +225,15 @@
             %PUT # OF HM SALES FAILING ARMS LENGTH TEST (HMAFFOUT)                   = %CMPRES(&COUNT_HMAFFOUT);
         %END; 
         %PUT # OF HM SALES WITH NO COST DATA (NOCOST)                            = %CMPRES(&COUNT_NOCOST);
-        %PUT # OF HM SALES FAILING THE COST TEST (HMBELOW)                       = %CMPRES(&COUNT_HMBELOW);
+        %PUT # OF HM SALES FAILING THE COST TEST (HMBELOW)                       = %CMPRES(&COUNT_HMBELOW);  
+		%PUT # OF HM SALES ABOVE COST TEST (HMABOVE)                             = %CMPRES(&COUNT_HMABOVE);
         %PUT ******************************************************************************;
         %PUT ******************************************************************************;
     %END;
     %ELSE
     %IF %UPCASE("&ME_OR_NME.") = "MEMARG" %THEN
     %DO;
+	    %PUT # OF TOTAL US SALES (USSALES)                                      = %CMPRES(&COUNT_ORIG_USSALES);
         %PUT # OF US SALES WITH PRICES AND/OR QTY <=0 (NEGDATA_US)              = %CMPRES(&COUNT_NEGDATA_US);
         %PUT # OF US SALES OUTSIDE DATE RANGE (OUTDATES_US)                     = %CMPRES(&COUNT_OUTDATES_US);
         %PUT # OF US SALES WITH NO COST DATA (NOCOST)                           = %CMPRES(&COUNT_NOCOST);
@@ -201,13 +241,15 @@
         %PUT # OF US SALES WITH INVALID REGIONAL VALUES (NO_DP_REGION_TEST)     = %CMPRES(&COUNT_NO_DP_REGION_TEST);
         %PUT # OF US SALES WITH INVALID PURCHASER VALUES (NO_DP_PURCHASER_TEST) = %CMPRES(&COUNT_NO_DP_PURCHASER_TEST);
         %PUT # OF US SALES WITH INVALID TIME VALUES (NO_DP_PERIOD_TEST)         = %CMPRES(&COUNT_NO_DP_PERIOD_TEST);
+		%PUT # OF US SALES USED IN WEIGHT AVERAGING                             = %CMPRES(&COUNT_WT_AVG_USSALES);
         %PUT *******************************************************************************;
         %PUT *******************************************************************************;
     %END;
     %ELSE
     %IF %UPCASE("&ME_OR_NME.") = "NME" %THEN
     %DO;
-        %PUT # OF US SALES WITH PRICES AND/OR QTY <=0 (NEGDATA)                 = %CMPRES(&COUNT_NEGDATA);
+		%PUT # OF US SALES GOING IN(USSALES)                                    = %CMPRES(&COUNT_ORIG_USSALES);
+		%PUT # OF US SALES WITH PRICES AND/OR QTY <=0 (NEGDATA)                 = %CMPRES(&COUNT_NEGDATA);
         %PUT # OF US SALES OUTSIDE DATE RANGE (OUTDATES)                        = %CMPRES(&COUNT_OUTDATES);
         %PUT # OF US SALES WITH NO MATCHING FACTORS OF PRODUCTION (NOFOP)       = %CMPRES(&COUNT_NOFOP);
         %PUT # OF US SALES WITH NO EXCHANGE RATES (NOEXRATE)                    = %CMPRES(&COUNT_NOEXRATE);
@@ -216,13 +258,29 @@
         %PUT # OF US SALES WITH INVALID REGIONAL VALUES (NO_DP_REGION_TEST)     = %CMPRES(&COUNT_NO_DP_REGION_TEST);
         %PUT # OF US SALES WITH INVALID PURCHASER VALUES (NO_DP_PURCHASER_TEST) = %CMPRES(&COUNT_NO_DP_PURCHASER_TEST);
         %PUT # OF US SALES WITH INVALID TIME VALUES (NO_DP_PERIOD_TEST)         = %CMPRES(&COUNT_NO_DP_PERIOD_TEST);
+		%PUT # OF US SALES GOING IN(USSALES)                                    = %CMPRES(&COUNT_ORIG_USSALES);
         %PUT *******************************************************************************;
         %PUT *******************************************************************************;
     %END;
-%MEND C_MAC2_READLOG;
+%MEND C_MAC3_READLOG;
+
+/*--------------------------------------------------------------------*/
+/* PART 4: CALL LOG SCAN MACRO ON DEMAND
+/*--------------------------------------------------------------------*/
+%MACRO CMAC4_SCAN_LOG (ME_OR_NME =);
+  	%IF &LOG_SUMMARY = YES %THEN %DO;
+
+		PROC PRINTTO LOG = LOG;
+		RUN;
+
+		OPTIONS NOSYMBOLGEN NOMLOGIC MPRINT;
+		%C_MAC3_READLOG (LOG = &LOG., ME_OR_NME = &ME_OR_NME.);
+		OPTIONS SYMBOLGEN MLOGIC MPRINT;
+  	%END;
+%MEND CMAC4_SCAN_LOG;
 
 /*--------------------------------------------------------------------------*/
-/* PART 3: IN TIME-SPECIFIC COST CASES, IDENTIFY CONNUM/TIME PERIODS WITH   */
+/* PART 5: IN TIME-SPECIFIC COST CASES, IDENTIFY CONNUM/TIME PERIODS WITH   */
 /*         NO CORRESPONDING COP CONNUM/TIME PERIODS. STOP THE PROGRAM IF    */
 /*         MISSING CONNUM/TIME PERIODS ARE FOUND AND ISSUE AN ERROR MESSAGE */
 /*         ASKING THE ANALYST TO CONTACT THE SAS SUPPORT TEAM FOR HELP.     */

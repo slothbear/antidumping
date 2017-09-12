@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                      ANALYSIS OF HOME MARKET SALES                      */
 /*                                                                         */
-/*                    LAST PROGRAM UPDATED MAY 24, 2017                    */
+/*                    LAST PROGRAM UPDATED AUGUST 30, 2017                 */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring in Home Market Sales, Convert Date Variable, If          */
@@ -75,19 +75,21 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                                /* Common Macros Program        */
 %INCLUDE C_MACS;                               /* Use the Common Macros        */
                                                /* Program.                     */
+%LET LOG_SUMMARY = YES;                        /* Default value is "YES" (no    */
+                                               /* quotes). Use "NO" (no quotes) */
+                                               /* to run program in parts for   */
+                                               /* troubleshooting.              */
 
-/*-----------------------------------------------------------------------------*/
-/* WRITE LOG TO THE PROGRAM DIRECTORY - DO NOT MOVE/CHANGE THIS SECTION        */
-/*-----------------------------------------------------------------------------*/
-
+/*------------------------------------------------------------------*/
+/* GET PROGRAM PATH/NAME AND CREATE THE SAME NAME FOR THE LOG FILE  */
+/* WITH .LOG EXTENSION                                              */
+/*------------------------------------------------------------------*/
+%GLOBAL MNAME LOG;
 %LET MNAME = %SYSFUNC(SCAN(%SYSFUNC(pathname(C_MACS)), 1, '.'));
 %LET LOG = %SYSFUNC(substr(&MNAME, 1, %SYSFUNC(length(&MNAME)) - %SYSFUNC(indexc(%SYSFUNC(
            reverse(%SYSFUNC(trim(&MNAME)))), '\'))))%STR(\)%SYSFUNC(DEQUOTE(&_CLIENTTASKLABEL.))%STR(.log);  
 
-FILENAME LOGFILE "&LOG.";
-
-PROC PRINTTO LOG=LOGFILE NEW;
-RUN;
+%CMAC1_WRITE_LOG;
 
 /*------------------------------------------------------------------*/
 /* 1-B:     PROCEEDING TYPE                                         */
@@ -561,6 +563,14 @@ DATA HMSALES;
     %G4_LOT(&HMLOT,HMLOT)
 
 RUN;
+
+/*ep*/
+
+    /*------------------------------------------------------------------*/
+    /* 2-C-iii: GET HMSALES COUNT FOR LOG REPORTING                     */
+    /*------------------------------------------------------------------*/
+
+	%CMAC2_COUNTER (DATASET = HMSALES, MVAR=ORIG_HMSALES);
 
 /*ep*/
 
@@ -1352,6 +1362,14 @@ RUN;
 /*ep*/
 
 /***************************************************************************/
+/* DATA COUNT FOR LOG REPORTING PURPOSE                            */
+/***************************************************************************/
+
+%CMAC2_COUNTER (DATASET = HMSALES, MVAR=HMSALES_CTEST);
+
+/*ep*/
+
+/***************************************************************************/
 /* PART 9:  WEIGHT-AVERAGED HOME MARKET VALUES FOR PRICE-TO-PRICE          */
 /*               COMPARISONS WITH U.S. SALES                               */
 /*                                                                         */
@@ -1490,11 +1508,6 @@ RUN;
 /*          (B) PROGRAM SPECIFIC ALERTS THAT WE NEED TO LOOK OUT FOR.      */
 /***************************************************************************/
 
-PROC PRINTTO LOG = LOG;
-RUN;
-
-OPTIONS NOSYMBOLGEN NOMLOGIC MPRINT;
-%C_MAC2_READLOG (LOG = &LOG., ME_OR_NME = MEHOME);
-OPTIONS SYMBOLGEN MLOGIC MPRINT;
+%CMAC4_SCAN_LOG(ME_OR_NME = MEHOME); 
 
 /*ep*/

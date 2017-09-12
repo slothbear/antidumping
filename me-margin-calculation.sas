@@ -2,7 +2,7 @@
 /*                         ANTIDUMPING MARKET-ECONOMY                      */
 /*                             MARGIN CALCUALTION                          */
 /*                                                                         */
-/*                      LAST PROGRAM UPDATE MAY 24, 2017                   */
+/*                      LAST PROGRAM UPDATE SEPTEMBER 8, 2017              */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
@@ -83,19 +83,20 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                                /* Common Macros Program        */
 %INCLUDE C_MACS;                               /* Use the Common Macros        */
                                                /* Program.                     */
+%LET LOG_SUMMARY = YES;                        /* Default value is "YES" (no    */
+                                               /* quotes). Use "NO" (no quotes) */
+                                               /* to run program in parts for   */
+                                               /* troubleshooting.              */
 
 /*-----------------------------------------------------------------------------*/
 /* WRITE LOG TO THE PROGRAM DIRECTORY - DO NOT MOVE/CHANGE THIS SECTION        */
 /*-----------------------------------------------------------------------------*/
-
+%GLOBAL MNAME LOG;
 %LET MNAME = %SYSFUNC(SCAN(%SYSFUNC(pathname(C_MACS)), 1, '.'));
 %LET LOG = %SYSFUNC(substr(&MNAME, 1, %SYSFUNC(length(&MNAME)) - %SYSFUNC(indexc(%SYSFUNC(
            reverse(%SYSFUNC(trim(&MNAME)))), '\'))))%STR(\)%SYSFUNC(DEQUOTE(&_CLIENTTASKLABEL.))%STR(.log);  
 
-FILENAME LOGFILE "&LOG.";
-
-PROC PRINTTO LOG=LOGFILE NEW;
-RUN;
+%CMAC1_WRITE_LOG;
 
 /*------------------------------------------------------------------*/
 /* 1-A-ii:     PROCEEDING TYPE                                         */
@@ -753,7 +754,7 @@ DATA USSALES;
     %G4_LOT(&USLOT,USLOT)
 
 /*---------------------------------------------------------------------*/
-/* 2-D: CREATE U.S. SALE TYPE PROGRAMMING VARIABLE                     */
+/* 2-D(i): CREATE U.S. SALE TYPE PROGRAMMING VARIABLE                  */
 /*                                                                     */
 /*     The variable SALE_TYPE will be created, indicating whether U.S. */
 /*     sales are EP or CEP. It is this variable that will be used in   */
@@ -767,6 +768,14 @@ DATA USSALES;
 
     %US2_SALETYPE
 RUN;
+
+/*ep*/
+
+/*---------------------------------------------------------------------*/
+/* 2-D(ii): GET COUNTS OF USSALES DATASET FOR LOG REPORT               */
+/*---------------------------------------------------------------------*/
+
+	%CMAC2_COUNTER (DATASET = USSALES, MVAR=ORIG_USSALES);
 
 /*ep*/
 
@@ -886,6 +895,9 @@ RUN;
 /*-------------------------------------------------------------*/
 
 %MACRO SETUP_COST;
+    %GLOBAL FIND_SURROGATES;
+    %LET FIND_SURROGATES = NO;   /*Default value, do not edit. */
+
     %IF %UPCASE(&COST_TYPE) = CV %THEN
     %DO;
         DATA COST;
@@ -926,9 +938,6 @@ RUN;
         /* problem by setting the production quantity to a non-zero    */
         /* or non-missing value above in Sect. 3-A-i.                  */
         /*-------------------------------------------------------------*/
-
-        %GLOBAL FIND_SURROGATES;
-        %LET FIND_SURROGATES = NO;  /*Default value, do not edit. */
 
         %IF %UPCASE(&MATCH_NO_PRODUCTION) = YES %THEN
         %DO;
@@ -985,32 +994,9 @@ RUN;
 
         %G16_MATCH_NOPRODUCTION
     %END;
-
-    /*--------------------------------------------------------------------*/
-    /* 3-H: MERGE COSTS WITH U.S. SALES DATA                              */
-    /*                                                                    */
-    /*--------------------------------------------------------------------*/
-
-    %G17_FINALIZE_COSTDATA 
 %MEND SETUP_COST;
 
 %SETUP_COST
-
-/*ep*/
-
-/*-----------------------------------------------*/
-/* 3-F: WEIGHT-AVERAGE COST DATA, WHEN REQUIRED. */
-/*-----------------------------------------------*/
-
-%G15_CHOOSE_COSTS
-
-/*ep*/
-
-/*--------------------------------------------------------------------*/
-/* 3-G: FIND SURROGATE COSTS FOR PRODUCTS NOT PRODUCED DURING POR     */
-/*--------------------------------------------------------------------*/
-
-%G16_MATCH_NOPRODUCTION
 
 /*ep*/
 
@@ -1635,11 +1621,6 @@ RUN;
 /*          (B) PROGRAM SPECIFIC ALERTS THAT WE NEED TO LOOK OUT FOR.      */
 /***************************************************************************/
 
-PROC PRINTTO LOG = LOG;
-RUN;
-
-OPTIONS NOSYMBOLGEN NOMLOGIC MPRINT;
-%C_MAC2_READLOG (LOG = &LOG., ME_OR_NME = MEMARG);
-OPTIONS SYMBOLGEN MLOGIC MPRINT;
+%CMAC4_SCAN_LOG (ME_OR_NME =MEMARG);
 
 /*ep*/
