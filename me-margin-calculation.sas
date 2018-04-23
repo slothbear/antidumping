@@ -2,7 +2,7 @@
 /*                         ANTIDUMPING MARKET-ECONOMY                      */
 /*                             MARGIN CALCUALTION                          */
 /*                                                                         */
-/*                      LAST PROGRAM UPDATE SEPTEMBER 8, 2017              */
+/*                      LAST PROGRAM UPDATE APRIL 6, 2018                  */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
@@ -99,13 +99,28 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %CMAC1_WRITE_LOG;
 
 /*------------------------------------------------------------------*/
-/* 1-A-ii:     PROCEEDING TYPE                                         */
+/* 1-A-ii:     PROCEEDING TYPE                                      */
 /*------------------------------------------------------------------*/
+
+/* TYPE IN EITHER THE WORD 'AR' (NOT 1ST REVIEW) */
+/* OR THE WORD 'INV'. DO NOT TYPE THE QUOTES.    */
 
 %LET CASE_TYPE = <AR/INV>;  /*(T) For an investigation, type 'INV' */
                             /*    (without quotes)                 */
                             /*    For an administrative review,    */
                             /*    type 'AR' (without quotes)       */
+
+/*------------------------------------------*/
+/* TYPE IN THE CASE NUMBER (EX. A-357-812). */
+/*------------------------------------------*/
+
+%LET CASE_NUMBER = <  >;    /*(T) Case Number */
+
+/*-------------------------*/
+/* TYPE IN YOUR FULL NAME. */
+/*-------------------------*/
+
+%LET PROGRAMMER = <  >;     /*(T) Case Analyst responsible for programming */
 
 /*----------------------------------------------------------------------*/
 /* 1-B: DATE INFORMATION                                                */
@@ -264,10 +279,18 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*          It is &EXRATE1 that is used to convert costs and    */
 /*          the HM net price into U.S. dollars.                 */
 /*                                                              */
+/*          If your Home Market is reported in more than one    */
+/*          currency, you must update section 9-B-i in the HM   */
+/*          program, as well as sections 1-E-i, 1-E-v, and Part */
+/*          5 of the Margin program. Instructions for filling   */
+/*          out those sections are contained at the beginning   */
+/*          of each relevant section.                           */
+/*                                                              */
 /*          In the event either exchange rate is not required,  */
 /*          dummy variables with neutral values are created.    */
 /*          (See section 4-A below.)                            */
 /*--------------------------------------------------------------*/
+
 
 %LET USE_EXRATES1 = <YES/NO>;  /*(T) Use exchange rate #1? Type "YES" or */
                                /*    "NO" (without quotes).              */
@@ -309,9 +332,9 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET     ENTERVAL = <NA>;  /*(V) Variable for reported entered value. If */
                            /*    there is no variable, type "NA" (without*/
                            /*    quotes.)                                */
-%LET     IMPORTER = <NA>;  /*(V) Variable for U.S. importer. If there    */
-                           /*    is no variable and there is only one    */
-                           /*    importer, type "NA" (without quotes.)   */
+%LET IMPORTER = <IMPORTER/CUSCODU>; /* (V) TYPE IN 'IMPORTER' OR   */
+                                    /*     'CUSCODU'. DO NOT TYPE  */
+                                    /*     THE QUOTES.             */
 %LET     USPRIME  = <NA>;  /*(V) Prime/seconds code. If not applicable,  */
                            /*    type "NA" (without quotes).             */
 %LET     EX1_VARS = <NA>;  /*(V) Variables in EXDATA1 currency to be     */
@@ -425,7 +448,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET COP_MANUF = <YES/NO>;      /*(V) Is there is manufacturer variable  */
                                 /*    in the cost database coming from   */
                                 /*    the HM program?  Type "YES" or     */
-                                /*    no (without quotes).               */
+                                /*    "NO" (without quotes).             */
 
 /*-------------------------------------------------------------*/
 /*     1-E-iii-b. CV DATA ONLY FOR U.S. SALES                  */
@@ -504,7 +527,11 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                               /*    punctuation separating them.         */
 %LET HM_MULTI_CUR = <YES/NO>; /*(T) Is HM data in more than one          */
                               /*    currency? Type "YES" or "NO"         */
-                              /*    (without quotes).                    */
+                              /*    (without quotes). If it is "YES",    */
+                              /*    then you must also fill out sections */
+                              /*    1-E-i and 9-B-i of the HM program,   */
+                              /*    as well as sections 1-E-i, and       */
+                              /*    Part 5 of the Margin program.        */
 
 /*-----------------------------------------------------------------*/
 /* 1-E-vi. TIME-SPECIFIC COMPARISONS                               */
@@ -530,7 +557,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                   /*    (without quotes). If       */
                                   /*    "YES,"then also complete   */
                                   /*    Sect. 1-E-iii-b-1 below.   */
-%LET US_TIME_PERIOD  = <  >;      /*(V) Variable in U.S. data for  */
+%LET      US_TIME_PERIOD  = <  >; /*(V) Variable in U.S. data for  */
                                   /*    cost-related time periods, */
                                   /*    if applicable.             */
 
@@ -775,7 +802,7 @@ RUN;
 /* 2-D(ii): GET COUNTS OF USSALES DATASET FOR LOG REPORT               */
 /*---------------------------------------------------------------------*/
 
-	%CMAC2_COUNTER (DATASET = USSALES, MVAR=ORIG_USSALES);
+    %CMAC2_COUNTER (DATASET = USSALES, MVAR=ORIG_USSALES);
 
 /*ep*/
 
@@ -1009,34 +1036,6 @@ RUN;
 
 /*ep*/
 
-/*-----------------------------------------------------------------------*/
-/* 3-G: IN TIME-SPECIFIC COST CASES, IDENTIFY CONNUM/TIME PERIODS WITH   */
-/*      NO CORRESPONDING COP CONNUM/TIME PERIODS. STOP THE PROGRAM IF    */
-/*      MISSING CONNUM/TIME PERIODS ARE FOUND AND ISSUE AN ERROR MESSAGE */
-/*      ASKING THE ANALYST TO CONTACT THE SAS SUPPORT TEAM FOR HELP.     */
-/*-----------------------------------------------------------------------*/
-
-%MACRO US_CONNUM_PERIOD_LIST;
-    %IF %UPCASE(&COMPARE_BY_TIME) = YES %THEN
-    %DO;
-        DATA US_INDEX_CHECK;
-            SET COMPANY.&USDATA;
-
-            /******************************************************/
-            /* 3-G-i: Create time-specific variable if necessary. */
-            /******************************************************/
- 
-            /* <Create time-specific variable> */
-        RUN;
-    %END;
-%MEND US_CONNUM_PERIOD_LIST;
-
-%US_CONNUM_PERIOD_LIST
-
-%G18_FIND_MISSING_TIME_PERIODS(Margin)
-
-/*ep*/
-
 /***************************************************************************/
 /* PART 4: CALCULATE THE NET U.S. PRICE                                    */
 /***************************************************************************/
@@ -1057,46 +1056,46 @@ RUN;
 DATA USSALES;
     SET USSALES;
 
-    USGUP = <&USGUP>;      /* Gross unit price. Default is to use the      */
-                           /* variable selected for the &USGUP macro in    */
-                           /* Section 1-E-ii above                         */
-    USGUPADJ = <0>;        /* Price adjustments to be added to HMGUP,      */
-                           /* including duty drawback, CVD export subsidies*/
-    USDISREB = <0>;        /* Discounts, rebates and other price adjust-   */
-                           /* ments to be subtracted from USGUP            */
-    USDOMMOVE = <0>;       /* Domestic HM movement expenses up to delivery */
-                           /* alongside the vessel at port of export       */
-    USINTLMOVE = <0>;      /* International and U.S. movement expenses,    */
-                           /* including U.S. duties, from loading onto the */
-                           /* vessel to delivery in U.S.                   */
-    USCREDIT = <0>;        /* Imputed credit                               */
-    USDIRSELL = <0>;       /* Direct selling expenses for circumstance of  */
-                           /* sale (COS) adjustments. Excludes imputed     */
-                           /* credit (USCREDIT) and any direct selling     */
-                           /* expenses incurred in the U.S. on CEP sales.  */
-                           /* Includes all direct selling on EP sales and  */
-                           /* any direct selling on CEP sales NOT incurred */
-                           /* in the U.S.                                  */
-    USCOMM = <0>;          /* All commissions on EP sales and those on CEP */
-                           /* sales incurred outside of the U.S. Do NOT    */
-                           /* include commissions on CEP sales incurred in */
-                           /* the U.S. here, instead include these in      */
-                           /* CEPOTHER.                                    */
-    USICC = <0>;           /* Imputed inventory carrying costs, excluding  */
-                           /* CEP inventory carrying costs.                */
-    USISELL = <0>;         /* Indirect selling expenses, excluding USICC   */
-                           /* and any CEP indirects.                       */
-    CEPICC = <0>;          /* CEP (incurred in the U.S.) inventory carrying*/
-                           /* cost expenses. Will be set to zero for EP    */
-                           /* sales.                                       */
-    CEPISELL = <0>;        /* CEP (incurred in the U.S.) indirect selling  */
-                           /* expenses. Will be set to zero for EP sales.  */
-    CEPOTHER = <0>;        /* Any other CEP (incurred in the U.S.)         */
-                           /* commissions, direct selling, further         */
-                           /* manufacturing, etc. expenses not included in */
-                           /* CEPICC or CEPISELL. Will be set to zero for  */
-                           /* EP sales.                                    */
-    USPACK = <0>;          /* Export packing to the U.S.                   */
+    USGUP = <&USGUP>;    /* Gross unit price. Default is to use the        */
+                         /* variable selected for the &USGUP macro in      */
+                         /* Section 1-E-ii above                           */
+    USGUPADJ = <0>;      /* Price adjustments to be added to USGUP,        */
+                         /* including duty drawback, CVD export subsidies  */
+    USDISREB = <0>;      /* Discounts, rebates and other price adjust-     */
+                         /* ments to be subtracted from USGUP              */
+    USDOMMOVE = <0>;     /* Domestic U.S. movement expenses up to delivery */
+                         /* alongside the vessel at port of export         */
+    USINTLMOVE = <0>;    /* International and U.S. movement expenses,      */
+                         /* including U.S. duties, from loading onto the   */
+                         /* vessel to delivery in U.S.                     */
+    USCREDIT = <0>;      /* Imputed credit                                 */
+    USDIRSELL = <0>;     /* Direct selling expenses for circumstance of    */
+                         /* sale (COS) adjustments. Excludes imputed       */
+                         /* credit (USCREDIT) and any direct selling       */
+                         /* expenses incurred in the U.S. on CEP sales.    */
+                         /* Includes all direct selling on EP sales and    */
+                         /* any direct selling on CEP sales NOT incurred   */
+                         /* in the U.S.                                    */
+    USCOMM = <0>;        /* All commissions on EP sales and those on CEP   */
+                         /* sales incurred outside of the U.S. Do NOT      */
+                         /* include commissions on CEP sales incurred in   */
+                         /* the U.S. here, instead include these in        */
+                         /* CEPOTHER.                                      */
+    USICC = <0>;         /* Imputed inventory carrying costs, excluding    */
+                         /* CEP inventory carrying costs.                  */
+    USISELL = <0>;       /* Indirect selling expenses, excluding USICC     */
+                         /* and any CEP indirects.                         */
+    CEPICC = <0>;        /* CEP (incurred in the U.S.) inventory carrying  */
+                         /* cost expenses. Will be set to zero for EP      */
+                         /* sales.                                         */
+    CEPISELL = <0>;      /* CEP (incurred in the U.S.) indirect selling    */
+                         /* expenses. Will be set to zero for EP sales.    */
+    CEPOTHER = <0>;      /* Any other CEP (incurred in the U.S.)           */
+                         /* commissions, direct selling, further           */
+                         /* manufacturing, etc. expenses not included in   */
+                         /* CEPICC or CEPISELL. Will be set to zero for    */
+                         /* EP sales.                                      */
+    USPACK = <0>;        /* Export packing to the U.S.                     */
 
 /*----------------------------------------------------------------------*/
 /* 4-A-i: INDIRECTS FOR COMMISSION OFFSETS                              */
@@ -1238,6 +1237,7 @@ RUN;
 /*     U.S. models not finding a suitable match will be compared to        */
 /*     constructed value.                                                  */
 /***************************************************************************/
+
 %US7_CONCORDANCE
 
 /*ep*/
@@ -1446,6 +1446,14 @@ RUN;
 /*ep*/
 
 /***************************************************************************/
+/* DATA COUNT FOR LOG REPORTING PURPOSE                            */
+/***************************************************************************/
+
+%CMAC2_COUNTER (DATASET = USSALES, MVAR=WT_AVG_USSALES);
+
+/*ep*/
+
+/***************************************************************************/
 /* PART 13: CALCULATE FUPDOL, NV, PUDD, ETC. USING THE STANDARD METHOD,    */
 /*          THE A-to-T ALTERNATIVE METHOD AND, WHEN REQUIRED, THE MIXED    */
 /*          ALTERNATIVE METHOD                                             */
@@ -1621,6 +1629,6 @@ RUN;
 /*          (B) PROGRAM SPECIFIC ALERTS THAT WE NEED TO LOOK OUT FOR.      */
 /***************************************************************************/
 
-%CMAC4_SCAN_LOG (ME_OR_NME =MEMARG);
+%CMAC4_SCAN_LOG (ME_OR_NME = MEMARG);
 
 /*ep*/

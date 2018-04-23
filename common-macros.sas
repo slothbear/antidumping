@@ -2,7 +2,7 @@
 /*                    COMMON UTILITY MACROS PROGRAM                    */
 /*                     FOR USE FOR BOTH ME AND NME                     */
 /*                                                                     */
-/*                  LAST PROGRAM UPDATE AUGUST 30, 2017                */
+/*                 LAST PROGRAM UPDATE MARCH 20, 2018                */
 /*                                                                     */
 /* PART 1: MACRO TO WRITE LOG TO A PERMANENT FILE                      */ 
 /* PART 2: MACRO TO GET COUNTS OF THE DATASETS                         */ 
@@ -10,15 +10,15 @@
 /*         WARNINGS, UNINITIALIZED VARIABLES ETC. AND PROGRAM SPECIFIC */
 /*         ALERTS WE NEED TO WATCH FOR                                 */
 /* PART 4: CALL LOG SCAN MACRO ON DEMAND                               */ 
-/* PART 5: IN TIME-SPECIFIC CASES, IDENTIFY CONNUM/TIME PERIODS WITH   */
-/*         NO CORRESPONDING COP CONNUM/TIME PERIODS                    */
 /***********************************************************************/
 
+%GLOBAL NVMATCH_TYPE1 NVMATCH_TYPE2 NVMATCH_TYPE3 NVMATCH_VALUE1 NVMATCH_VALUE2 NVMATCH_VALUE3;
+
 DATA _NULL_;
-	CALL SYMPUT('BDAY', UPCASE(STRIP(PUT(DATE(), DOWNAME.))));
-	CALL SYMPUT('BWDATE', UPCASE(STRIP(PUT(DATE(), WORDDATE18.))));
-	CALL SYMPUT('BTIME', UPCASE(STRIP(PUT(TIME(), TIMEAMPM8.))));
-	CALL SYMPUT('BDATETIME', (STRIP(PUT(DATETIME(), 20.))));
+    CALL SYMPUT('BDAY', UPCASE(STRIP(PUT(DATE(), DOWNAME.))));
+    CALL SYMPUT('BWDATE', UPCASE(STRIP(PUT(DATE(), WORDDATE18.))));
+    CALL SYMPUT('BTIME', UPCASE(STRIP(PUT(TIME(), TIMEAMPM8.))));
+    CALL SYMPUT('BDATETIME', (STRIP(PUT(DATETIME(), 20.))));
 RUN;
 
 %PUT NOTE: THIS PROGRAM WAS RUN ON &BDAY, &BWDATE, AT &BTIME..;
@@ -28,14 +28,14 @@ RUN;
 /*--------------------------------------------------------------------*/
 
 %MACRO CMAC1_WRITE_LOG;
-	%IF &LOG_SUMMARY = YES %THEN %DO;
+    %IF %UPCASE(&LOG_SUMMARY) = YES %THEN %DO;
 
-		FILENAME LOGFILE "&LOG.";
+        FILENAME LOGFILE "&LOG.";
 
-		PROC PRINTTO LOG=LOGFILE NEW;
-		RUN;
+        PROC PRINTTO LOG=LOGFILE NEW;
+        RUN;
 
-	%END;
+    %END;
 %MEND CMAC1_WRITE_LOG;
 
 
@@ -62,6 +62,7 @@ RUN;
 /*-------------------------------------------------------------------------*/
 
 %MACRO C_MAC3_READLOG (LOG = , ME_OR_NME =);
+
     /*---------------------------------------------*/ 
     /* PRINT FULL LOG TO THE SAS ENTERPRISE WINDOW */
     /*---------------------------------------------*/
@@ -82,8 +83,14 @@ RUN;
         INFILE "&LOG." END = END MISSOVER PAD;
         INPUT LINE $250.;
 
-        IF UPCASE(COMPRESS(SUBSTR(LINE,1,6))) = "ERROR:" THEN
+        IF SUBSTR(LINE,1,6) = "ERROR " THEN DO;
+        PUT 'ERROR: SYNTAX - CHECK FOR ERRORS WITHOUT A COLON USUALLY WITH A LINE NUMBER RANGE (Ex: ERROR 200-322)';
+        END;
+
+        IF UPCASE(COMPRESS(SUBSTR(LINE,1,6))) = "ERROR:"  OR
+           UPCASE(COMPRESS(SUBSTR(LINE,1,6))) = "ERROR " THEN
             ERROR + 1;
+
         ELSE IF UPCASE(COMPRESS(SUBSTR(LINE,1,8))) = "WARNING:" THEN
         DO;
             WARNING + 1;
@@ -119,7 +126,7 @@ RUN;
             IF DIVISION_I THEN
                 DIVISION + 1;
 
-			Invalid_I = INDEX(UPCASE(LINE),'INVALID');
+            Invalid_I = INDEX(UPCASE(LINE),'INVALID');
             IF Invalid_I THEN
                 Invalid + 1;
 
@@ -139,7 +146,7 @@ RUN;
         CALL SYMPUTX('CONVERTED', CONVERTED);
         CALL SYMPUTX('MISSING', MISSING);
         CALL SYMPUTX('DIVISION', DIVISION);
-		CALL SYMPUTX('INVALID', INVALID);
+        CALL SYMPUTX('INVALID', INVALID);
     RUN;
 
     /*----------------------------------------------------------------*/ 
@@ -157,8 +164,14 @@ RUN;
         %DO;
             %CMAC2_COUNTER (DATASET = HMAFFOUT, MVAR=HMAFFOUT);        
         %END;  
+        %IF &COMPARE_BY_TIME. = YES %THEN
+        %DO;
+            %CMAC2_COUNTER (DATASET = RECOVERED, MVAR=RECOVERED);        
+        %END;  
+        %CMAC2_COUNTER (DATASET = HMABOVE, MVAR=HMABOVE); 
         %CMAC2_COUNTER (DATASET = HMBELOW, MVAR=HMBELOW); 
-		%CMAC2_COUNTER (DATASET = HMABOVE, MVAR=HMABOVE); 
+        %CMAC2_COUNTER (DATASET = HM, MVAR=HMWTAVG); 
+        %CMAC2_COUNTER (DATASET = HMAVG, MVAR=HMAVG); 
     %END;
     %ELSE
     %IF %UPCASE("&ME_OR_NME.") = "MEMARG" %THEN
@@ -170,6 +183,26 @@ RUN;
         %CMAC2_COUNTER (DATASET = NO_DP_REGION_TEST, MVAR=NO_DP_REGION_TEST);
         %CMAC2_COUNTER (DATASET = NO_DP_PURCHASER_TEST, MVAR=NO_DP_PURCHASER_TEST);
         %CMAC2_COUNTER (DATASET = NO_DP_PERIOD_TEST, MVAR=NO_DP_PERIOD_TEST);
+        
+                 PROC FREQ DATA = USNETPR NOPRINT;
+                      TABLES NVMATCH/OUT = NVMATCH_OUTPUT;
+                      FORMAT NVMATCH NVFMT.;
+                 RUN;
+                 PROC SORT DATA = NVMATCH_OUTPUT; BY NVMATCH; RUN;
+
+                 %LET NVMATCH_TYPE1  = IDENTICAL;
+                 %LET NVMATCH_VALUE1 = 0;
+                 %LET NVMATCH_TYPE2  = SIMILAR;
+                 %LET NVMATCH_VALUE2 = 0;
+                 %LET NVMATCH_TYPE3  = CONSTRUCTED VALUE;
+                 %LET NVMATCH_VALUE3 = 0;
+                
+                 DATA _NULL_;
+                    SET NVMATCH_OUTPUT;
+                    NVMATCH_C = PUT(NVMATCH,NVFMT.);
+                    SUFFIX=PUT(_N_,1.);
+                    CALL SYMPUTX(CATS('NVMATCH_VALUE',SUFFIX), PUT(COUNT,8.),'G');
+                  RUN;
     %END;
     %ELSE
     %IF %UPCASE("&ME_OR_NME.") = "NME" %THEN
@@ -184,7 +217,10 @@ RUN;
         %CMAC2_COUNTER (DATASET = NO_DP_PERIOD_TEST, MVAR=NO_DP_PERIOD_TEST);
         %CMAC2_COUNTER (DATASET = NO_DP_PURCHASER_TEST, MVAR=NO_DP_PURCHASER_TEST);
     %END;
-
+    %ELSE
+    %IF %UPCASE("&ME_OR_NME.") = "DATAINT" %THEN 
+    %DO;
+    %END;
     /*---------------------------------------------------------------------*/ 
     /*  PRINTING SUMMARY OF GENERAL SAS ALERTS AS WELL AS PROGRAM SPECIFIC */
     /*  ALERTS SUMMARY TO THE JOB LOG                                      */
@@ -200,40 +236,56 @@ RUN;
     %PUT # OF ERRORS                       = &ERROR;
     %PUT # OF WARNINGS                     = &WARNING;
     %PUT # OF UNINITIALIZED VARIABLES      = &UNINIT;
-	%PUT # OF MISSING VALUES               = &MISSING;
+    %PUT # OF MISSING VALUES               = &MISSING;
     %PUT # OF REPEATS OF BY VALUES         = &REPEAT;
     %PUT # OF CONVERTED VARIABLES          = &CONVERTED;
     %PUT # OF DIVISION BY ZERO DETECTED    = &DIVISION;
-	%PUT # OF INVALID DATA VALUES          = &INVALID;
-	%PUT # OF LICENSE WARNINGS             = &LICENSE;
-    %PUT ******************************************************************************;
-    %PUT ;
+    %PUT # OF INVALID DATA VALUES          = &INVALID;
+    %PUT # OF LICENSE WARNINGS             = &LICENSE;
+
+%MACRO HDR;
     %PUT ******************************************************************************;
     %PUT * PROGRAM SPECIFIC ALERTS TO VERIFY:                                         *;
     %PUT ******************************************************************************;
     %PUT *   NORMALLY, COUNTS FOR THE BELOW LISTED DATATSETS HAVE ZERO OBSERVATIONS.  *;
     %PUT *   IF THEY DO NOT HAVE ZERO RECORDS DETERMINE IF THERE IS AN ISSUE.         *;
     %PUT ******************************************************************************;
+%MEND HDR;
 
+%MACRO DF;
+    %PUT ******************************************************************************;
+    %PUT * DATA FLOW:                                                                 *;
+    %PUT ******************************************************************************;
+    %PUT *   THIS SECTION SHOWS THE FLOW OF SALES IN THE PROGRAM.                     *;
+    %PUT ******************************************************************************;
+%MEND DF;
+ 
     %IF %UPCASE("&ME_OR_NME.") = "MEHOME" %THEN
-    %DO;  
-	    %PUT # OF TOTAL HM SALES GOING IN (HMSALES)                              = %CMPRES(&COUNT_ORIG_HMSALES);
+    %DO;
+        %HDR; 
         %PUT # OF HM SALES WITH PRICES AND/OR QTY <=0 (NEGDATA_HM)               = %CMPRES(&COUNT_NEGDATA_HM);
         %PUT # OF HM SALES OUTSIDE DATE RANGE (OUTDATES_HM)                      = %CMPRES(&COUNT_OUTDATES_HM);
+        %PUT # OF HM SALES WITH NO COST DATA (NOCOST)                            = %CMPRES(&COUNT_NOCOST);
+        %DF; 
+        %PUT # OF TOTAL HM SALES GOING IN (HMSALES)                              = %CMPRES(&COUNT_ORIG_HMSALES);
         %IF &RUN_ARMSLENGTH. = YES %THEN
         %DO;
             %PUT # OF HM SALES FAILING ARMS LENGTH TEST (HMAFFOUT)                   = %CMPRES(&COUNT_HMAFFOUT);
         %END; 
-        %PUT # OF HM SALES WITH NO COST DATA (NOCOST)                            = %CMPRES(&COUNT_NOCOST);
-        %PUT # OF HM SALES FAILING THE COST TEST (HMBELOW)                       = %CMPRES(&COUNT_HMBELOW);  
-		%PUT # OF HM SALES ABOVE COST TEST (HMABOVE)                             = %CMPRES(&COUNT_HMABOVE);
+        %PUT # OF HM SALES ABOVE COST TEST (HMABOVE)                             = %CMPRES(&COUNT_HMABOVE);
+        %PUT # OF HM SALES FAILING THE COST TEST (HMBELOW)                       = %CMPRES(&COUNT_HMBELOW);
+        %IF &COMPARE_BY_TIME. = YES %THEN %DO;
+        %PUT # OF HM SALES PASSING THE COST RECOVERY TEST (RECOVERED)            = %CMPRES(&COUNT_RECOVERED);
+        %END;
+        %PUT # OF HM TO BE WEIGHT AVERAGED (HM)                                  = %CMPRES(&COUNT_HMWTAVG);
+        %PUT # OF WEIGHT AVERAGED HM MODELS (HMAVG)                              = %CMPRES(&COUNT_HMAVG);
         %PUT ******************************************************************************;
         %PUT ******************************************************************************;
     %END;
     %ELSE
     %IF %UPCASE("&ME_OR_NME.") = "MEMARG" %THEN
     %DO;
-	    %PUT # OF TOTAL US SALES (USSALES)                                      = %CMPRES(&COUNT_ORIG_USSALES);
+        %HDR;
         %PUT # OF US SALES WITH PRICES AND/OR QTY <=0 (NEGDATA_US)              = %CMPRES(&COUNT_NEGDATA_US);
         %PUT # OF US SALES OUTSIDE DATE RANGE (OUTDATES_US)                     = %CMPRES(&COUNT_OUTDATES_US);
         %PUT # OF US SALES WITH NO COST DATA (NOCOST)                           = %CMPRES(&COUNT_NOCOST);
@@ -241,125 +293,52 @@ RUN;
         %PUT # OF US SALES WITH INVALID REGIONAL VALUES (NO_DP_REGION_TEST)     = %CMPRES(&COUNT_NO_DP_REGION_TEST);
         %PUT # OF US SALES WITH INVALID PURCHASER VALUES (NO_DP_PURCHASER_TEST) = %CMPRES(&COUNT_NO_DP_PURCHASER_TEST);
         %PUT # OF US SALES WITH INVALID TIME VALUES (NO_DP_PERIOD_TEST)         = %CMPRES(&COUNT_NO_DP_PERIOD_TEST);
-		%PUT # OF US SALES USED IN WEIGHT AVERAGING                             = %CMPRES(&COUNT_WT_AVG_USSALES);
+        %DF;
+        %PUT # OF TOTAL US SALES (USSALES)                                      = %CMPRES(&COUNT_ORIG_USSALES);
+        %PUT # OF USSALES WITH &NVMATCH_TYPE1. MODEL MATCHES                          = %CMPRES(&NVMATCH_VALUE1);
+        %PUT # OF USSALES WITH &NVMATCH_TYPE2. MODEL MATCHES                            = %CMPRES(&NVMATCH_VALUE2);
+        %PUT # OF USSALES WITH &NVMATCH_TYPE3. MODEL MATCHES                  = %CMPRES(&NVMATCH_VALUE3);
+        %PUT # OF US SALES USED IN WEIGHT AVERAGING                             = %CMPRES(&COUNT_WT_AVG_USSALES);
         %PUT *******************************************************************************;
         %PUT *******************************************************************************;
     %END;
     %ELSE
     %IF %UPCASE("&ME_OR_NME.") = "NME" %THEN
-    %DO;
-		%PUT # OF US SALES GOING IN(USSALES)                                    = %CMPRES(&COUNT_ORIG_USSALES);
-		%PUT # OF US SALES WITH PRICES AND/OR QTY <=0 (NEGDATA)                 = %CMPRES(&COUNT_NEGDATA);
+    %DO; 
+        %HDR;
+        %PUT # OF US SALES WITH PRICES AND/OR QTY <=0 (NEGDATA)                 = %CMPRES(&COUNT_NEGDATA);
         %PUT # OF US SALES OUTSIDE DATE RANGE (OUTDATES)                        = %CMPRES(&COUNT_OUTDATES);
         %PUT # OF US SALES WITH NO MATCHING FACTORS OF PRODUCTION (NOFOP)       = %CMPRES(&COUNT_NOFOP);
         %PUT # OF US SALES WITH NO EXCHANGE RATES (NOEXRATE)                    = %CMPRES(&COUNT_NOEXRATE);
-        %PUT # OF US SALES WITH NEGATIVE NORMAL VALUES (NEGATIVE_NVALUES)       = %CMPRES(&COUNT_NEGATIVE_NVALUES);
-        %PUT # OF US SALES WITH NEGATIVE NET US PRICES (NEGATIVE_USPRICES)      = %CMPRES(&COUNT_NEGATIVE_USPRICES);
         %PUT # OF US SALES WITH INVALID REGIONAL VALUES (NO_DP_REGION_TEST)     = %CMPRES(&COUNT_NO_DP_REGION_TEST);
         %PUT # OF US SALES WITH INVALID PURCHASER VALUES (NO_DP_PURCHASER_TEST) = %CMPRES(&COUNT_NO_DP_PURCHASER_TEST);
         %PUT # OF US SALES WITH INVALID TIME VALUES (NO_DP_PERIOD_TEST)         = %CMPRES(&COUNT_NO_DP_PERIOD_TEST);
-		%PUT # OF US SALES GOING IN(USSALES)                                    = %CMPRES(&COUNT_ORIG_USSALES);
+        %DF;
+        %PUT # OF US SALES GOING IN(USSALES)                                    = %CMPRES(&COUNT_ORIG_USSALES);
+        %PUT # OF US SALES WITH NEGATIVE NORMAL VALUES (NEGATIVE_NVALUES)       = %CMPRES(&COUNT_NEGATIVE_NVALUES);
+        %PUT # OF US SALES WITH NEGATIVE NET US PRICES (NEGATIVE_USPRICES)      = %CMPRES(&COUNT_NEGATIVE_USPRICES);
+        %PUT # OF US PRICES AFTER WEIGHT AVERAGING (USPRICES)                   = %CMPRES(&COUNT_USPRICES);
         %PUT *******************************************************************************;
         %PUT *******************************************************************************;
     %END;
+
+
 %MEND C_MAC3_READLOG;
 
 /*--------------------------------------------------------------------*/
 /* PART 4: CALL LOG SCAN MACRO ON DEMAND
 /*--------------------------------------------------------------------*/
 %MACRO CMAC4_SCAN_LOG (ME_OR_NME =);
-  	%IF &LOG_SUMMARY = YES %THEN %DO;
 
-		PROC PRINTTO LOG = LOG;
-		RUN;
-
-		OPTIONS NOSYMBOLGEN NOMLOGIC MPRINT;
-		%C_MAC3_READLOG (LOG = &LOG., ME_OR_NME = &ME_OR_NME.);
-		OPTIONS SYMBOLGEN MLOGIC MPRINT;
-  	%END;
-%MEND CMAC4_SCAN_LOG;
-
-/*--------------------------------------------------------------------------*/
-/* PART 5: IN TIME-SPECIFIC COST CASES, IDENTIFY CONNUM/TIME PERIODS WITH   */
-/*         NO CORRESPONDING COP CONNUM/TIME PERIODS. STOP THE PROGRAM IF    */
-/*         MISSING CONNUM/TIME PERIODS ARE FOUND AND ISSUE AN ERROR MESSAGE */
-/*         ASKING THE ANALYST TO CONTACT THE SAS SUPPORT TEAM FOR HELP.     */
-/*--------------------------------------------------------------------------*/
-
-%GLOBAL HM_MISS_LIST US_MISS_LIST;
- 
-%MACRO G18_FIND_MISSING_TIME_PERIODS(PROGRAM);
-    %IF %UPCASE(&COMPARE_BY_TIME) = YES %THEN
-    %DO;
-        /*---------------------------------------------------------------*/
-        /* Create a unique list of Cost CONNUM/time period combinations. */
-        /*---------------------------------------------------------------*/
-
-        PROC SORT DATA = COMPANY.&RESPONDENT._&SEGMENT._&STAGE._COST
-                         (KEEP = &COST_MATCH &COST_TIME_PERIOD)
-                  OUT = COST_CONNUM_QTR_LIST NODUPKEY;
-            BY &COST_MATCH &COST_TIME_PERIOD;
+      %IF %UPCASE(&LOG_SUMMARY) = YES %THEN %DO;
+   
+        PROC PRINTTO LOG = LOG;
         RUN;
- 
-        %MACRO CHECK_FOR_MISSING(TYPE, DATASET, CONNUM, TIME_PERIOD);
-            /*----------------------------------------------------------*/
-            /* Create a unique list of CONNUM/time period combinations. */
-            /*----------------------------------------------------------*/
 
-            PROC SORT DATA = &DATASET (KEEP = &&&TYPE.CONNUM &&&TIME_PERIOD)
-                      OUT = &DATASET._CONNUM_QTR_LIST
-                            (RENAME = (&CONNUM = &COST_MATCH
-                                       &&&TIME_PERIOD = &COST_TIME_PERIOD))
-                            NODUPKEY;
-                BY &CONNUM &&&TIME_PERIOD;
-            RUN;
+       OPTIONS NOSYMBOLGEN NOMLOGIC NOMPRINT;   
+        %C_MAC3_READLOG (LOG = &LOG., ME_OR_NME = &ME_OR_NME.);
+       OPTIONS SYMBOLGEN MLOGIC MPRINT;
 
-            /*----------------------------------------------------*/
-            /* Identify CONNUM/time periodS with no corresponding */
-            /* COP CONNUM/time periods.                           */
-            /*----------------------------------------------------*/
+      %END;
 
-            DATA MISSING_&TYPE._COST_LIST;
-                MERGE &DATASET._CONNUM_QTR_LIST (IN = SL)
-                      COST_CONNUM_QTR_LIST (IN = CT);
-                BY &COST_MATCH &COST_TIME_PERIOD;
-                IF SL AND NOT CT THEN
-                    OUTPUT;
-            RUN;
-
-            PROC PRINT DATA = MISSING_&TYPE._COST_LIST;
-                TITLE3 "&TYPE CONNUM/TIME PERIODS WITHOUT COP CONNUM/TIME PERIODS";
-            RUN;
-
-            DATA _NULL_;
-                IF 0 THEN
-                    SET MISSING_&TYPE._COST_LIST NOBS = N;
-                CALL SYMPUTX("&TYPE._MISS_LIST", N);
-                STOP;
-            RUN;
-        %MEND CHECK_FOR_MISSING;
-
-        %IF &PROGRAM = HM %THEN
-        %DO;
-            %CHECK_FOR_MISSING(HM, HMSALES, &HMCONNUM, HM_TIME_PERIOD)
-        %END;
-
-        %CHECK_FOR_MISSING(US, US_INDEX_CHECK, &USCONNUM, US_TIME_PERIOD)
-
-        %MACRO COST_ERROR_CHECK (DATASET, DATASET_OBS);
-            %IF &&&DATASET_OBS %THEN
-            %DO;
-                OPTIONS OBS = 0;
-                %PUT ERROR: RESPONDENTS DID NOT REPORT TIME SPECIFIC COST FOR ALL &DATASET SALES.;
-                %PUT ERROR: PLEASE CONTACT THE SAS SUPPORT TEAM TO ADD INDEXING LANGUAGE TO THE PROGRAM.;
-            %END;
-        %MEND COST_ERROR_CHECK;
-
-        %IF &PROGRAM = HM %THEN
-        %DO;
-           %COST_ERROR_CHECK(HM, HM_MISS_LIST)
-        %END;
-
-        %COST_ERROR_CHECK(U.S., US_MISS_LIST)
-    %END;
-%MEND G18_FIND_MISSING_TIME_PERIODS;
+%MEND CMAC4_SCAN_LOG;

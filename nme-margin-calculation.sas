@@ -2,7 +2,7 @@
 /*                                                              */
 /*              NME MARGIN CALCULATION PROGRAM                  */
 /*                                                              */
-/*          GENERIC VERSION LAST UPDATED - AUGUST 30, 2017      */
+/*        GENERIC VERSION LAST UPDATED - MARCH 29, 2018         */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */
@@ -70,12 +70,12 @@
 /*            Macro Program and its file name.                  */
 /*--------------------------------------------------------------*/
 
-LIBNAME COMPANY '<E:\....>';                   /* (T) Location of company and  */
-                                               /* exchange rate data sets.     */
-FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   */
-                                               /* Common Macros Program        */
-%INCLUDE C_MACS;                               /* Use the Common Macros        */
-                                               /* Program.                     */
+LIBNAME COMPANY '<E:\....>';                   /* (T) Location of company and   */
+                                               /* exchange rate data sets.      */
+FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    */
+                                               /* Common Macros Program         */
+%INCLUDE C_MACS;                               /* Use the Common Macros         */
+                                               /* Program.                      */
 %LET LOG_SUMMARY = YES;                        /* Default value is "YES" (no    */
                                                /* quotes). Use "NO" (no quotes) */
                                                /* to run program in parts for   */
@@ -101,6 +101,18 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 
 %LET CASE_TYPE = <INV/AR>;     /* (T) For an investigation, type 'INV' (without quotes)        */
                                /*     For an administrative review, type 'AR' (without quotes) */
+
+/*------------------------------------------*/
+/* TYPE IN THE CASE NUMBER (EX. A-357-812). */
+/*------------------------------------------*/
+
+%LET CASE_NUMBER = <  >;    /*(T) Case Number */
+
+/*-------------------------*/
+/* TYPE IN YOUR FULL NAME. */
+/*-------------------------*/
+
+%LET PROGRAMMER = <  >;     /*(T) Case Analyst responsible for programming */
 
 /*--------------------------------------------------------------*/
 /* TYPE IN THE NAMES OF THE U.S. AND FOP DATASETS. THIS PROGRAM */
@@ -333,7 +345,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET SALETYPE = <EP/CEP/BOTH>;  /* (T) TYPE IN 'EP', 'CEP', OR 'BOTH'. */
                                 /*     DO NOT TYPE THE QUOTES.         */
 
-
 /*-------------------------------------------------------------------*/
 /* CASES INITIATED AFTER JUNE 19, 2012 MAY HAVE IRRECOVERABLE INPUT  */
 /* VALUE-ADDED TAXES (VATTAXU) ON MERCHANDISE SOLD TO THE UNITED     */
@@ -453,8 +464,67 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                 /*     (without quotes).                         */
 %LET EXDATA2 = <  >;            /* (D) Exchange rate #2 dataset name.            */
 %LET VARS_TO_USD2 = <      >;   /* (V) Type in the list of variables to convert  */
-                                /*     into U.S. dollars using exchange rate #1. */
+                                /*     into U.S. dollars using exchange rate #2. */
                                 /*     Separate the variables with spaces.       */
+
+/*-------------------------------------------------*/
+/* THE FOLLOWING FIVE MACRO VARIABLES WILL BE USED */
+/* IN PART 11 TO RUN THE COHEN'S-D TEST.           */
+/*-------------------------------------------------*/
+
+/*----------------------------------------------------------------*/
+/*  COHEN'S-D TEST                                                */
+/*                                                                */
+/*    Normally, the regions will correspond to the 5 Census       */
+/*    regions:  Northeast, Midwest, South, West, and Puerto Rico. */
+/*    (Do not include U.S. Territories other than Puerto Rico     */
+/*    because they are not in the Customs Territory of the U.S.)  */
+/*                                                                */
+/*    If you have a region variable, type DP_REGION_DATA=REGION   */
+/*    and then specify the region variable in DP_REGION=???.      */
+/*    Please note that any unknown regions should be listed as    */
+/*    blank spaces and not, for example, as "UNKNOWN" or "UNK."   */
+/*                                                                */
+/*    If you instead have a variable that has either the 2-digit  */
+/*    postal state code or the zip code (5 or 9 digits), then     */
+/*    indicate the same below by typing DP_REGION_DATA=STATE or   */
+/*    DP_REGION_DATA=ZIP. If you need to write your own language  */
+/*    to create the Census regions, do so in Sect. 2-B below      */
+/*    re: changes and edits to the U.S. database.                 */
+/*                                                                */
+/*    If you have any unknown purchasers/customers, they should   */
+/*    be reported as blank spaces and not, for example, as        */
+/*    "UNKNOWN" or "UNK." If this is not the case, please edit    */
+/*    the data accordingly.                                       */
+/*                                                                */
+/*    Usually, time periods for purposes of the Cohen's-d Test    */
+/*    will be defined by quarters, beginning with the first month */
+/*    of POI/POR as found in the B_PERIOD macro variable          */
+/*    defined above. If you wish to use quarters                  */
+/*    and do not have a variable for the same, type               */
+/*    DP_TIME_CALC=YES and the program will use the sale date     */
+/*    variable to assign quarters.  If you already have a         */
+/*    variable for quarters or are using something other than     */
+/*    quarters, type DP_TIME_CALC=NO and also indicate the        */
+/*    variable containing the time periods in DP_TIME=???.        */
+/*----------------------------------------------------------------*/
+
+%LET DP_PURCHASER   = <        >; /* (V) Variable indicating customer for purposes of the  */
+                                  /*     Cohen's-d test.                                   */
+%LET DP_REGION_DATA = <        >; /* (T) Type either "REGION," "STATE" or "ZIP" (without   */
+                                  /*     quotes) to indicate the type of data being used   */
+                                  /*     to assign Census regions. Then complete the       */
+                                  /*     DP_REGION macro variable immediately following.   */
+%LET     DP_REGION  = <        >; /* (V) Variable indicating the DP region if you typed    */
+                                  /*     "REGION" for DP_REGION_DATA, or the variable      */
+                                  /*     indicating the 2-digit postal state designation   */
+                                  /*     if you typed "STATE," or the variable indicating  */
+                                  /*     the 5-digit zip code if you typed "ZIP."          */
+%LET DP_TIME_CALC   = <YES/NO>;   /* (T) Type "YES" (without quotes) to assign quarters    */
+                                  /*     using the beginning of the period.                */
+%LET     DP_TIME    = <        >; /* (V) If you typed "NO" for DP_TIME_CALC because you    */
+                                  /*     already have a variable for the DP time period,   */
+                                  /*     indicate that variable here.                      */
 
 /*-----------------------------------------------------------------*/
 /* THE FOLLOWING MACRO WILL BE USED IN PART 7 TO CALCULATE INPUTS. */
@@ -462,7 +532,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 
 %MACRO CALCULATE_INPUTS;
     /*----------------------------------------------------------------------*/
-    /* CALCULATE FRIEGHT FOR EACH FACTOR OF PRODUCTION TRANSPORTED FROM     */
+    /* CALCULATE FREIGHT FOR EACH FACTOR OF PRODUCTION TRANSPORTED FROM     */
     /* A SUPPLIER TO THE MANUFACTURER.                                      */
     /*                                                                      */
     /* A SIGMA CAP NEEDS TO BE DETERMINED FOR EACH TRANSPORTED FOP THAT HAS */
@@ -494,17 +564,17 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
     /*                                                                      */
     /* EXAMPLE WHERE THE FOP SV *IS* DERIVED FROM AN IMPORT STATISTIC:      */
     /*                                                                      */
-    /*          IRONORE_FRIEGHT = (DINLFTWU + DINLFTPU) * TRUCK_SV;         */
+    /*          IRONORE_FREIGHT = (DINLFTWU + DINLFTPU) * TRUCK_SV;         */
     /*                                                                      */
     /* EXAMPLE WHERE THE FOP SV *IS NOT* DERIVED FROM AN IMPORT STATISTIC:  */
     /*                                                                      */
-    /*          IRONORE_FRIEGHT = IRONDIS * TRUCK_SV;                       */
+    /*          IRONORE_FREIGHT = IRONDIS * TRUCK_SV;                       */
     /*                                                                      */
     /*                                                                      */
     /* THE SIGMA CAP DETERMINATION CAN BE MADE WHERE THE FOP SV *IS*        */
     /* DERIVED FROM AN IMPORT STATISTIC USING THE MINIMUM FUNCTION.         */
     /*                                                                      */
-    /* EXAMPLE: IRONORE_FRIEGHT = MIN(IRONDIS, (DINLFTWU + DINLFTPU))       */
+    /* EXAMPLE: IRONORE_FREIGHT = MIN(IRONDIS, (DINLFTWU + DINLFTPU))       */
     /*                          * TRUCK_SV;                                 */
     /*                                                                      */
     /*----------------------------------------------------------------------*/
@@ -698,7 +768,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                 /*------------------------------------------*/
                 /* CEP SELLING EXPENSE DEDUCTIONS FROM U.S. */ 
                 /* STARTING PRICE THAT ARE INCURRED ON      */
-                /* ECONOMIC ACTIVITY IN THE U.S. MARKET.    */  
+                /* ECONOMIC ACTIVITY IN THE U.S. MARKET.    */
                 /*------------------------------------------*/
    
                 COMMISNU   = <     >; /* (E) Sum of U.S. commissions.              */
@@ -734,65 +804,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
     RUN;
 %MEND CALCULATE_USNETPRI;
 
-/*-------------------------------------------------*/
-/* THE FOLLOWING FIVE MACRO VARIABLES WILL BE USED */
-/* IN PART 11 TO RUN THE COHEN'S-D TEST.           */
-/*-------------------------------------------------*/
-
-/*----------------------------------------------------------------*/
-/*  COHEN'S-D TEST                                                */
-/*                                                                */
-/*    Normally, the regions will correspond to the 5 Census       */
-/*    regions:  Northeast, Midwest, South, West, and Puerto Rico. */
-/*    (Do not include U.S. Territories other than Puerto Rico     */
-/*    because they are not in the Customs Territory of the U.S.)  */
-/*                                                                */
-/*    If you have a region variable, type DP_REGION_DATA=REGION   */
-/*    and then specify the region variable in DP_REGION=???.      */
-/*    Please note that any unknown regions should be listed as    */
-/*    blank spaces and not, for example, as "UNKNOWN" or "UNK."   */
-/*                                                                */
-/*    If you instead have a variable that has either the 2-digit  */
-/*    postal state code or the zip code (5 or 9 digits), then     */
-/*    indicate the same below by typing DP_REGION_DATA=STATE or   */
-/*    DP_REGION_DATA=ZIP. If you need to write your own language  */
-/*    to create the Census regions, do so in Sect. 2-B below      */
-/*    re: changes and edits to the U.S. database.                 */
-/*                                                                */
-/*    If you have any unknown purchasers/customers, they should   */
-/*    be reported as blank spaces and not, for example, as        */
-/*    "UNKNOWN" or "UNK." If this is not the case, please edit    */
-/*    the data accordingly.                                       */
-/*                                                                */
-/*    Usually, time periods for purposes of the Cohen's-d Test    */
-/*    will be defined by quarters, beginning with the first month */
-/*    of POI/POR as found in the B_PERIOD macro variable          */
-/*    defined above. If you wish to use quarters                  */
-/*    and do not have a variable for the same, type               */
-/*    DP_TIME_CALC=YES and the program will use the sale date     */
-/*    variable to assign quarters.  If you already have a         */
-/*    variable for quarters or are using something other than     */
-/*    quarters, type DP_TIME_CALC=NO and also indicate the        */
-/*    variable containing the time periods in DP_TIME=???.        */
-/*----------------------------------------------------------------*/
-
-%LET DP_PURCHASER   = <        >; /* (V) Variable indicating customer for purposes of the  */
-                                  /*     Cohen's-d test.                                   */
-%LET DP_REGION_DATA = <        >; /* (T) Type either "REGION," "STATE" or "ZIP" (without   */
-                                  /*     quotes) to indicate the type of data being used   */
-                                  /*     to assign Census regions. Then complete the       */
-                                  /*     DP_REGION macro variable immediately following.   */
-%LET     DP_REGION  = <        >; /* (V) Variable indicating the DP region if you typed    */
-                                  /*     "REGION" for DP_REGION_DATA, or the variable      */
-                                  /*     indicating the 2-digit postal state designation   */
-                                  /*     if you typed "STATE," or the variable indicating  */
-                                  /*     the 5-digit zip code if you typed "ZIP."          */
-%LET DP_TIME_CALC   = <YES/NO>;   /* (T) Type "YES" (without quotes) to assign quarters    */
-                                  /*     using the beginning of the period.                */
-%LET     DP_TIME    = <        >; /* (V) If you typed "NO" for DP_TIME_CALC because you    */
-                                  /*     already have a variable for the DP time period,   */
-                                  /*     indicate that variable here.                      */
-
 /*----------------------------------------------*/
 /* FORMAT, PROGRAM AND PRINT OPTIONS            */
 /*----------------------------------------------*/
@@ -808,7 +819,7 @@ OPTIONS TOPMARGIN = ".25IN"
         RIGHTMARGIN = ".25IN";
 
 TITLE1 "NME MARGIN CALCULATION PROGRAM - &PRODUCT FROM &COUNTRY - (&BEGINPERIOD - &ENDPERIOD)";
-TITLE2 "&SEGMENT &STAGE FOR RESPONDENT &RESPONDENT";
+TITLE2 "&SEGMENT &STAGE FOR RESPONDENT &RESPONDENT (&CASE_NUMBER)";
 FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
 FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
 
@@ -949,7 +960,7 @@ RUN;
 /* DO NOT EDIT CMAC2_COUNTER MACRO                                  */
 /*------------------------------------------------------------------*/
 
-	%CMAC2_COUNTER (DATASET = USSALES, MVAR=ORIG_USSALES);
+    %CMAC2_COUNTER (DATASET = USSALES, MVAR=ORIG_USSALES);
 
 /*ep*/
 
@@ -1376,7 +1387,7 @@ RUN;
 PROC PRINT DATA = USPRICES (OBS = &PRINTOBS);
     VAR &USCONNUM SALEU DIRECT_MATERIAL ENERGY LABOR COM OVRHD
         TOTCOM SGA PROFIT NV &USGUP GUPADJU DISCREBU
-        DCMMOVEU INTLMOVEU &CEP_EXPENSES USNETPRI;
+        DCMMOVEU INTLMOVEU &CEP_EXPENSES VETAXU USNETPRI;
     WHERE NV GT USNETPRI;
     TITLE3 "COMPARISON OF U.S. PRICE AND NORMAL VALUES";
     TITLE4 "WHERE NORMAL VALUES ARE GREATER THAN U.S. NET PRICES";
@@ -1395,16 +1406,18 @@ RUN;
 
         DATA USPRICES;
             SET USPRICES;
-            LENGTH SOURCEDATA $10. ENTERED_VALUE 8. ;
+            LENGTH SOURCEDATA $10. ENTERED_VALUE 8.;
 
-            %IF %UPCASE(&IMPORTER) = NA %THEN
+            %IF %UPCASE(&IMPORTER) EQ NA %THEN
             %DO;
-                US_IMPORTER  = 'UNSPECIFIED'; 
+                US_IMPORTER = &DP_PURCHASER;
             %END;
-
             %ELSE
             %DO;
-                US_IMPORTER = &IMPORTER;
+                IF UPCASE(&IMPORTER) IN ('NA' 'UNK' 'UNKNOWN') THEN
+                    US_IMPORTER = &DP_PURCHASER;
+                ELSE
+                    US_IMPORTER = &IMPORTER;
             %END;
 
             %IF %UPCASE(&ENTERED_VALUE) EQ NO %THEN
@@ -1651,7 +1664,7 @@ RUN;
                     END;
                     ELSE 
                     DO;
-                        IF 500 LT INPUT(&DP_REGION, 8.) LT 100000 THEN VALID_ZIP = "YES";
+                        IF 500 LT &DP_REGION LT 100000 THEN VALID_ZIP = "YES";
                         ELSE VALID_ZIP = "NO";
                     END;
                     
@@ -2343,6 +2356,15 @@ RUN;
 %WT_AVG_DATA
 
 /*ep*/
+
+/***************************************************************************/
+/* DATA COUNT FOR LOG REPORTING PURPOSE                            */
+/***************************************************************************/
+
+%CMAC2_COUNTER (DATASET = USPRICES, MVAR=USPRICES);
+
+/*ep*/
+
 
 /*-----------------------------*/
 /* PART 13: COMPARISON RESULTS */
@@ -3334,6 +3356,17 @@ RUN;
                         TITLE3 &TITLE3;
                         TITLE4 &TITLE4;
                         %FORMAT
+                    RUN;
+
+                    PROC SORT DATA = SUMMARG_AVGMARG
+                              OUT = IMPORTER_LIST (KEEP = US_IMPORTER) NODUPKEY;
+                        BY US_IMPORTER;
+                    RUN;
+
+                    PROC PRINT DATA = IMPORTER_LIST SPLIT = '*';
+                        LABEL US_IMPORTER = "&IMPORTER";
+                        TITLE3 &TITLE3;
+                        TITLE4 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
                     RUN;
                 %MEND PRINT_NOCALC;
 

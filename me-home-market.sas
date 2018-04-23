@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                      ANALYSIS OF HOME MARKET SALES                      */
 /*                                                                         */
-/*                    LAST PROGRAM UPDATED AUGUST 30, 2017                 */
+/*                    LAST PROGRAM UPDATED APRIL 6, 2018                   */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring in Home Market Sales, Convert Date Variable, If          */
@@ -95,10 +95,27 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /* 1-B:     PROCEEDING TYPE                                         */
 /*------------------------------------------------------------------*/
 
+/*-----------------------------------------------*/
+/* TYPE IN EITHER THE WORD 'AR' (NOT 1ST REVIEW) */
+/* OR THE WORD 'INV'. DO NOT TYPE THE QUOTES.    */
+/*-----------------------------------------------*/
+
 %LET CASE_TYPE = <AR/INV>;  /*(T) For an investigation, type 'INV' */
                             /*    (without quotes)                 */
                             /*    For an administrative review,    */
                             /*    type 'AR' (without quotes)       */
+
+/*------------------------------------------*/
+/* TYPE IN THE CASE NUMBER (EX. A-357-812). */
+/*------------------------------------------*/
+
+%LET CASE_NUMBER = <  >;    /*(T) Case Number */
+
+/*-------------------------*/
+/* TYPE IN YOUR FULL NAME. */
+/*-------------------------*/
+
+%LET PROGRAMMER = <  >;     /*(T) Case Analyst responsible for programming */
 
 /*----------------------------------------------------------------------*/
 /* 1-C: DATE INFORMATION                                                */
@@ -222,11 +239,19 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*      code the second exchange rate variable as EXRATE_CANADA, */
 /*      &EXRATE2, or EXRATE_&EXDATA2.                            */
 /*                                                               */
+/*      Non-HM currency variables need to be carried over to the */
+/*      Margin program in their original currency. You must      */
+/*      update section 9-B-i in the HM program, as well as       */
+/*      sections 1-E-i, 1-E-v, and Part 5 of the Margin program. */
+/*      Instructions for filling out those sections are          */
+/*      contained at the beginning of the relevant section.      */
+/*                                                               */
 /*      NOTE: This program assumes that you are converting       */
 /*            everything into the currency in which costs are    */
 /*            reported. If this is not the case, please          */
 /*            contact a SAS Support Team member for assistance.  */
 /*---------------------------------------------------------------*/
+
 
 %LET USE_EXRATES1 = <YES/NO>;  /*(T) Use exchange rate #1? Type "YES" or */
                                /*    "NO" (without quotes).              */
@@ -266,8 +291,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET   HMPRIME  = <NA>;         /*(V) Prime/seconds code. If not           */
                                 /*    applicable, type "NA" (without       */
                                 /*    quotes).                             */
-%LET   HM_TIME_PERIOD = <  >;   /*(V) Variable in HM data for cost-related */
-                                /*     time periods, if applicable         */
 %LET   HM_MULTI_CUR = <YES/NO>; /*(T) Is HM data in more than one          */
                                 /*    currency? Type "YES" or "NO"         */
                                 /*    (without quotes).                    */
@@ -311,6 +334,8 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET COMPARE_BY_TIME = <YES/NO>;     /*(T) Calculate costs by        */
                                      /*    time periods? Type "YES"  */
                                      /*    or "NO" (without quotes). */
+%LET      HM_TIME_PERIOD = <  >;     /*(V) Variable in HM data       */
+                                     /*    for time periods.         */
 %LET      COST_TIME_PERIOD = <  >;   /*(V) Variable in cost data     */
                                      /*    for time periods.         */
 %LET      TIME_INSIDE_POR  = <  >;   /*(T) List of values of         */
@@ -321,10 +346,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                      /*    quotes around character   */
                                      /*    data. E.g., "Q1", "Q2",   */
                                      /*    "Q3", "Q4"                */
-%LET      USDATA = <  >;             /*(D) U.S. sales data set.      */
-%LET      USCONNUM = <  >;           /*(V) U.S. control number.      */
-%LET      US_TIME_PERIOD = <  >;     /*(V) Variable defining the     */
-                                     /*    U.S. time period.         */
 
 /*----------------------------------------------------*/
 /* 1-E-iii-b. SURROGATE COSTS FOR NON-PRODUCTION      */
@@ -484,21 +505,21 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 %G2_TITLE_SETUP
 %G3_COST_TIME_MVARS
 
-/*----------------------------------------------------------------------*/
-/* 1-I: PRIME AND MANUFACTURER MACROS AND MACRO VARIABLES               */
-/*                                                                      */
-/*          In the programming language, the macro variables &HMPRIM,   */
-/*          &HMMANF and &COPMANF are used. Their values are determined  */
-/*          by the answers in Sect.1-E-ii above.                        */
-/*          For example, if you typed %LET HMMANUF=NA, then the macro   */
-/*          variable &HMMANF will be set to a null/blank value.         */
-/*          Otherwise, &HMMANF will be equal to the variable specified  */
-/*          in %LET HMMANUF=<???>.                                      */
-/*                                                                      */
-/*          Similarly, &HMPRIM and &COPMANF will either be a null/blank */
-/*          values, or set equal to the variables specified in          */
-/*          %LET HMPRIME=<???> and %LET COPMANUF=<???>.                 */
-/*----------------------------------------------------------------------*/
+/*--------------------------------------------------------------------*/
+/* 1-I: PRIME AND MANUFACTURER MACROS AND MACRO VARIABLES             */
+/*                                                                    */
+/*          In the programming language, the macro variables HMPRIM,  */
+/*          &HMMANF and COPMANF are used. Their values are determined */
+/*          by the answers in Sect.1-E-ii above.                      */
+/*          For example, if you typed %LET HMMANUF=NA, then the macro */
+/*          variable HMMANF will be set to a null/blank value.        */
+/*          Otherwise, HMMANF will be equal to the variable specified */
+/*          in %LET HMMANUF=<???>.                                    */
+/*                                                                    */
+/*          Similarly, HMPRIM and COPMANF will either be a null/blank */
+/*          values, or set equal to the variables specified in        */
+/*          %LET HMPRIME=<???> and %LET COPMANUF=<???>.               */
+/*--------------------------------------------------------------------*/
 
 %HM1_PRIME_MANUF_MACROS
 
@@ -570,7 +591,7 @@ RUN;
     /* 2-C-iii: GET HMSALES COUNT FOR LOG REPORTING                     */
     /*------------------------------------------------------------------*/
 
-	%CMAC2_COUNTER (DATASET = HMSALES, MVAR=ORIG_HMSALES);
+    %CMAC2_COUNTER (DATASET = HMSALES, MVAR=ORIG_HMSALES);
 
 /*ep*/
 
@@ -835,32 +856,6 @@ RUN;
 %G17_FINALIZE_COSTDATA
 
 /*ep*/
-
-/*-----------------------------------------------------------------------*/
-/* 3-G: IN TIME-SPECIFIC COST CASES, IDENTIFY CONNUM/TIME PERIODS WITH   */
-/*      NO CORRESPONDING COP CONNUM/TIME PERIODS. STOP THE PROGRAM IF    */
-/*      MISSING CONNUM/TIME PERIODS ARE FOUND AND ISSUE AN ERROR MESSAGE */
-/*      ASKING THE ANALYST TO CONTACT THE SAS SUPPORT TEAM FOR HELP.     */
-/*-----------------------------------------------------------------------*/
-
-%MACRO US_CONNUM_PERIOD_LIST;
-    %IF %UPCASE(&COMPARE_BY_TIME) = YES %THEN
-    %DO;
-        DATA US_INDEX_CHECK;
-            SET COMPANY.&USDATA;
-
-            /******************************************************/
-            /* 3-G-i: Create time-specific variable if necessary. */
-            /******************************************************/
- 
-            /* <Create time-specific variable> */
-        RUN;
-    %END;
-%MEND US_CONNUM_PERIOD_LIST;
-
-%US_CONNUM_PERIOD_LIST
-
-%G18_FIND_MISSING_TIME_PERIODS(HM)
 
 /***************************************************************************/
 /* PART 4: HOME MARKET NET PRICE CALCULATIONS                              */
