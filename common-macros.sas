@@ -2,14 +2,16 @@
 /*                    COMMON UTILITY MACROS PROGRAM                    */
 /*                     FOR USE FOR BOTH ME AND NME                     */
 /*                                                                     */
-/*                 LAST PROGRAM UPDATE MARCH 20, 2018                */
+/*                  LAST PROGRAM UPDATE JUNE 12, 2018                  */
 /*                                                                     */
 /* PART 1: MACRO TO WRITE LOG TO A PERMANENT FILE                      */ 
 /* PART 2: MACRO TO GET COUNTS OF THE DATASETS                         */ 
 /* PART 3: REVIEW AND REPORT GENERAL SAS LOG ALERTS SUCH AS ERRORS,    */
 /*         WARNINGS, UNINITIALIZED VARIABLES ETC. AND PROGRAM SPECIFIC */
 /*         ALERTS WE NEED TO WATCH FOR                                 */
-/* PART 4: CALL LOG SCAN MACRO ON DEMAND                               */ 
+/* PART 4: CALL LOG SCAN MACRO ON DEMAND                               */
+/* PART 5: SELECTIVELY ADJUST SALE DATE BASED ON AN EARLIER DATE       */
+/*         VARIABLE.                                                   */
 /***********************************************************************/
 
 %GLOBAL NVMATCH_TYPE1 NVMATCH_TYPE2 NVMATCH_TYPE3 NVMATCH_VALUE1 NVMATCH_VALUE2 NVMATCH_VALUE3;
@@ -342,3 +344,15 @@ RUN;
       %END;
 
 %MEND CMAC4_SCAN_LOG;
+
+/*-------------------------------------------------------------------------*/
+/* PART 5: SELECTIVELY ADJUST SALE DATE BASED ON AN EARLIER DATE VARIABLE. */
+/*-------------------------------------------------------------------------*/
+
+%MACRO DEFINE_SALE_DATE (SALEDATE =);
+    %IF &DATEBEFORESALE = YES %THEN
+    %DO;
+        IF &EARLIERDATE < &SALEDATE THEN
+            &SALEDATE = &EARLIERDATE;
+    %END;
+%MEND DEFINE_SALE_DATE;

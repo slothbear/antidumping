@@ -2,7 +2,7 @@
 /*                     ANTIDUMPING MARKET-ECONOMY                   */
 /*                           MACROS PROGRAM                         */
 /*                                                                  */
-/*                  LAST PROGRAM UPDATE APRIL 6, 2018               */
+/*                 LAST PROGRAM UPDATE JULY 10, 2018                */
 /*                                                                  */
 /********************************************************************/
 /*                              GENERAL MACROS                      */
@@ -69,7 +69,7 @@
 
 %MACRO G1_RUNTIME_SETUP;
 
-DATA NULL;
+DATA _NULL_;
     CALL SYMPUT ('BTIME',PUT(TIME(),TIME5.));
     CALL SYMPUT ('BDATE',PUT(DATE(),DATE.));
     CALL SYMPUT ('BWDATE',TRIM(LEFT(PUT(DATE(),WORDDATE18.))));
@@ -300,17 +300,17 @@ RUN;
 %MACRO G5_DATE_CONVERT;
     %IF %UPCASE(&SALESDB) = HMSALES %THEN
     %DO;
-        %DATE_CONVERT(&HMDATE, )
+        %DATE_CONVERT(&HMSALEDATE, )
     %END;
     %ELSE
     %IF %UPCASE(&SALESDB) = DOWNSTREAM %THEN
     %DO;
-        %DATE_CONVERT(&HMDATE, )
+        %DATE_CONVERT(&HMSALEDATE, )
     %END;
     %ELSE
     %IF %UPCASE(&SALESDB) = USSALES %THEN
     %DO;
-        %DATE_CONVERT(&USDATE, )
+        %DATE_CONVERT(&USSALEDATE, )
         %IF %UPCASE(&FILTER_EP) = YES %THEN
         %DO;
             %DATE_CONVERT(&EP_DATE_VAR,_EP)
@@ -339,16 +339,16 @@ RUN;
         %MARGIN_FILTER
         ELSE DO;
 
-            **----------------------------------------------------------------------**;
-            **    In administrative reviews, define HMMONTH and USMONTH variables so     **;
-            **    that each month has a unique value.                                    **;
-            **----------------------------------------------------------------------**;
+            /*--------------------------------------------------------------------*/
+            /* In administrative reviews, define HMMONTH and USMONTH variables so */
+            /* that each month has a unique value.                                */
+            /*--------------------------------------------------------------------*/
 
             %IF %UPCASE(&CASE_TYPE) = AR %THEN
             %DO;
                 %IF &DBTYPE = US %THEN
                 %DO;
-                    %LET BEGIN = &BEGINWIN;
+                    %LET BEGIN = &BEGINWINDOW;
                 %END;
                 %ELSE
                 %DO;
@@ -382,14 +382,14 @@ RUN;
         %MACRO MARGIN_FILTER;
         %MEND MARGIN_FILTER;
 
-        %CHECK_SALES(HMMONTH, &HMQTY, &HMGUP, &HMDATE, HMSALES, HOME MARKET, HM);
+        %CHECK_SALES(HMMONTH, &HMQTY, &HMGUP, &HMSALEDATE, HMSALES, HOME MARKET, HM);
     %END;    
     %IF %UPCASE(&SALESDB) = DOWNSTREAM %THEN
     %DO;
         %MACRO MARGIN_FILTER;
         %MEND MARGIN_FILTER;
 
-        %CHECK_SALES(HMMONTH, &HMQTY, &HMGUP, &HMDATE, DOWNSTREAM, DOWNSTREAM, DS);
+        %CHECK_SALES(HMMONTH, &HMQTY, &HMGUP, &HMSALEDATE, DOWNSTREAM, DOWNSTREAM, DS);
     %END;
 
     %IF %UPCASE(&SALESDB) = USSALES %THEN
@@ -415,7 +415,7 @@ RUN;
             %END;
         %MEND MARGIN_FILTER;
 
-        %CHECK_SALES(USMONTH, &USQTY, &USGUP, &USDATE, USSALES, US, US);
+        %CHECK_SALES(USMONTH, &USQTY, &USGUP, &USSALEDATE, USSALES, US, US);
     %END;
 
 %MEND G6_CHECK_SALES;
@@ -505,20 +505,20 @@ RUN;
 
     %IF %UPCASE(&SALESDB) = HMSALES %THEN
     %DO;
-        %MERGE_RATES(&USE_EXRATES1,&EXDATA1,EXRATE1,XRATE1,&HMDATE);
-        %MERGE_RATES(&USE_EXRATES2,&EXDATA2,EXRATE2,XRATE2,&HMDATE);
+        %MERGE_RATES(&USE_EXRATES1,&EXDATA1,EXRATE1,XRATE1,&HMSALEDATE);
+        %MERGE_RATES(&USE_EXRATES2,&EXDATA2,EXRATE2,XRATE2,&HMSALEDATE);
     %END;
 
     %IF %UPCASE(&SALESDB) = USSALES %THEN
     %DO;
-        %MERGE_RATES(&USE_EXRATES1,&EXDATA1,EXRATE1,XRATE1,&USDATE);
-        %MERGE_RATES(&USE_EXRATES2,&EXDATA2,EXRATE2,XRATE2,&USDATE);
+        %MERGE_RATES(&USE_EXRATES1,&EXDATA1,EXRATE1,XRATE1,&USSALEDATE);
+        %MERGE_RATES(&USE_EXRATES2,&EXDATA2,EXRATE2,XRATE2,&USSALEDATE);
     %END;
 
     %IF %UPCASE(&SALESDB) = DOWNSTREAM %THEN
     %DO;
-        %MERGE_RATES(&USE_EXRATES1,&EXDATA1,EXRATE1,XRATE1,&HMDATE);
-        %MERGE_RATES(&USE_EXRATES2,&EXDATA2,EXRATE2,XRATE2,&HMDATE);
+        %MERGE_RATES(&USE_EXRATES1,&EXDATA1,EXRATE1,XRATE1,&HMSALEDATE);
+        %MERGE_RATES(&USE_EXRATES2,&EXDATA2,EXRATE2,XRATE2,&HMSALEDATE);
     %END;
 
 %MEND G7_EXRATES;
@@ -3219,7 +3219,7 @@ RUN;
         RUN;
 
         PROC PRINT DATA = USSALES (OBS=&PRINTOBS);
-            VAR &USDATE EXRATE_&EXDATA &VARS_TO_USD &VARS_IN_USD;
+            VAR &USSALEDATE EXRATE_&EXDATA &VARS_TO_USD &VARS_IN_USD;
             TITLE3 "SAMPLE OF FOREIGN CURRENCY VARIABLES CONVERTED INTO U.S. DOLLARS USING EXRATE_&EXDATA";
         RUN;
 
@@ -4217,7 +4217,7 @@ OPTIONS SYMBOLGEN;
         %IF %UPCASE(&DP_TIME_CALC) = YES %THEN
         %DO;
             %MACRO DPPERIOD_PRINT_LABEL;
-                &USDATE = "U.S. DATE*OF SALE*(&USDATE)"
+                &USSALEDATE = "U.S. DATE*OF SALE*(&USSALEDATE)"
             %MEND DPPERIOD_PRINT_LABEL;
         %END;        
         %IF %UPCASE(&DP_TIME_CALC) = NO %THEN
@@ -4264,20 +4264,20 @@ OPTIONS SYMBOLGEN;
             %END;    
             %ELSE %IF %UPCASE(&DP_TIME_CALC) = YES %THEN
             %DO;
-                   FIRSTMONTH =MONTH("&BEGINPERIOD"D);
-                DPMONTH=MONTH(&USDATE)+(YEAR(&USDATE)-YEAR("&BEGINPERIOD"D))*12;
-                 DP_PERIOD="QTR"||PUT(INT(1+(DPMONTH-FIRSTMONTH)/3),Z2.);
+                FIRSTMONTH =MONTH("&BEGINPERIOD"D);
+                DPMONTH=MONTH(&USSALEDATE)+(YEAR(&USSALEDATE)-YEAR("&BEGINPERIOD"D))*12;
+                DP_PERIOD="QTR"||PUT(INT(1+(DPMONTH-FIRSTMONTH)/3),Z2.);
                 DROP FIRSTMONTH DPMONTH;
-                %LET DP_PERIOD = &USDATE;
+                %LET DP_PERIOD = &USSALEDATE;
                 %LET PERIOD_PRINT_VARS = &DP_PERIOD DP_PERIOD;
             %END;
 
     RUN;
 
-        **********************************************************************;
-        **    US13-B-ii Attach region designations using state/zip codes,        **; 
-        **    when required.                                                    **;
-        **********************************************************************;
+        /*********************************************************************/
+        /*    US13-B-ii Attach region designations using state/zip codes,    */ 
+        /*    when required.                                                 */
+        /*********************************************************************/
 
         %IF %UPCASE(&DP_REGION_DATA) NE REGION %THEN
         %DO;
@@ -5778,8 +5778,7 @@ OPTIONS SYMBOLGEN;
 
                         PROC PRINT DATA = IMPORTER_LIST SPLIT = '*';
                             LABEL US_IMPORTER = "&IMPORTER";
-                            TITLE3 &TITLE3;
-                            TITLE4 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
+                            TITLE3 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
                         RUN;
                     %END;
 
@@ -5810,8 +5809,7 @@ OPTIONS SYMBOLGEN;
 
                         PROC PRINT DATA = IMPORTER_LIST SPLIT = '*';
                             LABEL US_IMPORTER = "&IMPORTER";
-                            TITLE3 &TITLE3;
-                            TITLE4 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
+                            TITLE3 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
                         RUN;
                     %END;
 
@@ -5845,8 +5843,7 @@ OPTIONS SYMBOLGEN;
 
                             PROC PRINT DATA = IMPORTER_LIST SPLIT = '*';
                                 LABEL US_IMPORTER = "&IMPORTER";
-                                TITLE3 &TITLE3;
-                                TITLE4 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
+                                TITLE3 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
                             RUN;
                         %END;
                     %END;
@@ -5897,8 +5894,7 @@ OPTIONS SYMBOLGEN;
 
                 PROC PRINT DATA = IMPORTER_LIST SPLIT = '*';
                     LABEL US_IMPORTER = "&IMPORTER";
-                    TITLE3 &TITLE3;
-                    TITLE4 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
+                    TITLE3 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
                 RUN;
             %END;
         %MEND NO_ASSESS;

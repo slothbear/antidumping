@@ -2,7 +2,7 @@
 /*                         ANTIDUMPING MARKET-ECONOMY                      */
 /*                             MARGIN CALCUALTION                          */
 /*                                                                         */
-/*                      LAST PROGRAM UPDATE APRIL 6, 2018                  */
+/*                    LAST PROGRAM UPDATE August 16, 2018                  */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
@@ -122,42 +122,90 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 
 %LET PROGRAMMER = <  >;     /*(T) Case Analyst responsible for programming */
 
-/*----------------------------------------------------------------------*/
-/* 1-B: DATE INFORMATION                                                */
-/*                                                                      */
-/*          Dates should be in SAS DATE9 format (e.g., 01JAN2010).      */
-/*                                                                      */
-/*      FOR INVESTIGATIONS: BEGINDAY and ENDDAY usually correspond      */
-/*          to the first and last dates of the POI.                     */
-/*      FOR REVIEWS: Adjust BEGINDAY and ENDDAY to match the first      */
-/*          day of the first month and the last day of the last month   */
-/*          of the window period, respectively, covering all U.S. sale  */
-/*          dates. Reported CEP sales usually include all sales during  */
-/*          the POR. For EP sales, they usually include all entries     */
-/*          during the POR. Accordingly, there may be U.S. sales        */
-/*          transactions with sale dates prior to the POR. For example, */
-/*          if the first EP entry in the POR was in June (first month   */
-/*          of POR) but that entry had a sale date back in April, the   */
-/*          window period would have to include the three months prior  */
-/*          to April. February would then be the beginning of the       */
-/*          window period.                                              */
-/*                                                                      */
-/*          TIME-SPECIFIC COMPARISONS: When making time-specific        */
-/*          price-to-price comparisons of HM and US sales, comparisons  */
-/*          are not made outside of designated time periods. In such    */
-/*           cases, set BEGINWIN to the first day of the first time     */
-/*          period. Likewise, set ENDDAY to the last day of the last    */
-/*          time period.                                                */
-/*----------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
+/* 1-B: DATE INFORMATION                                             */
+/*                                                                   */
+/* Dates should be written in SAS DATE9 format (e.g., 01JAN2010).    */
+/*                                                                   */
+/* USSALEDATE:                                                       */
+/*                                                                   */
+/* The date of sale variable defined by the macro variable           */
+/* USSALEDATE will be used to capture all U.S. sales within the date */
+/* range specified by the macro variables BEGINDAY and ENDAY.        */
+/*                                                                   */
+/* DATEBEFORESALE and EARLIERDATE:                                   */
+/*                                                                   */
+/* If there are reported dates before the sale date and you want     */
+/* the earlier dates to be assigned to sale date, define the macro   */
+/* variable DATEBEFORESALE to 'YES' and assign the variable with     */
+/* earlier dates to the macro variable EARLIERDATE (ex. SHIPDATE).   */
+/* Otherwise define the macro variable DATEBEFORESALE to 'NO' and    */
+/* ignore the macro variable EARLIERDATE.                            */
+/*                                                                   */
+/* BEGINDAY and ENDDAY:                                              */
+/*                                                                   */
+/* FOR INVESTIGATIONS, the macro variables BEGINDAY and ENDDAY       */
+/* usually correspond to the first and last dates of the POI.        */
+/*                                                                   */
+/* FOR REVIEWS, the macro variables BEGINDAY and ENDDAY usually      */
+/* correspond to the first day of the first month and the last day   */
+/* of the last month of the window period, respectively, covering    */
+/* all U.S. sale dates. Reported CEP sales usually include all sales */
+/* during the POR. For EP sales, they usually include all entries    */
+/* during the POR. Accordingly, there may be U.S. sales transactions */
+/* with sale dates prior to the POR. For example, if the first EP    */
+/* entry in the POR was in June (first month of POR) but that entry  */
+/* had a sale date back in April, the window period would have to    */
+/* include the three months prior to April. January would then be    */
+/* the beginning of the window period. The variable BEGINDAY is used */
+/* to define variables USMONTH and HMMONTH that represent the month  */
+/* and year of the sale.                                             */
+/*                                                                   */
+/* TIME-SPECIFIC COMPARISONS: When making time-specific price-to-    */
+/* price comparisons of HM and US sales, comparisons are not made    */
+/* outside of designated time periods. In such cases, set            */
+/* BEGINWINDOW to the first day of the first time period. Likewise,  */
+/* set ENDDAY to the last day of the last time period.               */
+/*                                                                   */
+/* BEGINPERIOD and ENDPERIOD:                                        */
+/*                                                                   */
+/* The macro variables BEGINPERIOD and ENDPERIOD refer to the begin- */
+/* ning and at the end of the official POI/POR. They are used for    */
+/* titling. BEGINPERIOD is also used in the Cohen’s d Test.          */
+/*                                                                   */
+/* BEGINWINDOW:                                                      */
+/*                                                                   */
+/* The macro variable BEGINWINDOW refers to the beginning of the     */
+/* window period in an administrative review. It is used to define   */
+/* the variable USMONTH that represents the month and year of the    */
+/* sale. It is not required for investigations.                      */
+/*-------------------------------------------------------------------*/
 
-%LET BEGINDAY = <DDMONYYYY>;    /*(T) Day 1 of first month of U.S. sales   */
-%LET ENDDAY   = <DDMONYYYY>;    /*(T) Last day of last month of U.S. sales */
-%LET BEGINPERIOD = <DDMONYYYY>; /*(T) Day 1 of first month of official     */
-                                /*    POI/POR.                             */
-
-%LET BEGINWIN = <DDMONYYYY>;    /*(T) Day 1 of first month of window period*/
-                                /*    in administrative reviews. Not       */
-                                /*    required for investigations.         */
+%LET USSALEDATE = <        >;       /* (V) Variable representing the */
+                                    /*     U.S. sale date.           */
+%LET DATEBEFORESALE = <YES/NO>;     /* (T) Adjust sale date based on */
+                                    /*     an earlier date variable? */
+                                    /*     Type 'YES' (no quotes) to */
+                                    /*     adjust the sale date, or  */
+                                    /*     'NO' to skip this part.   */
+                                    /*     If you typed 'YES' then   */
+                                    /*     also complete the macro   */
+                                    /*     variable EARLIERDATE.     */
+%LET      EARLIERDATE = <        >; /* (V) Variable representing the */
+                                    /*     earlier date variable.    */
+%LET BEGINDAY = <DDMONYYYY>;        /* (T) First day of first month  */
+                                    /*     of U.S. sales.            */
+%LET ENDDAY = <DDMONYYYY>;          /* (T) Last day of last month of */
+                                    /*     U.S. sales.               */
+%LET BEGINPERIOD = <DDMONYYYY>;     /* (T) Day 1 of first month of   */
+                                    /*     official POI/POR.         */
+%LET ENDPERIOD = <DDMONYYYY>;       /* (T) Last day last month of    */
+                                    /*     official POI/POR.         */
+%LET BEGINWINDOW = <DDMONYYYY>;     /* (T) Day 1 of first month of   */
+                                    /*     window period in admini-  */
+                                    /*     strative reviews. It is   */
+                                    /*     NOT required for investi- */
+                                    /*     gations.                  */
 
 /*--------------------------------------------------------------*/
 /* 1-B-ii:     ADDITIONAL FILTERING OF U.S. SALES, IF REQUIRED  */
@@ -317,7 +365,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                            /*      of one type, then type either EP or   */
                            /*      CEP (without quotes) to indicates     */
                            /*      which type.                           */
-%LET     USDATE   = <  >;  /*(V) Sale date                               */
 %LET     USQTY    = <  >;  /*(V) Quantity                                */
 %LET     USGUP    = <  >;  /*(V) Gross price. Need not be in consistent  */
                            /*    currency, used only to check for zero,  */
@@ -477,21 +524,21 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*     surrogate cost information reported.                */
 /*---------------------------------------------------------*/
 
-%LET MATCH_NO_PRODUCTION= <YES/NO>; /*(T) Find surrogate costs for products*/
-                                    /*    not produced during the POR?     */
-                                    /*    Type "YES" or "NO" (without      */
-                                    /*    quotes). If "YES," complete      */
-                                    /*    the indented macro variables     */
-                                    /*    that follow.                     */
-%LET   COST_PROD_CHARS = <YES/NO>;  /*(T) Are the product physical         */
-                                    /*    characteristic variables in the  */
-                                    /*    cost database? Type "YES" or     */
-                                    /*    "NO" without quotes).            */
-%LET   COST_CHAR = <  >;            /*(V) Product matching characteristics */
-                                    /*    in cost data. List them from     */
-                                    /*    left-to-right in order of        */
-                                    /*    importance, with no punctuation  */
-                                    /*    separating them.                 */
+%LET MATCH_NO_PRODUCTION = <YES/NO>; /*(T) Find surrogate costs for products*/
+                                     /*    not produced during the POR?     */
+                                     /*    Type "YES" or "NO" (without      */
+                                     /*    quotes). If "YES," complete      */
+                                     /*    the indented macro variables     */
+                                     /*    that follow.                     */
+%LET   COST_PROD_CHARS = <YES/NO>;   /*(T) Are the product physical         */
+                                     /*    characteristic variables in the  */
+                                     /*    cost database? Type "YES" or     */
+                                     /*    "NO" without quotes).            */
+%LET   COST_CHAR = <  >;             /*(V) Product matching characteristics */
+                                     /*    in cost data. List them from     */
+                                     /*    left-to-right in order of        */
+                                     /*    importance, with no punctuation  */
+                                     /*    separating them.                 */
 
 /*-------------------------------------------*/
 /* 1-E-iv. NORMAL VALUE PREFERENCE SELECTION */
@@ -555,7 +602,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET COMPARE_BY_TIME = <YES/NO>;  /*(T) Do you have time-specific  */
                                   /*    costs? Type "YES" or "NO"  */
                                   /*    (without quotes). If       */
-                                  /*    "YES,"then also complete   */
+                                  /*    "YES," then also complete  */
                                   /*    Sect. 1-E-iii-b-1 below.   */
 %LET      US_TIME_PERIOD  = <  >; /*(V) Variable in U.S. data for  */
                                   /*    cost-related time periods, */
@@ -757,11 +804,16 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 DATA USSALES;
     SET COMPANY.&USDATA;
 
+    /* Selectively adjust sale date based */
+    /* on an earlier date variable.       */
+
+    %DEFINE_SALE_DATE (SALEDATE = &USSALEDATE);
+
 /*------------------------------------------------------------------*/
 /* 2-B: Insert and annotate any changes below.                      */
 /*------------------------------------------------------------------*/
 
-    /* Insert changes here */
+    /* <Insert changes here, if required.> */          
 
 /*---------------------------------------------------------------------*/
 /* 2-C: LEVEL OF TRADE                                                 */
@@ -838,7 +890,7 @@ RUN;
 /*          In an administrative review, a month variable will be    */
 /*          created giving each month in the window period a unique  */
 /*          number. In the first calendar year of the review (as     */
-/*          designated by the BEGINWIN macro variable), the value    */
+/*          designated by the BEGINWINDOW macro variable), the value */
 /*          of USMONTH will be equal to the normal numeric month     */
 /*          designation (e.g., Jan=1, Feb=2). In the second          */
 /*          calendar year of the review, USMONTH will be equal to    */
@@ -995,11 +1047,15 @@ RUN;
         /*****************************************************************/
 
         DATA COST;
-            SET COST; 
+            SET COST;  
 
-            IF &COST_QTY IN (.,0) THEN
+            /* If respondents report surrogate cost for sales CONNUMs with no production, */
+            /* the following IF statement will set the missing or zero production         */
+            /* quantity to one so that the surrogate cost will be used.                   */
+
+            IF &COST_QTY IN (.,0) THEN 
                 &COST_QTY = 1;
-
+                                          
             TCOMCOP = <  >;               /* Total cost of manufacturing.        */
             VCOMCOP = <TCOMCOP - FOH>;    /* Variable cost of manufacturing      */
                                           /* equal to TCOMCOP less fixed costs.  */

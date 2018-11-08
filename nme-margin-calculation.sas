@@ -2,7 +2,7 @@
 /*                                                              */
 /*              NME MARGIN CALCULATION PROGRAM                  */
 /*                                                              */
-/*        GENERIC VERSION LAST UPDATED - MARCH 29, 2018         */
+/*        GENERIC VERSION LAST UPDATED - JUNE 20, 2018          */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */
@@ -160,55 +160,65 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
                                  /*     NAMEOFTHESHEET$COLUMNRANGE.            */
                                  /*     EXAMPLE: SummaryofSVs$P6:P34           */
 
-/*------------------------------------------------------------------*/
-/* DATE INFORMATION                                                 */
-/*                                                                  */
-/*        Dates should be in SAS DATE9 format (e.g., 01JAN2010).    */
-/*                                                                  */
-/*        In addition to filtering U.S. sales using date of sale    */
-/*        variable and keeping only those sales between the dates   */
-/*        specified by BEGINDAY and ENDDAY, you can                 */
-/*        also filter CEP  and EP sales separately, using different */
-/*        dates and date variables.                                 */
-/*------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
+/* DATE INFORMATION                                                  */
+/*                                                                   */
+/* Dates should be written in SAS DATE9 format (e.g., 01JAN2010).    */
+/*                                                                   */
+/* USSALEDATE:                                                       */
+/*                                                                   */
+/* The date of sale variable defined by the macro variable           */
+/* USSALEDATE will be used to capture all U.S. sales within the date */
+/* range specified by the macro variables BEGINDAY and ENDAY.        */
+/*                                                                   */
+/* DATEBEFORESALE and EARLIERDATE:                                   */
+/*                                                                   */
+/* If there are reported dates before the sale date and you want     */
+/* the earlier dates to be assigned to sale date, define the macro   */
+/* variable DATEBEFORESALE to 'YES' and assign the variable with     */
+/* earlier dates to the macro variable EARLIERDATE (ex. SHIPDATE).   */
+/* Otherwise define the macro variable DATEBEFORESALE to 'NO' and    */
+/* ignore the macro variable EARLIERDATE.                            */
+/*                                                                   */
+/* BEGINDAY and ENDDAY:                                              */
+/*                                                                   */
+/* FOR INVESTIGATIONS, the macro variables BEGINDAY and ENDDAY       */
+/* usually correspond to the first and last dates of the POI.        */
+/*                                                                   */
+/* FOR REVIEWS, the macro variables BEGINDAY and ENDDAY usually  */
+/* correspond to the first day of the first month and the last day   */
+/* of the last month of the POR. For EP sales, they usually include  */
+/* all entries during the POR Accordingly, there may be EP trans-    */
+/* actions with sale dates prior to the POR Adjust the BEGINDAY and  */
+/* ENDDAY to capture the first and last US sales.                    */
+/*                                                                   */
+/* BEGINPERIOD and ENDPERIOD:                                        */
+/*                                                                   */
+/* The macro variables BEGINPERIOD and ENDPERIOD refer to the begin- */
+/* ning and at the end of the official POI/POR. They are used for    */
+/* titling. BEGINPERIOD is also used in the Cohen’s d Test.          */
+/*-------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------*/
-/* CAPTURING THE FULL UNIVERSE OF U.S. SALES                      */
-/*                                                                */
-/*    The date of sale variable designated below as USDATE        */
-/*    will be used to capture only U.S. sales between             */
-/*    the dates specified by BEGINDAY and ENDAY immediately       */
-/*    following.                                                  */
-/*                                                                */
-/*    BEGINPERIOD    is the beginning of the official POI/POR,    */
-/*    regardless of when the earliest sales begin (see BEGINDAY). */
-/*    It is used for titling and to calculate the quarters for    */
-/*    the Differential Pricing analysis.                          */
-/*                                                                */
-/*    ENDPERIOD is the end of the official POI/POR, regardless    */
-/*    of when the last sales occur (see ENDDAY).                  */
-/*    It is used for titling.                                     */
-/*                                                                */
-/*  FOR INVESTIGATIONS: The universe of U.S. sales usually        */
-/*    consists of sales during the POI for both EP and CEP sales. */
-/*    When this is the case, set BEGINDAY to the first day of the */
-/*    the POI, and ENDDAY to the last day of the POI.             */
-/*                                                                */
-/*  FOR REVIEWS: Reported CEP sales usually include all sales     */
-/*    during the POR.  For EP    sales, they usually include all  */
-/*  entries during the POR.  Accordingly, there may be EP         */
-/*  transactions with sale dates prior to the POR.  Adjust        */
-/*    the BEGINDAY and ENDDAY to capture the first and last       */
-/*    U.S. sales.                                                 */
-/*----------------------------------------------------------------*/
-
-%LET USDATE = <        >;        /* (V) Variable representing the sale date.      */
-
-%LET BEGINDAY = <DDMONYYYY>;     /* (T) Day 1 of first month of U.S. sales.       */
-%LET ENDDAY   = <DDMONYYYY>;     /* (T) Last day of last month of U.S. sales.     */
-
-%LET BEGINPERIOD = <DDMONYYYY>;  /* (T) Day 1 of first month of official POI/POR. */
-%LET ENDPERIOD   = <DDMONYYYY>;  /* (T) Last day last month of official POI/POR.  */
+%LET USSALEDATE = <        >;       /* (V) Variable representing the */
+                                    /*     U.S. sale date.           */
+%LET DATEBEFORESALE = <YES/NO>;     /* (T) Adjust sale date based on */
+                                    /*     an earlier date variable? */
+                                    /*     Type 'YES' (no quotes) to */
+                                    /*     adjust the sale date, or  */
+                                    /*     'NO' to skip this part.   */
+                                    /*     If you typed 'YES' then   */
+                                    /*     also complete the macro   */
+                                    /*     variable EARLIERDATE.     */
+%LET      EARLIERDATE = <        >; /* (V) Variable representing the */
+                                    /*     earlier date variable.    */
+%LET BEGINDAY = <DDMONYYYY>;        /* (T) First day of first month  */
+                                    /*     of U.S. sales.            */
+%LET ENDDAY   = <DDMONYYYY>;        /* (T) Last day of last month of */
+                                    /*     U.S. sales.               */
+%LET BEGINPERIOD = <DDMONYYYY>;     /* (T) Day 1 of first month of   */
+                                    /*     official POI/POR.         */
+%LET ENDPERIOD   = <DDMONYYYY>;     /* (T) Last day last month of    */
+                                    /*     official POI/POR.         */
     
 /*----------------------------------------------------------------*/
 /* ADDITIONAL FILTERING OF U.S. SALES, IF REQUIRED                */
@@ -459,7 +469,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* THAT NEED TO BE CONVERTED INTO U.S. DOLLARS FROM A SECOND FOREIGN CURRENCY. */
 /* OTHERWISE FILL OUT ONLY THE FIRST MACRO VARIABLE USE_EXRATES2.              */
 /*-----------------------------------------------------------------------------*/
-
 %LET USE_EXRATES2 = <YES/NO>;   /* (T) Use exchange rate #2? Type "YES" or "NO"  */
                                 /*     (without quotes).                         */
 %LET EXDATA2 = <  >;            /* (D) Exchange rate #2 dataset name.            */
@@ -951,6 +960,11 @@ DATA USSALES;
     SET COMPANY.&USDATA;
     USOBS = _N_;
 
+    /* Selectively adjust sale date based */
+    /* on an earlier date variable.       */
+
+    %DEFINE_SALE_DATE (SALEDATE = &USSALEDATE);
+
     /* <Insert changes here, if required.> */
 
 RUN;
@@ -1102,8 +1116,8 @@ RUN;
 %MACRO GET_MONTH;
     %IF %UPCASE(&CASE_TYPE) = AR %THEN
     %DO;
-        MON = MONTH(&USDATE);
-        YRDIFF = YEAR(&USDATE) - YEAR("&BEGINPERIOD"D);
+        MON = MONTH(&USSALEDATE);
+        YRDIFF = YEAR(&USSALEDATE) - YEAR("&BEGINDAY"D);
         USMONTH = MON + YRDIFF * 12;
         DROP MON YRDIFF;
         %LET USMONTH = USMONTH;
@@ -1116,7 +1130,7 @@ DATA USSALES NEGDATA OUTDATES;
     IF (&USQTY LE 0) OR (&USGUP LE 0) THEN
         OUTPUT NEGDATA;
     ELSE
-    IF (&USDATE LT "&BEGINPERIOD"D) OR (&USDATE GT "&ENDPERIOD"D) THEN
+    IF (&USSALEDATE LT "&BEGINDAY"D) OR (&USSALEDATE GT "&ENDDAY"D) THEN
         OUTPUT OUTDATES;
     %MARGIN_FILTER
     ELSE
@@ -1204,7 +1218,7 @@ RUN;
         /* ACCESS EXCHANGE RATES DATASET AND SORT BY DATE. */
         /*-------------------------------------------------*/
 
-           PROC SORT DATA = COMPANY.&EXDATA (RENAME = (DATE = &USDATE
+           PROC SORT DATA = COMPANY.&EXDATA (RENAME = (DATE = &USSALEDATE
 
                         %IF %UPCASE(&CASE_TYPE) = AR  %THEN
                         %DO;
@@ -1216,8 +1230,8 @@ RUN;
                             &EXDATA.I = EXRATE_&EXDATA) DROP = &EXDATA.R)
                         %END;
                   OUT = RATES;
-            WHERE "&BEGINPERIOD"D LE &USDATE LE "&ENDPERIOD"D;
-                   BY &USDATE;
+            WHERE "&BEGINDAY"D LE &USSALEDATE LE "&ENDDAY"D;
+                   BY &USSALEDATE;
         RUN;
 
         PROC PRINT DATA = RATES (OBS = &PRINTOBS);
@@ -1229,12 +1243,12 @@ RUN;
         /*-----------------------------------*/
 
         PROC SORT DATA = USSALES OUT = USSALES;
-              BY &USDATE;
+              BY &USSALEDATE;
         RUN;
 
         DATA USSALES NOEXRATE;
             MERGE USSALES (IN = US) RATES (IN = EX);
-              BY &USDATE;
+              BY &USSALEDATE;
             IF US AND EX THEN
                 OUTPUT USSALES;
             ELSE
@@ -1517,29 +1531,29 @@ RUN;
 /* PART 11: COHEN'S-D TEST */
 /*-------------------------*/
 
-/*--------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 /*    The Cohen's-d Test is run three ways:  1) by purchaser, 2) by region    */
-/*    and 3) by time period.  U.S. sales are compared to sales to other         */
-/*    purchasers/regions/periods to see if they pass the test.  At the end of    */
-/*    the test, the percentage of U.S. sales found to pass the test is         */
-/*    recorded.                                                                */
+/*    and 3) by time period.  U.S. sales are compared to sales to other       */
+/*    purchasers/regions/periods to see if they pass the test.  At the end of */
+/*    the test, the percentage of U.S. sales found to pass the test is        */
+/*    recorded.                                                               */
 /*                                                                            */
-/*    In the remaining sections of this program, the Cash Deposit Rate will    */
-/*    be calculated three ways:  1) Standard Methodology (average-to-average    */
-/*    comparisons on all sales, offsetting positive comparison results with     */
-/*    negatives), 2) A-2-T Alternative Methodology (average-to-transaction      */
+/*    In the remaining sections of this program, the Cash Deposit Rate will   */
+/*    be calculated three ways:  1) Standard Methodology (average-to-average  */
+/*    comparisons on all sales, offsetting positive comparison results with   */
+/*    negatives), 2) A-2-T Alternative Methodology (average-to-transaction    */
 /*    comparisons on all sales, no offsetting of positive comparison results  */
-/*    with negative ones), and 3) Mixed Alternative Methodology (applying the    */
-/*    Standard Methodology to sales that do not pass the Cohen's-d Test and    */
-/*    using the A-2-T Alternative Methodology on sales that do pass.            */
+/*    with negative ones), and 3) Mixed Alternative Methodology (applying the */
+/*    Standard Methodology to sales that do not pass the Cohen's-d Test and   */
+/*    using the A-2-T Alternative Methodology on sales that do pass.          */
 /*                                                                            */
 /*    If no sale passes the Cohen's-d Test, the Mixed Alternative Methodology */
-/*    would be the same as the Standard Methodology. In this case, the Mixed     */
-/*    Alternative Methodology will not be calculated.  Similarly, the Mixed    */
-/*    Alternative Methodology will also not be calculated when all sales         */
-/*    pass the Cohen's-d Test since the it would be the same as the             */
-/*    A-2-T Alternative Methodology.                                            */
-/*--------------------------------------------------------------------------*/
+/*    would be the same as the Standard Methodology. In this case, the Mixed  */
+/*    Alternative Methodology will not be calculated.  Similarly, the Mixed   */
+/*    Alternative Methodology will also not be calculated when all sales      */
+/*    pass the Cohen's-d Test since the it would be the same as the           */
+/*    A-2-T Alternative Methodology.                                          */
+/*----------------------------------------------------------------------------*/
 
 %MACRO COHENS_D_TEST;
 
@@ -1559,7 +1573,7 @@ RUN;
         %IF %UPCASE(&DP_TIME_CALC) = YES %THEN
         %DO;
             %MACRO DPPERIOD_PRINT_LABEL;
-                &USDATE = "U.S. DATE*OF SALE*(&USDATE)"
+                &USSALEDATE = "U.S. DATE*OF SALE*(&USSALEDATE)"
             %MEND DPPERIOD_PRINT_LABEL;
         %END;        
         %IF %UPCASE(&DP_TIME_CALC) = NO %THEN
@@ -1605,18 +1619,18 @@ RUN;
             %ELSE %IF %UPCASE(&DP_TIME_CALC) = YES %THEN
             %DO;
                    FIRSTMONTH =MONTH("&BEGINPERIOD"D);
-                  DPMONTH=MONTH(&USDATE)+(YEAR(&USDATE)-YEAR("&BEGINPERIOD"D))*12;
+                  DPMONTH=MONTH(&USSALEDATE)+(YEAR(&USSALEDATE)-YEAR("&BEGINPERIOD"D))*12;
                 DP_PERIOD="QTR"||PUT(INT(1+(DPMONTH-FIRSTMONTH)/3),Z2.);
                 DROP FIRSTMONTH DPMONTH;
-                %LET DP_PERIOD = &USDATE;
+                %LET DP_PERIOD = &USSALEDATE;
                 %LET PERIOD_PRINT_VARS = &DP_PERIOD DP_PERIOD;
             %END;
     RUN;
 
-        /*----------------------------------------------------------*/
-        /*    Attach region designations using state/zip codes,        */ 
-        /*    when required.                                            */
-        /*----------------------------------------------------------*/
+        /*---------------------------------------------------*/
+        /* Attach region designations using state/zip codes, */ 
+        /* when required.                                    */
+        /*---------------------------------------------------*/
 
         %IF %UPCASE(&DP_REGION_DATA) NE REGION %THEN
         %DO;
@@ -2159,35 +2173,34 @@ RUN;
 /*----------------------------------------------*/
 
 %MACRO WT_AVG_DATA;
-
-    /*------------------------------------------------------------------*/
-    /*    Create macro variables to keep required variables and            */
-    /*    determine the weight averaging pools for U.S. sales.             */ 
+    /*--------------------------------------------------------------------*/
+    /*    Create macro variables to keep required variables and           */
+    /*    determine the weight averaging pools for U.S. sales.            */
     /*                                                                    */
-    /*    The macro variables AR_VARS and AR_BY_VARS will contain lists     */
+    /*    The macro variables AR_VARS and AR_BY_VARS will contain lists   */
     /*    of additional variables needed for weight-averaging and         */
-    /*    assessment purposes in administrative reviews.                  */    
+    /*    assessment purposes in administrative reviews.                  */
     /*                                                                    */
-    /*    For    administrative reviews, the weight-averaging pools will         */
-    /*    also be defined by month for cash deposit calculations.  To do     */
+    /*    For    administrative reviews, the weight-averaging pools will  */
+    /*    also be defined by month for cash deposit calculations.  To do  */
     /*    this, the macro variable AR_BY_VARS will be used in the BY      */
-    /*    statements that will either be set to a blank value for          */
-    /*    investigations or the US month variable in admin. reviews.        */
+    /*    statements that will either be set to a blank value for         */
+    /*    investigations or the US month variable in admin. reviews.      */
     /*                                                                    */
-    /*    When the Cohen's d Test determines that the Mixed Alternative    */
-    /*    Method is to be used, then the DP_COUNT and COHENS_D_PASS        */
-    /*    macro variabes will be to the variables by the same names in     */
-    /*    order to keep track of which observations passed Cohen's d and    */
-    /*    which did not.  Otherwise, the DP_COUNT and COHENS_D_PASS macro    */
+    /*    When the Cohen's d Test determines that the Mixed Alternative   */
+    /*    Method is to be used, then the DP_COUNT and COHENS_D_PASS       */
+    /*    macro variables will be to the variables by the same names in   */
+    /*    order to keep track of which observations passed Cohen's d and  */
+    /*    which did not.  Otherwise, the DP_COUNT and COHENS_D_PASS macro */
     /*    variables will be set to null values.  In addition, the         */
     /*    MIXED_BY_VAR macro variable will be set to COHENS_D_PASS in     */
     /*    order to allow the weight-averaging to be constricted to within */
-    /*    just sales passing the Cohen's d test.                            */
+    /*    just sales passing the Cohen's d test.                          */
     /*                                                                    */
-    /*    When an assessment calculation is warranted, the section will     */
-    /*    be re-executed on an importer-specific basis.  This is done by    */
-    /*    adding the IMPORTER variables to the BY statements.                */ 
-    /*------------------------------------------------------------------*/
+    /*    When an assessment calculation is warranted, the section will   */
+    /*    be re-executed on an importer-specific basis.  This is done by  */
+    /*    adding the IMPORTER variables to the BY statements.             */
+    /*--------------------------------------------------------------------*/
 
     %GLOBAL AR_VARS AR_BY_VARS TITLE4_WTAVG TITLE4_MCALC DP_COUNT COHENS_D_PASS ;
 
@@ -2650,7 +2663,6 @@ RUN;
         TITLE4 "SAMPLE OF POSITIVE COMPARISON RESULTS COMPARED TO THE PETITION RATE";
         TITLE4 "USING THE &TITLE4 METHOD";
     RUN;
-
     PROC MEANS NOPRINT DATA = POSCORROB_&OUTDATA;
         ID PERCENT;
         BY FLAG;
@@ -3365,8 +3377,7 @@ RUN;
 
                     PROC PRINT DATA = IMPORTER_LIST SPLIT = '*';
                         LABEL US_IMPORTER = "&IMPORTER";
-                        TITLE3 &TITLE3;
-                        TITLE4 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
+                        TITLE3 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
                     RUN;
                 %MEND PRINT_NOCALC;
 

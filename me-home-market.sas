@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                      ANALYSIS OF HOME MARKET SALES                      */
 /*                                                                         */
-/*                    LAST PROGRAM UPDATED APRIL 6, 2018                   */
+/*                   LAST PROGRAM UPDATED August 16, 2018                  */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring in Home Market Sales, Convert Date Variable, If          */
@@ -117,39 +117,75 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 
 %LET PROGRAMMER = <  >;     /*(T) Case Analyst responsible for programming */
 
-/*----------------------------------------------------------------------*/
-/* 1-C: DATE INFORMATION                                                */
-/*                                                                      */
-/*          Dates should be in SAS DATE9 format (e.g., 01JAN2010).      */
-/*                                                                      */
-/*      FOR INVESTIGATIONS: BEGINDAY and ENDDAY usually correspond      */
-/*          to the first and last dates of the POI.                     */
-/*      FOR REVIEWS: Adjust BEGINDAY and ENDDAY to match the first      */
-/*          day of the first month and the last day of the last month   */
-/*          of the window period, respectively, covering all U.S. sale  */
-/*          dates. Reported CEP sales usually include all sales during  */
-/*          the POR. For EP sales, they usually include all entries     */
-/*          during the POR. Accordingly, there may be U.S. sales        */
-/*          transactions with sale dates prior to the POR. For example, */
-/*          if the first EP entry in the POR was in June (first month   */
-/*          of POR) but that entry had a sale date back in April, the   */
-/*          window period would have to include the three months prior  */
-/*          to April. February would then be the beginning of the       */
-/*          window period.                                              */
-/*                                                                      */
-/*          TIME-SPECIFIC COMPARISONS: When making time-specific        */
-/*          price-to-price comparisons of HM and US sales, comparisons  */
-/*          are not made outside of designated time periods. In such    */
-/*          cases, set BEGINWIN to the first day of the first time      */
-/*          period. Likewise, set ENDDAY to the last day of the last    */
-/*          time period.                                                */
-/*----------------------------------------------------------------------*/
+/*-------------------------------------------------------------------*/
+/* 1-C: DATE INFORMATION                                             */
+/*                                                                   */
+/* Dates should be written in SAS DATE9 format (e.g., 01JAN2010).    */
+/*                                                                   */
+/* HMSALEDATE:                                                       */
+/*                                                                   */
+/* The date of sale variable defined by the macro variable           */
+/* HMSALEDATE will be used to capture all HM sales within the date   */
+/* range specified by the macro variables BEGINDAY and ENDAY.        */
+/*                                                                   */
+/* DATEBEFORESALE and EARLIERDATE:                                   */
+/*                                                                   */
+/* If there are reported dates before the sale date and you want     */
+/* the earlier dates to be assigned to sale date, define the macro   */
+/* variable DATEBEFORESALE to 'YES' and assign the variable with     */
+/* earlier dates to the macro variable EARLIERDATE (ex. SHIPDATE).   */
+/* Otherwise define the macro variable DATEBEFORESALE to 'NO' and    */
+/* ignore the macro variable EARLIERDATE.                            */
+/*                                                                   */
+/* BEGINDAY and ENDDAY:                                              */
+/*                                                                   */
+/* FOR INVESTIGATIONS, the macro variables BEGINDAY and ENDDAY       */
+/* usually correspond to the first and last dates of the POI.        */
+/*                                                                   */
+/* FOR REVIEWS, the macro variables BEGINDAY and ENDDAY usually      */
+/* correspond to the first day of the first month and the last day   */
+/* of the last month of the window period, respectively, covering    */
+/* all U.S. sale dates. Reported CEP sales usually include all sales */
+/* during the POR. For EP sales, they usually include all entries    */
+/* during the POR. Accordingly, there may be U.S. sales transactions */
+/* with sale dates prior to the POR. For example, if the first EP    */
+/* entry in the POR was in June (first month of POR) but that entry  */
+/* had a sale date back in April, the window period would have to    */
+/* include the three months prior to April. January would then be    */
+/* the beginning of the window period.                               */
+/*                                                                   */
+/* TIME-SPECIFIC COMPARISONS: When making time-specific price-to-    */
+/* price comparisons of HM and US sales, comparisons are not made    */
+/* outside of designated time periods. In such cases, set ENDDAY     */
+/* to the last day of the last time period.                          */
+/*                                                                   */
+/* BEGINPERIOD and ENDPERIOD:                                        */
+/*                                                                   */
+/* The macro variables BEGINPERIOD and ENDPERIOD refer to the begin- */
+/* ning and at the end of the official POI/POR. They are used for    */
+/* titling. BEGINPERIOD is also used in the Cohen’s d Test.          */
+/*-------------------------------------------------------------------*/
 
-%LET BEGINDAY = <DDMONYYYY>;  /*(T) Day 1 of first month of HM sales to be */
-                              /*    captured for comparison to U.S. sales. */
-%LET ENDDAY   = <DDMONYYYY>;  /*(T) Last day of last month of HM sales to  */
-                              /*    be captured for comparison to          */
-                              /*    U.S. sales.                            */
+%LET HMSALEDATE = <        >;       /* (V) Variable representing the */
+                                    /*     HM sale date.             */
+%LET DATEBEFORESALE = <YES/NO>;     /* (T) Adjust sale date based on */
+                                    /*     an earlier date variable? */
+                                    /*     Type 'YES' (no quotes) to */
+                                    /*     adjust the sale date, or  */
+                                    /*     'NO' to skip this part.   */
+                                    /*     If you typed 'YES' then   */
+                                    /*     also complete the macro   */
+                                    /*     variable EARLIERDATE.     */
+%LET      EARLIERDATE = <        >; /* (V) Variable representing the */
+                                    /*     earlier date variable.    */
+%LET BEGINDAY = <DDMONYYYY>;        /* (T) First day of first month  */
+                                    /*     of HM sales.              */
+%LET ENDDAY = <DDMONYYYY>;          /* (T) Last day of last month of */
+                                    /*     HM sales.                 */
+%LET BEGINPERIOD = <DDMONYYYY>;     /* (T) Day 1 of first month of   */
+                                    /*     official POI/POR.         */
+%LET ENDPERIOD = <DDMONYYYY>;       /* (T) Last day last month of    */
+                                    /*     official POI/POR.         */
 
 /*-------------------------------------------------------------------------*/
 /* 1-D: TITLES, FOOTNOTES AND AUTOMATIC NAMES FOR OUTPUT DATASETS          */
@@ -252,7 +288,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*            contact a SAS Support Team member for assistance.  */
 /*---------------------------------------------------------------*/
 
-
 %LET USE_EXRATES1 = <YES/NO>;  /*(T) Use exchange rate #1? Type "YES" or */
                                /*    "NO" (without quotes).              */
 %LET     EXDATA1   = <  >;     /*(D) Exchange rate dataset name.         */
@@ -265,48 +300,47 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /* 1-E-ii. HOME MARKET INFORMATION                        */
 /*--------------------------------------------------------*/
 
-%LET HMDATA = <  >;             /*(D) HM sales dataset filename.           */
-%LET   HMCONNUM = <  >;         /*(V) Control number                       */
-%LET   HMCPPROD = <  >;         /*(V) Variable (usually CONNUMH) linking   */
-                                /*    sales to cost data.                  */
-%LET   HMCHAR = <  >;           /*(V) Product matching characteristics.    */
-                                /*    List them from left to right         */
-                                /*    in order of importance, with no      */
-                                /*    punctuation separating them.         */
-%LET   HMDATE = <  >;           /*(V) Sale date.                           */
-%LET   HMQTY = <  >;            /*(V) Quantity.                            */
-%LET   HMGUP  = <  >;           /*(V) Gross price. Need not be in          */
-                                /*    consistent currency, used only to    */
-                                /*    check for zero, negative & missing   */
-                                /*    values.                              */
-%LET   HMLOT  = <NA>;           /*(V) Level of trade. If not reported in   */
-                                /*    the database and not required, type  */
-                                /*    "NA" (without quotes).               */
-                                /*    You may also type "NA" if HM & US    */
-                                /*    both have only 1 LOT & those LOTs    */
-                                /*    are the same.                        */
-%LET   HMMANUF = <NA>;          /*(V) Manufacturer code. If not            */
-                                /*    applicable, type "NA" (without       */
-                                /*    quotes).                             */
-%LET   HMPRIME  = <NA>;         /*(V) Prime/seconds code. If not           */
-                                /*    applicable, type "NA" (without       */
-                                /*    quotes).                             */
-%LET   HM_MULTI_CUR = <YES/NO>; /*(T) Is HM data in more than one          */
-                                /*    currency? Type "YES" or "NO"         */
-                                /*    (without quotes).                    */
-%LET   MIXEDCURR = <YES/NO/NA>; /*(T) Are there mixed-currency variables   */
-                                /*    that need to be split into separate  */
-                                /*    currency variables?                  */
-                                /*    Type "NO" (without quotes) if there  */
-                                /*    is no mixed-currency variable.       */
-                                /*    Type "YES" (without quotes) if there */
-                                /*    are mixed-currency variables AND     */
-                                /*    there is currency-indicating         */
-                                /*    variable (see 4-A below).            */
-                                /*    Type "NA" (without quotes) if there  */
-                                /*    are mixed-currency variables BUT     */
-                                /*    there is no currency-indicating      */
-                                /*    variable (see 4-A below).            */
+%LET HMDATA = <  >;           /*(D) HM sales dataset filename.           */
+%LET HMCONNUM = <  >;         /*(V) Control number                       */
+%LET HMCPPROD = <  >;         /*(V) Variable (usually CONNUMH) linking   */
+                              /*    sales to cost data.                  */
+%LET HMCHAR = <  >;           /*(V) Product matching characteristics.    */
+                              /*    List them from left to right         */
+                              /*    in order of importance, with no      */
+                              /*    punctuation separating them.         */
+%LET HMQTY = <  >;            /*(V) Quantity.                            */
+%LET HMGUP  = <  >;           /*(V) Gross price. Need not be in          */
+                              /*    consistent currency, used only to    */
+                              /*    check for zero, negative & missing   */
+                              /*    values.                              */
+%LET HMLOT  = <NA>;           /*(V) Level of trade. If not reported in   */
+                              /*    the database and not required, type  */
+                              /*    "NA" (without quotes).               */
+                              /*    You may also type "NA" if HM & US    */
+                              /*    both have only 1 LOT & those LOTs    */
+                              /*    are the same.                        */
+%LET HMMANUF = <NA>;          /*(V) Manufacturer code. If not            */
+                              /*    applicable, type "NA" (without       */
+                              /*    quotes).                             */
+%LET HMPRIME  = <NA>;         /*(V) Prime/seconds code. If not           */
+                              /*    applicable, type "NA" (without       */
+                              /*    quotes).                             */
+%LET HM_MULTI_CUR = <YES/NO>; /*(T) Is HM data in more than one          */
+                              /*    currency? Type "YES" or "NO"         */
+                              /*    (without quotes).                    */
+%LET MIXEDCURR = <YES/NO/NA>; /*(T) Are there mixed-currency variables   */
+                              /*    that need to be split into separate  */
+                              /*    currency variables?                  */
+                              /*    Type "NO" (without quotes) if there  */
+                              /*    is no mixed-currency variable.       */
+                              /*    Type "YES" (without quotes) if there */
+                              /*    are mixed-currency variables AND     */
+                              /*    there is currency-indicating         */
+                              /*    variable (see 4-A below).            */
+                              /*    Type "NA" (without quotes) if there  */
+                              /*    are mixed-currency variables BUT     */
+                              /*    there is no currency-indicating      */
+                              /*    variable (see 4-A below).            */
 
 /*---------------------------------------------------------------*/
 /* 1-E-iii. COST OF PRODUCTION DATA                              */
@@ -316,13 +350,13 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*     Part 3 and calculate one weight-averaged cost database.   */
 /*---------------------------------------------------------------*/
 
-%LET     COST_DATA = <  >;    /*(D) Cost dataset name                   */
-%LET     COST_QTY = <  >;     /*(V) Production quantity                 */
-%LET     COST_MATCH = <  >;   /*(V) The variable (usually CONNUM)       */
-                              /*    linking cost data to sales data.    */
-%LET     COST_MANUF = <NA>;   /*(V) Manufacturer code. If not           */
-                              /*    applicable, type "NA" (without      */
-                              /*    quotes).                            */
+%LET COST_DATA = <  >;    /*(D) Cost dataset name                   */
+%LET COST_QTY = <  >;     /*(V) Production quantity                 */
+%LET COST_MATCH = <  >;   /*(V) The variable (usually CONNUM)       */
+                          /*    linking cost data to sales data.    */
+%LET COST_MANUF = <NA>;   /*(V) Manufacturer code. If not           */
+                          /*    applicable, type "NA" (without      */
+                          /*    quotes).                            */
 
 /*--------------------------------------------------*/
 /* 1-E-iii-a. TIME-SPECIFIC COSTS                   */
@@ -547,6 +581,11 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 
 DATA HMSALES;
     SET COMPANY.&HMDATA;
+
+    /* Selectively adjust sale date based */
+    /* on an earlier date variable.       */
+
+    %DEFINE_SALE_DATE (SALEDATE = &HMSALEDATE);
  
     /*------------------------------------------------------------------*/
     /* 2-B: Insert and annotate any changes below.                      */
@@ -810,11 +849,15 @@ RUN;
 /*****************************************************************/
 
 DATA COST;
-    SET COST;
+    SET COST;  
 
-    IF &COST_QTY IN (.,0) THEN
+    /* If respondents report surrogate cost for sales CONNUMs with no production, */
+    /* the following IF statement will set the missing or zero production         */
+    /* quantity to one so that the surrogate cost will be used.                   */
+
+    IF &COST_QTY IN (.,0) THEN 
         &COST_QTY = 1;
-
+                                  
     TCOMCOP = <  >;               /* Total cost of manufacturing.        */
     VCOMCOP = <TCOMCOP - FOH>;    /* Variable cost of manufacturing      */
                                   /* equal to TCOMCOP less fixed costs.  */
@@ -1123,7 +1166,7 @@ RUN;
 /*     and types (i.e., character v numeric) as those in the HM sales data */
 /*     for the macro variables in Sect. 1-E-ii above, which are:           */
 /*                                                                         */
-/*          HMDATE                                                         */
+/*          HMSALEDATE                                                     */
 /*          HMQTY                                                          */
 /*          HMGUP                                                          */
 /*          HMMANUF                                                        */
