@@ -1,8 +1,8 @@
 /***************************************************************************/
 /*                         ANTIDUMPING MARKET-ECONOMY                      */
-/*                             MARGIN CALCUALTION                          */
+/*                             MARGIN CALCULATION                          */
 /*                                                                         */
-/*                    LAST PROGRAM UPDATE August 16, 2018                  */
+/*                   LAST PROGRAM UPDATE SEPTEMBER 19, 2019                */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
@@ -61,7 +61,7 @@
 /***************************************************************************/
 
 /*-------------------------------------------------------------------------*/
-/* 1-A-i: LOCATION OF DATA AND MACROS PROGRAM                              */
+/* 1-A: LOCATION OF DATA AND MACROS PROGRAM                                */
 /*                                                                         */
 /*     LIBNAME =      The name (i.e., COMPANY) and location of the         */
 /*                    sub-directory containing the SAS datasets for        */
@@ -99,11 +99,13 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %CMAC1_WRITE_LOG;
 
 /*------------------------------------------------------------------*/
-/* 1-A-ii:     PROCEEDING TYPE                                      */
+/* 1-B:     PROCEEDING TYPE                                         */
 /*------------------------------------------------------------------*/
 
+/*-----------------------------------------------*/
 /* TYPE IN EITHER THE WORD 'AR' (NOT 1ST REVIEW) */
 /* OR THE WORD 'INV'. DO NOT TYPE THE QUOTES.    */
+/*-----------------------------------------------*/
 
 %LET CASE_TYPE = <AR/INV>;  /*(T) For an investigation, type 'INV' */
                             /*    (without quotes)                 */
@@ -123,7 +125,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET PROGRAMMER = <  >;     /*(T) Case Analyst responsible for programming */
 
 /*-------------------------------------------------------------------*/
-/* 1-B: DATE INFORMATION                                             */
+/* 1-C: DATE INFORMATION                                             */
 /*                                                                   */
 /* Dates should be written in SAS DATE9 format (e.g., 01JAN2010).    */
 /*                                                                   */
@@ -171,7 +173,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*                                                                   */
 /* The macro variables BEGINPERIOD and ENDPERIOD refer to the begin- */
 /* ning and at the end of the official POI/POR. They are used for    */
-/* titling. BEGINPERIOD is also used in the Cohen’s d Test.          */
+/* titling. BEGINPERIOD is also used in the Cohen's d Test.          */
 /*                                                                   */
 /* BEGINWINDOW:                                                      */
 /*                                                                   */
@@ -201,6 +203,11 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                     /*     official POI/POR.         */
 %LET ENDPERIOD = <DDMONYYYY>;       /* (T) Last day last month of    */
                                     /*     official POI/POR.         */
+
+/* Note: In a review the Margin Calculation macro variable           */
+/* BEGINWINDOW needs to have the same value as the HM macro variable */
+/* BEGINDAY so that model matching will work properly.               */
+
 %LET BEGINWINDOW = <DDMONYYYY>;     /* (T) Day 1 of first month of   */
                                     /*     window period in admini-  */
                                     /*     strative reviews. It is   */
@@ -356,6 +363,8 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET     USCONNUM = <  >;  /*(V) Control number                          */
 %LET     USCVPROD = <  >;  /*(V) Variable (usually CONNUMU) linking      */
                            /*    sales to cost data.                     */
+%LET     USBARCODE = <  >; /*(T) Bar code number(s) of original          */
+                           /*    U.S. sales dataset(s).                  */
 %LET     USCHAR   = <  >;  /*(V) Product matching characteristics. List  */
                            /*    them from left to right importance,     */
                            /*    with no punctuation separating them.    */
@@ -604,9 +613,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                   /*    (without quotes). If       */
                                   /*    "YES," then also complete  */
                                   /*    Sect. 1-E-iii-b-1 below.   */
-%LET      US_TIME_PERIOD  = <  >; /*(V) Variable in U.S. data for  */
-                                  /*    cost-related time periods, */
-                                  /*    if applicable.             */
 
 /*-------------------------------------------------------------*/
 /* 1-E-vi-a. TIME-SPECIFIC CONSTRUCTED VALUE CALCULATIONS      */
@@ -649,7 +655,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                   /*    if using info. from a source       */
                                   /*    other than HM sales.               */
                                   /*    If you typed "OTHER," then also    */
-                                  /*    complete Sect. 8-B below. This     */
+                                  /*    complete Sect. 9-A below. This     */
                                   /*    macro variable is required only    */
                                   /*    if you will have CV comparisons.   */
 %LET PER_UNIT_RATE = <YES/NO>;    /*(T) Only print per-unit (and not ad    */
@@ -846,6 +852,11 @@ DATA USSALES;
 /*---------------------------------------------------------------------*/
 
     %US2_SALETYPE
+
+    %CREATE_QUARTERS(&USSALEDATE)   /* Assigns quarters to US sales based on */
+                                    /* the date of sale variable and the     */
+                                    /* first day of the POR/POI. The         */
+                                    /* values will be '-1', '0', '1', etc.   */
 RUN;
 
 /*ep*/
