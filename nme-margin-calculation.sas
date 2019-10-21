@@ -2,7 +2,7 @@
 /*                                                              */
 /*              NME MARGIN CALCULATION PROGRAM                  */
 /*                                                              */
-/*        GENERIC VERSION LAST UPDATED - JUNE 20, 2018          */
+/*         GENERIC VERSION LAST UPDATED - OCTOBER 1, 2019       */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */
@@ -1420,7 +1420,7 @@ RUN;
 
         DATA USPRICES;
             SET USPRICES;
-            LENGTH SOURCEDATA $10. ENTERED_VALUE 8.;
+            LENGTH SOURCEDATA $10. ENTERED_VALUE 8. US_IMPORTER $30.;
 
             %IF %UPCASE(&IMPORTER) EQ NA %THEN
             %DO;
@@ -1898,31 +1898,25 @@ RUN;
                             &DP_GROUP = BASE_GROUP;
             RUN;
                             
-            DATA BASECALC;
-                SET DPGROUP;
-                DO J=1 TO LAST;
-                SET BASE_PRICES POINT=J NOBS=LAST;
-                    IF     &USCONNUM = BASE_CONNUM AND
-                        &DP_GROUP NE BASE_GROUP THEN 
-                    DO;
-                        OUTPUT BASECALC;
-                    END;
-                END;
-            RUN; 
+            PROC SQL NOPRINT;
+                CREATE TABLE BASECALC AS
+                    SELECT * FROM BASE_PRICES AS BP, DPGROUP AS DP
+                    WHERE BP.BASE_CONNUM EQ DP.&USCONNUM AND
+                    BP.BASE_GROUP NE DP.&DP_GROUP AND
+                    DP.BASE_&DP_GROUP._OBS GE 2 AND
+                    DP.TEST_&DP_GROUP._OBS GE 2 AND
+                    &DP_GROUP._QTY_RATIO GE 0.05;
+            QUIT;
 
             /*-----------------------------------------------*/
-            /*  Calculate the base group standard deviation. */ 
-            /*----------------------------------------------*/
+            /*  Calculate the base group standard deviation. */
+            /*-----------------------------------------------*/
 
-            PROC SORT DATA = BASECALC;
-                BY &USCONNUM &DP_GROUP;
-            RUN;
-
-            PROC MEANS NOPRINT DATA = BASECALC VARDEF = WEIGHT;
-                BY &USCONNUM &DP_GROUP;
+            PROC MEANS NOPRINT NWAY DATA = BASECALC VARDEF = WEIGHT;
+                CLASS &USCONNUM &DP_GROUP;
                 WEIGHT &USQTY;
                 VAR DP_NETPRI;
-                OUTPUT OUT = BASESTD (DROP=_FREQ_ _TYPE_) STD = BASE_STD;
+                OUTPUT OUT = BASESTD (DROP = _FREQ_ _TYPE_) STD = BASE_STD;
             RUN;
 
             PROC PRINT DATA = BASESTD (OBS=&PRINTOBS) SPLIT="*";
@@ -2107,6 +2101,8 @@ RUN;
                 PASS_VALUE = 0;
             END;
             PERCENT_VALUE_PASSING = PASS_VALUE/TOTAL_VALUE;
+            %GLOBAL PERCENT_VALUE_PASSING;
+            CALL SYMPUT("PERCENT_VALUE_PASSING", PUT(PERCENT_VALUE_PASSING, &PERCENT_FORMAT.));
             LENGTH CALC_METHOD $11.;
             IF PERCENT_VALUE_PASSING = 0 THEN
                 CALC_METHOD = 'STANDARD';
@@ -3319,7 +3315,8 @@ RUN;
             MEANINGFUL_DIFF = "MEANINGFUL DIFFERENCE*IN THE MARGINS?";
             FORMAT WTAVGPCT WTAVGPCT_STND RELATIVE_CHANGE RELCHNG.;
             TITLE3 "RESULTS OF THE MEANINGFUL DIFFERENCE TEST";
-            TITLE6 "CASE ANALYST:  Please notify management of results so that the proper method can be selected.";
+            TITLE5 "CASE ANALYST:  Please notify management of results so that the proper method can be selected.";
+            TITLE7 "PERCENT OF SALES PASSING THE COHEN'S D TEST = &PERCENT_VALUE_PASSING";
             FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
             FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
         RUN;
@@ -3337,52 +3334,48 @@ RUN;
 /*-----------------------------------------------------------------*/
 
 /*--------------------------------------------------------------------------*/
-/*    Calculate and print importer-specific assessment rates if the cash      */
-/*    deposit rate in an administrative review is above de minimis.            */
+/*    Calculate and print importer-specific assessment rates if the cash    */
+/*    deposit rate in an administrative review is above de minimis.         */
 /*--------------------------------------------------------------------------*/
 
 %MACRO ASSESSMENT;
-
-%IF %UPCASE(&CASE_TYPE) = AR %THEN
-%DO;
+    %IF %UPCASE(&CASE_TYPE) = AR %THEN
+    %DO;
 
     /*------------------------------------------------------------------*/
-    /*    FOR ALL METHODS FOR WHICH NO ASSESSMENTS WILL BE                */
-    /*    CALCULATED, PRINT AN EXPLANATION.                                */
+    /*    FOR ALL METHODS FOR WHICH NO ASSESSMENTS WILL BE              */
+    /*    CALCULATED, PRINT AN EXPLANATION.                             */
     /*------------------------------------------------------------------*/
+
+    %MACRO PRINT_NOCALC;    
+        PROC PRINT DATA = NOCALC NOOBS SPLIT = "*";
+            VAR &VAR_LIST;
+            LABEL &LABEL;
+            TITLE3 &TITLE3;
+            TITLE4 &TITLE4;
+            %FORMAT
+        RUN;
+
+        PROC SORT DATA = SUMMARG_AVGMARG
+                  OUT = IMPORTER_LIST (KEEP = US_IMPORTER) NODUPKEY;
+            BY US_IMPORTER;
+        RUN;
+
+        PROC PRINT DATA = IMPORTER_LIST SPLIT = '*';
+            LABEL US_IMPORTER = "&IMPORTER";
+            TITLE3 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
+        RUN;
+    %MEND PRINT_NOCALC;
 
     %MACRO NO_ASSESS(TYPE);
-
         %IF &ABOVE_DEMINIMIS_STND = NO OR
             &ABOVE_DEMINIMIS_MIXED = NO OR
             &ABOVE_DEMINIMIS_ALT = NO %THEN
         %DO;
-
             %IF &&ABOVE_DEMINIMIS_&TYPE = NO %THEN
             %DO;
-
-                %MACRO PRINT_NOCALC;    
-                    PROC PRINT DATA = NOCALC NOOBS SPLIT = "*";
-                        VAR &VAR_LIST;
-                        LABEL &LABEL;
-                        TITLE3 &TITLE3;
-                        TITLE4 &TITLE4;
-                        %FORMAT
-                    RUN;
-
-                    PROC SORT DATA = SUMMARG_AVGMARG
-                              OUT = IMPORTER_LIST (KEEP = US_IMPORTER) NODUPKEY;
-                        BY US_IMPORTER;
-                    RUN;
-
-                    PROC PRINT DATA = IMPORTER_LIST SPLIT = '*';
-                        LABEL US_IMPORTER = "&IMPORTER";
-                        TITLE3 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
-                    RUN;
-                %MEND PRINT_NOCALC;
-
                 /*----------------------------------------------------------*/
-                /*     All cash deposit rates are below de minimis.            */
+                /*     All cash deposit rates are below de minimis.         */
                 /*----------------------------------------------------------*/
 
                 %IF &TYPE = ALT %THEN
@@ -3404,7 +3397,7 @@ RUN;
                 %END;
 
                 /*------------------------------------------------------*/
-                /*  Standard Cash Deposit rate is below de minimis.        */
+                /*  Standard Cash Deposit rate is below de minimis.     */
                 /*------------------------------------------------------*/
 
                 %IF &TYPE = STND AND &&ABOVE_DEMINIMIS_ALT NE NO %THEN
@@ -3427,8 +3420,8 @@ RUN;
                 %END;
 
                 /*----------------------------------------------------------*/
-                /*     The Cash Deposit rate for the Mixed Alternative        */
-                /*     Method is below de minimis.                            */
+                /*     The Cash Deposit rate for the Mixed Alternative      */
+                /*     Method is below de minimis.                          */
                 /*----------------------------------------------------------*/
 
                 %IF &TYPE = MIXED AND &CALC_METHOD NE STANDARD %THEN
@@ -3465,26 +3458,30 @@ RUN;
 
         %IF &&ABOVE_DEMINIMIS_&TYPE = NA AND &&ABOVE_DEMINIMIS_ALT NE NO %THEN
         %DO;
-                DATA NOCALC;
-                    REASON= "All sales either do not pass/pass the Cohen's d, Mixed Alternative Method the same as Standard/A-to-T Alternative, respectively.";
-                RUN;
-                %LET VAR_LIST = REASON;
-                    %MACRO FORMAT;
-                    %MEND FORMAT;
-                %LET TITLE3 = "NO SEPARATE ASSESMENT CALCULATIONS WILL BE DONE USING THE MIXED ALTERNATIVE METHOD";
+            DATA NOCALC;
+                REASON= "All sales either do not pass/pass the Cohen's d, Mixed Alternative Method the same as Standard/A-to-T Alternative, respectively.";
+            RUN;
 
-                %IF &ABOVE_DEMINIMIS_STND = NO %THEN
-                %DO;
-                    %LET TITLE4 = "(ASSESSMENTS WILL BE CALCULATED USING THE A-to-T ALTERNATIVE METHOD ONLY)";
-                %END;
-                %ELSE
-                %IF &ABOVE_DEMINIMIS_STND = YES %THEN 
-                %DO;
-                    %LET TITLE4 = "(ASSESSMENTS WILL BE CALCULATED USING THE STANDARD AND FULL A-to-T ALTERNATIVE METHODS)";
-                %END;
+            %LET VAR_LIST = REASON;
 
-                %LET LABEL =  REASON = " ";
-                %PRINT_NOCALC
+            %MACRO FORMAT;
+            %MEND FORMAT;
+
+            %LET TITLE3 = "NO SEPARATE ASSESMENT CALCULATIONS WILL BE DONE USING THE MIXED ALTERNATIVE METHOD";
+
+            %IF &ABOVE_DEMINIMIS_STND = NO %THEN
+            %DO;
+                %LET TITLE4 = "(ASSESSMENTS WILL BE CALCULATED USING THE A-to-T ALTERNATIVE METHOD ONLY)";
+            %END;
+            %ELSE
+            %IF &ABOVE_DEMINIMIS_STND = YES %THEN 
+            %DO;
+                %LET TITLE4 = "(ASSESSMENTS WILL BE CALCULATED USING THE STANDARD AND FULL A-to-T ALTERNATIVE METHODS)";
+            %END;
+
+            %LET LABEL =  REASON = " ";
+
+            %PRINT_NOCALC
         %END;
 
         %MEND NO_ASSESS;
@@ -3493,8 +3490,8 @@ RUN;
         %NO_ASSESS(ALT)
 
         /*----------------------------------------------------------------------*/
-        /*    FOR ALL METHODS FOR WHICH THE CASH DEPOSIT RATES ARE ABOVE            */
-        /*    DE MINIMIS, CALCULATE ASSESSMENTS.                                    */
+        /*    FOR ALL METHODS FOR WHICH THE CASH DEPOSIT RATES ARE ABOVE        */
+        /*    DE MINIMIS, CALCULATE ASSESSMENTS.                                */
         /*----------------------------------------------------------------------*/
                 
         %IF &ABOVE_DEMINIMIS_STND = YES OR
@@ -3506,14 +3503,13 @@ RUN;
         %RESULTS;     /* recalculate transaction comparison results using re-weighted data */
 
         /*--------------------------------------------------------------------------*/
-        /*    The SUMMARG_<INDATA> dataset does not contain any offsetting            */
-        /*    info. Calculate amounts for offsetting by importe and store them in     */
-        /*    the database SUMMAR_<INDATA>, leaving the database SUMMARG_<INDATA>     */
-        /*    unchanged.                                                                */
+        /*    The SUMMARG_<INDATA> dataset does not contain any offsetting          */
+        /*    info. Calculate amounts for offsetting by importe and store them in   */
+        /*    the database SUMMAR_<INDATA>, leaving the database SUMMARG_<INDATA>   */
+        /*    unchanged.                                                            */
         /*--------------------------------------------------------------------------*/
 
         %MACRO CALC_ASSESS(INDATA,CTYPE,CALC_TYPE);
-
             PROC SORT DATA = SUMMARG_&INDATA;
                 BY US_IMPORTER SOURCEU;
             RUN;
@@ -3549,16 +3545,16 @@ RUN;
                        SUM = INEGRESULTS;
             RUN;
 
-            /*------------------------------------------------------------------*/
-            /*  For each importer, if the sum of the positive comparison        */
-            /*    results is greater than the absolute value of the sum of the    */
-            /*     negative comparison results, set the total comparison results    */
-            /*     to the sum of the positive and negative comparison results.        */
-            /*    Otherwise, set the total comparison results to zero.            */
-            /*                                                                  */
-            /*     Calculate the ad valorem and per-unit assessment rates, and     */
-            /*    the de minimis percent.                                         */
-            /*------------------------------------------------------------------*/
+            /*-------------------------------------------------------------------*/
+            /*  For each importer, if the sum of the positive comparison         */
+            /*    results is greater than the absolute value of the sum of the   */
+            /*     negative comparison results, set the total comparison results */
+            /*     to the sum of the positive and negative comparison results.   */
+            /*    Otherwise, set the total comparison results to zero.           */
+            /*                                                                   */
+            /*     Calculate the ad valorem and per-unit assessment rates, and   */
+            /*    the de minimis percent.                                        */
+            /*-------------------------------------------------------------------*/
 
             DATA ASSESS_&INDATA;
                 LENGTH CALC_TYPE $11;
@@ -3581,23 +3577,23 @@ RUN;
                         ITOTRESULTS = IPOSRESULTS;
                     %END;
             RUN;
-
         %MEND CALC_ASSESS;
 
-    /*------------------------------------------------------------------*/
-    /*    EXECUTE THE CALC_ACCESS MACRO FOR ALL METHODs                    */
-    /*------------------------------------------------------------------*/
+        /*------------------------------------------------------------------*/
+        /*    EXECUTE THE CALC_ACCESS MACRO FOR ALL METHODs                 */
+        /*------------------------------------------------------------------*/
 
         /*----------------------------------------------------------*/
-        /*    STANDARD METHOD                                            */
+        /*    STANDARD METHOD                                       */
         /*----------------------------------------------------------*/
 
         %IF &ABOVE_DEMINIMIS_STND = YES %THEN
         %DO;
                 %CALC_ASSESS(IMPSTND,STND,STANDARD)
         %END;
+
         /*----------------------------------------------------------*/
-        /*    MIXED ALTERNATIVE METHOD                                */
+        /*    MIXED ALTERNATIVE METHOD                              */
         /*----------------------------------------------------------*/
 
         %IF &ABOVE_DEMINIMIS_MIXED= YES %THEN
@@ -3606,9 +3602,9 @@ RUN;
             %CALC_ASSESS(IMPCTRN,ALT,A-to-T)
 
             /*--------------------------------------------------------------*/
-            /*    COMBINE RESULTS FROM THE PORTION OF SALES                    */
-            /*    CALCULATED A-to-A WITH OFFSETS, WITH THOSE FROM SALES         */
-            /*    CALCULATED A-to-T WITHOUT OFFSETS.                            */ 
+            /*    COMBINE RESULTS FROM THE PORTION OF SALES                 */
+            /*    CALCULATED A-to-A WITH OFFSETS, WITH THOSE FROM SALES     */
+            /*    CALCULATED A-to-T WITHOUT OFFSETS.                        */ 
             /*--------------------------------------------------------------*/
 
             DATA ASSESS_MIXED_ALL;
@@ -3647,70 +3643,67 @@ RUN;
                 TITLE4 "RESULTS FROM SALES NOT PASSING COHEN'S D CALCULATED A-to-A WITH OFFSETS";
                 TITLE5 "WITH RESULTS FROM SALES PASSING COHEN'S D CALCULATED A-to-T WITHOUT OFFSETS";
             RUN; 
-
         %END;
 
         /*----------------------------------------------------------*/
-        /*    ALTERNATIVE METHOD                                        */
+        /*    ALTERNATIVE METHOD                                    */
         /*----------------------------------------------------------*/
 
         %IF &ABOVE_DEMINIMIS_ALT= YES %THEN
         %DO;
-                %CALC_ASSESS(IMPTRAN,ALT,ALTERNATIVE)
+            %CALC_ASSESS(IMPTRAN,ALT,ALTERNATIVE)
         %END;
-
     %END;
 
     %MACRO PRINT_ASSESS(INDATA);
-
         DATA ASSESS_&INDATA;
             SET ASSESS_&INDATA;
 
-                ASESRATE = (ITOTRESULTS / ITENTVAL)* 100; /*  AD VALOREM RATE FOR ASSESSMENT, MAY BE CHANGED BELOW */
-                PERUNIT  = (ITOTRESULTS / ITOTQTY);       /* PER-UNIT RATE FOR ASSESSMENT, MAY BE CHANGED BELOW    */
-                DMINPCT  = ASESRATE;                      /* RATE FOR DE MINIMIS TEST                              */
+            ASESRATE = (ITOTRESULTS / ITENTVAL) * 100; /* AD VALOREM RATE FOR ASSESSMENT, MAY BE CHANGED BELOW */
+            PERUNIT  = (ITOTRESULTS / ITOTQTY);        /* PER-UNIT RATE FOR ASSESSMENT, MAY BE CHANGED BELOW   */
+            DMINPCT  = ASESRATE;                       /* RATE FOR DE MINIMIS TEST                             */
             
-                LENGTH DMINTEST $3. ;
+            LENGTH DMINTEST $3. ;
 
-                IF DMINPCT GE 0.5 THEN
-                DO;
-                    DMINTEST = 'NO';
-                    %IF %UPCASE(&PER_UNIT_RATE) = NO %THEN
-                    %DO;
-                        IF SOURCEU = 'REPORTED' THEN PERUNIT = .;
-                        ELSE 
-                        IF SOURCEU IN ('MIXED','COMPUTED')
-                        THEN 
-                    %END;
-                    ASESRATE = .;
-                END;
-                ELSE 
-                IF DMINPCT LT 0.5 THEN
-                DO;
-                    DMINTEST = 'YES';
-                    ASESRATE = 0;
-                    PERUNIT  = 0;
-                END;
+            IF DMINPCT GE 0.5 THEN
+            DO;
+                DMINTEST = 'NO';
+                %IF %UPCASE(&PER_UNIT_RATE) = NO %THEN
+                %DO;
+                    IF SOURCEU = 'REPORTED' THEN PERUNIT = .;
+                    ELSE 
+                    IF SOURCEU IN ('MIXED','COMPUTED')
+                    THEN 
+                %END;
+                ASESRATE = .;
+            END;
+            ELSE 
+            IF DMINPCT LT 0.5 THEN
+            DO;
+                DMINTEST = 'YES';
+                ASESRATE = 0;
+                PERUNIT  = 0;
+            END;
 
-                DMINPCT  = INT(DMINPCT*100)/100;
+            DMINPCT  = INT(DMINPCT*100)/100;
         RUN;
 
-        PROC PRINT DATA = ASSESS_&INDATA SPLIT='*' WIDTH = MINIMUM;
+        PROC PRINT DATA = ASSESS_&INDATA SPLIT = '*' WIDTH = MINIMUM;
             VAR US_IMPORTER SOURCEU ITENTVAL ITOTQTY IPOSRESULTS INEGRESULTS ITOTRESULTS
                 DMINPCT DMINTEST ASESRATE PERUNIT;
-            LABEL US_IMPORTER  = 'IMPORTER**========'
-                  SOURCEU   = 'CUSTOMS VALUE*DATA SOURCE**============='
-                  ITENTVAL  = 'CUSTOMS VALUE*(A)*============='
-                  ITOTQTY   = 'TOTAL QUANTITY*(B)*============'
-                  IPOSRESULTS  = 'TOTAL OF*POSITIVE*COMPARISON*RESULTS*(C)*=========='
-                  INEGRESULTS  = 'TOTAL OF*NEGATIVE*COMPARISON*RESULTS*(D)*=========='
+            LABEL US_IMPORTER = 'IMPORTER**========'
+                  SOURCEU = 'CUSTOMS VALUE*DATA SOURCE**============='
+                  ITENTVAL = 'CUSTOMS VALUE*(A)*============='
+                  ITOTQTY = 'TOTAL QUANTITY*(B)*============'
+                  IPOSRESULTS = 'TOTAL OF*POSITIVE*COMPARISON*RESULTS*(C)*=========='
+                  INEGRESULTS = 'TOTAL OF*NEGATIVE*COMPARISON*RESULTS*(D)*=========='
                   ITOTRESULTS = 'ANTIDUMPING*DUTIES DUE*(see footnotes)*(E)*=============='
-                  DMINPCT   = 'RATE FOR*DE MINIMIS TEST*(percent)*(E/A)x100*=============='
-                  DMINTEST  = 'IS THE RATE*AT OR BELOW*DE MINIMIS?**===========' 
-                  ASESRATE  = '*AD VALOREM*ASSESSMENT*RATE*(percent)*(E/A)x100*=========='
-                  PERUNIT   = 'PER-UNIT*ASSESSMENT*RATE*($/unit)*(E/B) *==========' ;
-                  FORMAT ITENTVAL ITOTQTY COMMA16.2  DMINPCT ASESRATE PERUNIT COMMA8.2;
-            TITLE3 "IMPORTER-SPECIFIC DE MINIMIS TEST RESULTS AND ASSESSMENT RATES ";
+                  DMINPCT = 'RATE FOR*DE MINIMIS TEST*(percent)*(E/A)x100*=============='
+                  DMINTEST = 'IS THE RATE*AT OR BELOW*DE MINIMIS?**===========' 
+                  ASESRATE = '*AD VALOREM*ASSESSMENT*RATE*(percent)*(E/A)x100*=========='
+                  PERUNIT = 'PER-UNIT*ASSESSMENT*RATE*($/unit)*(E/B) *==========' ;
+                  FORMAT ITENTVAL ITOTQTY COMMA16.2 DMINPCT ASESRATE PERUNIT COMMA8.2;
+            TITLE3 "IMPORTER-SPECIFIC DE MINIMIS TEST RESULTS AND ASSESSMENT RATES";
             TITLE4 &ASSESS_TITLE4;
             TITLE5 "FOR DISPLAY PURPOSES, THE DE MINIMIS PERCENT IS NOT ROUNDED";
             FOOTNOTE1 &ASSESS_FOOTNOTE1;
@@ -3718,12 +3711,11 @@ RUN;
             FOOTNOTE4 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
             FOOTNOTE5 "&BDAY, &BWDATE - &BTIME";
         RUN;
-
     %MEND PRINT_ASSESS;
 
     %IF &ABOVE_DEMINIMIS_STND = YES %THEN
     %DO;
-        %LET ASSESS_FOOTNOTE1 = "IF C IS GREATER THAN THE ABSOLUTE VALUE OF D, THEN THE ANTIDUMPING DUTIES DUE ";
+        %LET ASSESS_FOOTNOTE1 = "IF C IS GREATER THAN THE ABSOLUTE VALUE OF D, THEN THE ANTIDUMPING DUTIES DUE";
         %LET ASSESS_FOOTNOTE2 = "ARE THE SUM OF C AND D, OTHERWISE THE ANTIDUMPING DUTIES DUE ARE ZERO.";
         %LET ASSESS_TITLE4 = "STANDARD METHOD, OFFSETTING POSITIVE COMPARISON RESULTS WITH NEGATIVES";
         %PRINT_ASSESS(IMPSTND)
@@ -3742,7 +3734,6 @@ RUN;
         %LET ASSESS_TITLE4 = "A-to-T ALTERNATIVE METHOD: TOTAL DUMPING IS EQUAL TO TOTAL POSITIVE COMPARISON RESULTS";
         %PRINT_ASSESS(IMPTRAN)
     %END;
-
 %END;
 
 %MEND ASSESSMENT;
@@ -3756,7 +3747,6 @@ RUN;
 /*------------------------------------------*/
 
 %MACRO FINAL_CASH_DEPOSIT;
-
     %IF %UPCASE(&PER_UNIT_RATE) = NO %THEN
     %DO; 
         %LET PREFIX = WTAVGPCT;
@@ -3778,13 +3768,12 @@ RUN;
         TITLE3 "SUMMARY OF CASH DEPOSIT RATES";
         VAR &PREFIX._STND &PREFIX._MIXED &PREFIX._ALT;
         LABEL &PREFIX._STND = &LABEL_STND
-            &PREFIX._MIXED = &LABEL_MIXED
-            &PREFIX._ALT = &LABEL_ALT;
+              &PREFIX._MIXED = &LABEL_MIXED
+              &PREFIX._ALT = &LABEL_ALT;
         FORMAT &PREFIX._STND  &PREFIX._MIXED &PREFIX._ALT &CDFORMAT;
         FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
         FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
     RUN;
-
 %MEND FINAL_CASH_DEPOSIT;
 
 %FINAL_CASH_DEPOSIT
@@ -3805,5 +3794,7 @@ RUN;
 /*          (A) GENERAL SAS ALERTS SUCH AS ERRORS, WARNINGS, MISSING, ETC. */
 /*          (B) PROGRAM SPECIFIC ALERTS THAT WE NEED TO LOOK OUT FOR.      */
 /***************************************************************************/
+
 %CMAC4_SCAN_LOG (ME_OR_NME =NME);
+
 /*ep*/
