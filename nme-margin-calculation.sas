@@ -2,7 +2,7 @@
 /*                                                              */
 /*              NME MARGIN CALCULATION PROGRAM                  */
 /*                                                              */
-/*         GENERIC VERSION LAST UPDATED - OCTOBER 1, 2019       */
+/*        GENERIC VERSION LAST UPDATED - DECEMBER 27, 2019      */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */
@@ -315,9 +315,10 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* OTHERWISE, LEAVE THIS MACRO VARIABLE BLANK.                */
 /*------------------------------------------------------------*/
 
-%LET USPHVARS = <    >; /* (V) LIST THE PHYSICAL CHARACTERISTIC VARIABLES   */
-                        /*     THAT ARE USED TO DEFINE THE CONNUM. SEPARATE */
-                        /*     THE VARIABLES WITH SPACES.                   */
+%LET USPHVARS = <  >;     /*(V) PRODUCT MATCHING CHARACTERISTICS. LIST     */
+                          /*    THEM FROM LEFT TO RIGHT IN ORDER OF        */
+                          /*    IMPORTANCE, WITH SPACES SEPARATING THEM.   */
+                          /*    DO NOT SURROUND THE VALUES WITH QUOTES.    */
 
 /*-----------------------------------------------------------*/
 /* WERE PHYSICAL CHARACTERISTICS INCLUDED WITH THE FOP DATA? */
@@ -974,7 +975,7 @@ RUN;
 /* DO NOT EDIT CMAC2_COUNTER MACRO                                  */
 /*------------------------------------------------------------------*/
 
-    %CMAC2_COUNTER (DATASET = USSALES, MVAR=ORIG_USSALES);
+%CMAC2_COUNTER (DATASET = COMPANY.&USDATA, MVAR = ORIG_USSALES);
 
 /*ep*/
 
@@ -1006,8 +1007,16 @@ DATA FOP;
     &FOPDATA._OBSORDER = _N_;
 
     /* <Insert changes here, if required.> */
-
 RUN;
+
+/*--------------------------------------------------------------*/
+/* GET FOP COUNT FOR LOG REPORTING PURPOSES                     */
+/* DO NOT EDIT CMAC2_COUNTER MACRO                              */
+/*--------------------------------------------------------------*/
+
+%CMAC2_COUNTER (DATASET = COMPANY.&FOPDATA, MVAR = ORIG_FOPDATA);
+
+/*ep*/
 
 %MACRO SORT_FOP_SALES;
 %IF %UPCASE(&CONNUMS) = YES %THEN
@@ -1531,32 +1540,31 @@ RUN;
 /* PART 11: COHEN'S-D TEST */
 /*-------------------------*/
 
-/*----------------------------------------------------------------------------*/
-/*    The Cohen's-d Test is run three ways:  1) by purchaser, 2) by region    */
-/*    and 3) by time period.  U.S. sales are compared to sales to other       */
-/*    purchasers/regions/periods to see if they pass the test.  At the end of */
-/*    the test, the percentage of U.S. sales found to pass the test is        */
-/*    recorded.                                                               */
-/*                                                                            */
-/*    In the remaining sections of this program, the Cash Deposit Rate will   */
-/*    be calculated three ways:  1) Standard Methodology (average-to-average  */
-/*    comparisons on all sales, offsetting positive comparison results with   */
-/*    negatives), 2) A-2-T Alternative Methodology (average-to-transaction    */
-/*    comparisons on all sales, no offsetting of positive comparison results  */
-/*    with negative ones), and 3) Mixed Alternative Methodology (applying the */
-/*    Standard Methodology to sales that do not pass the Cohen's-d Test and   */
-/*    using the A-2-T Alternative Methodology on sales that do pass.          */
-/*                                                                            */
-/*    If no sale passes the Cohen's-d Test, the Mixed Alternative Methodology */
-/*    would be the same as the Standard Methodology. In this case, the Mixed  */
-/*    Alternative Methodology will not be calculated.  Similarly, the Mixed   */
-/*    Alternative Methodology will also not be calculated when all sales      */
-/*    pass the Cohen's-d Test since the it would be the same as the           */
-/*    A-2-T Alternative Methodology.                                          */
-/*----------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------*/
+/* The Cohen's-d Test is run three ways: 1) by purchaser, 2) by region     */
+/* and 3) by time period. U.S. sales are compared to sales to other        */
+/* purchasers/regions/periods to see if they pass the test. At the end of  */
+/* the test, the percentage of U.S. sales found to pass the test is        */
+/* recorded.                                                               */
+/*                                                                         */
+/* In the remaining sections of this program, the Cash Deposit Rate will   */
+/* be calculated three ways: 1) Standard Methodology (average-to-average   */
+/* comparisons on all sales, offsetting positive comparison results with   */
+/* negatives), 2) A-to-T Alternative Methodology (average-to-transaction   */
+/* comparisons on all sales, no offsetting of positive comparison results  */
+/* with negative ones), and 3) Mixed Alternative Methodology (applying the */
+/* Standard Methodology to sales that do not pass the Cohen's-d Test and   */
+/* using the A-to-T Alternative Methodology on sales that do pass.         */
+/*                                                                         */
+/* If no sale passes the Cohen's-d Test, the Mixed Alternative Methodology */
+/* would be the same as the Standard Methodology. In this case, the Mixed  */
+/* Alternative Methodology will not be calculated. Similarly, the Mixed    */
+/* Alternative Methodology will also not be calculated when all sales      */
+/* pass the Cohen's-d Test since the it would be the same as the           */
+/* A-to-T Alternative Methodology.                                         */
+/*-------------------------------------------------------------------------*/
 
 %MACRO COHENS_D_TEST;
-
     TITLE3 "THE COHEN'S D TEST";
 
         %IF %UPCASE(&DP_REGION_DATA) = REGION %THEN
@@ -1582,440 +1590,452 @@ RUN;
             %MEND DPPERIOD_PRINT_LABEL;
         %END;        
 
-    /*----------------------------------------------------------*/
-    /*  Calculate net price for Cohen's d Analysis and set up    */
-    /*    regions, purchasers and time periods.                    */
-    /*----------------------------------------------------------*/
+    /*---------------------------------------------------------*/
+    /*  Calculate net price for Cohen's d Analysis and set up  */
+    /*  regions, purchasers and time periods.                  */
+    /*---------------------------------------------------------*/
 
     DATA DPSALES;
         SET USPRICES;
+        DP_COUNT = _N_;
 
-            DP_COUNT = _N_;
+        DP_NETPRI = USNETPRI;
 
-            DP_NETPRI = USNETPRI;
+        /*----------------------------------------------------*/
+        /* Establish the region, time and purchaser           */
+        /* variables for the analysis when there are existing */
+        /* variables in the data for the same.  If the time   */
+        /* variable for the analysis is being calculated by   */
+        /* using the quarter default, do that here.           */
+        /*----------------------------------------------------*/
 
-            /*----------------------------------------------------------*/
-            /*    Establish the region, time and purchaser                */
-            /*    variables for the analysis when there are existing         */
-            /*    variables in the data for the same.  If the time         */
-            /*    variable for the analysis is being calculated by         */
-            /*    using the quarter default, do that here.                */
-            /*----------------------------------------------------------*/
+        DP_PURCHASER = &DP_PURCHASER;
 
-            DP_PURCHASER = &DP_PURCHASER;
+    %IF %UPCASE(&DP_REGION_DATA) EQ REGION %THEN
+    %DO;
+        DP_REGION = &DP_REGION;
+        %LET REGION_PRINT_VARS = DP_REGION;
+    %END;
 
-            %IF %UPCASE(&DP_REGION_DATA) EQ REGION %THEN
-            %DO;
-                DP_REGION = &DP_REGION;
-                %LET REGION_PRINT_VARS = DP_REGION;
-            %END;
-            %GLOBAL DP_PERIOD;
-            %IF %UPCASE(&DP_TIME_CALC) = NO %THEN
-            %DO;
-                DP_PERIOD = &DP_TIME;
-                %LET DP_PERIOD = &DP_TIME;
-                %LET PERIOD_PRINT_VARS = DP_PERIOD;
-            %END;    
-            %ELSE %IF %UPCASE(&DP_TIME_CALC) = YES %THEN
-            %DO;
-                   FIRSTMONTH =MONTH("&BEGINPERIOD"D);
-                  DPMONTH=MONTH(&USSALEDATE)+(YEAR(&USSALEDATE)-YEAR("&BEGINPERIOD"D))*12;
-                DP_PERIOD="QTR"||PUT(INT(1+(DPMONTH-FIRSTMONTH)/3),Z2.);
-                DROP FIRSTMONTH DPMONTH;
-                %LET DP_PERIOD = &USSALEDATE;
-                %LET PERIOD_PRINT_VARS = &DP_PERIOD DP_PERIOD;
-            %END;
+    %GLOBAL DP_PERIOD;
+    %IF %UPCASE(&DP_TIME_CALC) = NO %THEN
+    %DO;
+        DP_PERIOD = &DP_TIME;
+        %LET DP_PERIOD = &DP_TIME;
+        %LET PERIOD_PRINT_VARS = DP_PERIOD;
+    %END;    
+    %ELSE
+    %IF %UPCASE(&DP_TIME_CALC) = YES %THEN
+    %DO;
+        FIRSTMONTH = MONTH("&BEGINPERIOD"D);
+        DPMONTH = MONTH(&USSALEDATE) + (YEAR(&USSALEDATE) - YEAR("&BEGINPERIOD"D)) * 12;
+        DP_PERIOD = "QTR"||PUT(INT(1 + (DPMONTH - FIRSTMONTH) / 3), Z2.);
+        DROP FIRSTMONTH DPMONTH;
+        %LET DP_PERIOD = &USSALEDATE;
+        %LET PERIOD_PRINT_VARS = &DP_PERIOD DP_PERIOD;
+    %END;
     RUN;
 
-        /*---------------------------------------------------*/
-        /* Attach region designations using state/zip codes, */ 
-        /* when required.                                    */
-        /*---------------------------------------------------*/
+    /*---------------------------------------------------*/
+    /* Attach region designations using state/zip codes, */ 
+    /* when required.                                    */
+    /*---------------------------------------------------*/
 
-        %IF %UPCASE(&DP_REGION_DATA) NE REGION %THEN
-        %DO;
+    %IF %UPCASE(&DP_REGION_DATA) NE REGION %THEN
+    %DO;
+    PROC FORMAT;
+        VALUE $REGION
+            "PR" "VI"           = "TERRITORY"
 
-            PROC FORMAT;
-                VALUE $REGION
-                    "PR" "VI"           = "TERRITORY"
+            "CT", "ME", "MA",
+            "NH", "RI", "VT",
+            "NJ", "NY", "PA"    = "NORTHEAST"
 
-                    "CT", "ME", "MA",
-                    "NH", "RI", "VT",
-                    "NJ", "NY", "PA"    = "NORTHEAST"
+            "IN", "IL", "MI",
+            "OH", "WI", "IA",
+            "KS", "MN", "MO",
+            "NE", "ND", "SD"    = "MIDWEST"
 
-                      "IN", "IL", "MI",
-                    "OH", "WI", "IA",
-                    "KS", "MN", "MO",
-                    "NE", "ND", "SD"    = "MIDWEST"
+            "AL", "AR", "DC",
+            "DE", "FL", "GA",
+            "KY", "LA", "MD",
+            "MS", "NC", "TN",
+            "OK", "SC", "TX",
+            "VA", "WV"          = "SOUTH"
 
-                      "AL", "AR", "DC",
-                    "DE", "FL", "GA",
-                    "KY", "LA", "MD",
-                    "MS", "NC", "TN",
-                    "OK", "SC", "TX",
-                    "VA", "WV"            = "SOUTH"
+            "AK", "AZ", "CA",
+            "CO", "HI", "ID", 
+            "MT", "NM", "NV",
+            "OR", "UT", "WY",
+            "WA"                = "WEST";
+    RUN;
 
-                     "AK", "AZ", "CA",
-                    "CO", "HI", "ID", 
-                    "MT", "NM", "NV",
-                    "OR", "UT", "WY",
-                        "WA"                = "WEST";
-            RUN;
+    %LET REGION_PRINT_VARS = &DP_REGION DP_REGION;
 
-            %LET REGION_PRINT_VARS = &DP_REGION DP_REGION;
+    DATA DPSALES;
+        SET DPSALES;
 
-            DATA DPSALES;
-                SET DPSALES;
+    %IF %UPCASE(&DP_REGION_DATA) = ZIP %THEN
+    %DO;
+        LENGTH VALID_ZIP $3.;
+        ZIPVAR_TYPE = VTYPE(&DP_REGION);
+        IF ZIPVAR_TYPE = "C" THEN
+        DO;
+            IF FINDC(&DP_REGION,"-1234567890 ","K") GT 0 THEN
+                VALID_ZIP = "NO";
+            ELSE
+                VALID_ZIP = "YES";
+        END;
+        ELSE 
+        DO;
+            IF 500 LT &DP_REGION LT 100000 THEN
+                VALID_ZIP = "YES";
+            ELSE VALID_ZIP = "NO";
+        END;
+                
+        IF VALID_ZIP = "YES" THEN
+            STATE = ZIPSTATE(COMPRESS(&DP_REGION));
+        ELSE
+            STATE = "";
 
-                %IF %UPCASE(&DP_REGION_DATA) = ZIP %THEN
-                %DO;
-                    LENGTH VALID_ZIP $3.;
-                    ZIPVAR_TYPE = VTYPE(&DP_REGION);
-                    IF ZIPVAR_TYPE = "C" THEN
-                    DO;
-                        IF FINDC(&DP_REGION,"-1234567890 ","K") GT 0 THEN VALID_ZIP = "NO";
-                        ELSE VALID_ZIP = "YES";
-                    END;
-                    ELSE 
-                    DO;
-                        IF 500 LT &DP_REGION LT 100000 THEN VALID_ZIP = "YES";
-                        ELSE VALID_ZIP = "NO";
-                    END;
-                    
-                    IF VALID_ZIP = "YES" THEN STATE = ZIPSTATE(COMPRESS(&DP_REGION));
-                    ELSE STATE = "";
-                    %LET STATE = STATE;
-                    DROP ZIPVAR_TYPE VALID_ZIP;
-                %END;
+        %LET STATE = STATE;
+        DROP ZIPVAR_TYPE VALID_ZIP;
+    %END;
 
-                %IF %UPCASE(&DP_REGION_DATA) = STATE %THEN
-                %DO;
-                    %LET STATE = &DP_REGION;
-                %END;
+    %IF %UPCASE(&DP_REGION_DATA) = STATE %THEN
+    %DO;
+        %LET STATE = &DP_REGION;
+    %END;
 
-                LENGTH DP_REGION $9;
-                DP_REGION = PUT(&STATE, REGION.);
-            RUN;
+        LENGTH DP_REGION $9;
+        DP_REGION = PUT(&STATE, REGION.);
+    RUN;
+    %END;
 
-        %END;
-
-        DATA DPSALES USPRICES (DROP=DP_NETPRI DP_PURCHASER DP_REGION DP_PERIOD);
+        DATA DPSALES USPRICES (DROP = DP_NETPRI DP_PURCHASER DP_REGION DP_PERIOD);
             SET DPSALES;
         RUN;
 
-        PROC PRINT DATA = DPSALES (OBS=&PRINTOBS) SPLIT="*";
-            VAR &USGUP GUPADJU DISCREBU DCMMOVEU INTLMOVEU VETAXU
+     PROC PRINT DATA = DPSALES (OBS = &PRINTOBS) SPLIT = "*";
+         VAR &USGUP GUPADJU DISCREBU DCMMOVEU INTLMOVEU VETAXU
 
-            %IF %UPCASE(&SALETYPE) = CEP OR %UPCASE(&SALETYPE) = BOTH %THEN
-            %DO;
-                CEPROFIT CEPSELLU
-            %END;
-                DP_NETPRI DP_PURCHASER &PERIOD_PRINT_VARS &REGION_PRINT_VARS;
-            LABEL DP_NETPRI = "NET PRICE*FOR COHEN'S D*ANALYSIS"
-                  %DPPERIOD_PRINT_LABEL
-                  DP_PERIOD = "TIME PERIOD*FOR COHEN'S D*ANALYSIS"
-                  %DPREGION_PRINT_LABEL
-                  DP_REGION = "REGION FOR*COHEN'S D*ANALYSIS"
-                  DP_PURCHASER = "PURCHASER*FOR COHEN'S D*ANALYSIS*(&DP_PURCHASER)";
-            TITLE4 "NET PRICE CALCULATIONS AND PURCHASER/TIME/REGION ASSIGNMENTS FOR COHEN'S D";
-        RUN;
+         %IF %UPCASE(&SALETYPE) = CEP OR %UPCASE(&SALETYPE) = BOTH %THEN
+         %DO;
+             CEPROFIT CEPSELLU
+         %END;
+             DP_NETPRI DP_PURCHASER &PERIOD_PRINT_VARS &REGION_PRINT_VARS;
+         LABEL DP_NETPRI = "NET PRICE*FOR COHEN'S D*ANALYSIS"
+               %DPPERIOD_PRINT_LABEL
+               DP_PERIOD = "TIME PERIOD*FOR COHEN'S D*ANALYSIS"
+               %DPREGION_PRINT_LABEL
+               DP_REGION = "REGION FOR*COHEN'S D*ANALYSIS"
+               DP_PURCHASER = "PURCHASER*FOR COHEN'S D*ANALYSIS*(&DP_PURCHASER)";
+         TITLE4 "NET PRICE CALCULATIONS AND PURCHASER/TIME/REGION ASSIGNMENTS FOR COHEN'S D";
+     RUN;
 
-    /*----------------------------------------------------------*/
-    /*  Calculate Information Using Comparable Merchandise        */
-    /*    Criteria for Cohen's d.                                    */
-    /*----------------------------------------------------------*/
+    /*-----------------------------------------------------*/
+    /*  Calculate Information Using Comparable Merchandise */
+    /*   Criteria for Cohen's d.                           */
+    /*-----------------------------------------------------*/
 
-    PROC SORT DATA = DPSALES (KEEP=&USCONNUM DP_NETPRI 
-                                   &USQTY DP_REGION DP_PURCHASER DP_PERIOD DP_COUNT);
-           BY &USCONNUM;
+    PROC SORT DATA = DPSALES (KEEP = &USCONNUM DP_NETPRI &USQTY 
+                                     DP_REGION DP_PURCHASER DP_PERIOD DP_COUNT);
+        BY &USCONNUM;
     RUN;
 
-    PROC MEANS DATA = DPSALES NOPRINT VARDEF=WEIGHT;
+    PROC MEANS DATA = DPSALES NOPRINT VARDEF = WEIGHT;
         BY &USCONNUM;
         VAR DP_NETPRI;
         WEIGHT &USQTY;
-        OUTPUT OUT = DPCONNUM (DROP=_TYPE_ _FREQ_)
-            N = TOTAL_CONNUM_OBS
-            SUMWGT = TOTAL_CONNUM_QTY
-            SUM = TOTAL_CONNUM_VALUE
-            MEAN = AVG_CONNUM_PRICE
-            MIN = MIN_CONNUM_PRICE
-            MAX = MAX_CONNUM_PRICE
-            STD = STD_CONNUM_PRICE;
+        OUTPUT OUT = DPCONNUM (DROP = _FREQ_ _TYPE_)
+               N = TOTAL_CONNUM_OBS
+               SUMWGT = TOTAL_CONNUM_QTY
+               SUM = TOTAL_CONNUM_VALUE
+               MEAN = AVG_CONNUM_PRICE
+               MIN = MIN_CONNUM_PRICE
+               MAX = MAX_CONNUM_PRICE
+               STD = STD_CONNUM_PRICE;
     RUN;
 
-    PROC PRINT DATA = DPCONNUM (OBS=&PRINTOBS) SPLIT="*";
-        LABEL    &USCONNUM="CONTROL NUMBER"
-                TOTAL_CONNUM_OBS="NUMBER*  OF  *OBSERVATIONS" 
-                TOTAL_CONNUM_QTY="  TOTAL *QUANTITY"
-                TOTAL_CONNUM_VALUE=" TOTAL *VALUE "
-                AVG_CONNUM_PRICE="AVERAGE*PRICE "
-                MIN_CONNUM_PRICE="LOWEST*PRICE "
-                MAX_CONNUM_PRICE="HIGHEST*PRICE "
-                STD_CONNUM_PRICE="STANDARD*DEVIATION*IN PRICE";
+    PROC PRINT DATA = DPCONNUM (OBS = &PRINTOBS) SPLIT = "*";
+        LABEL &USCONNUM = "CONTROL NUMBER"
+              TOTAL_CONNUM_OBS = "NUMBER*  OF  *OBSERVATIONS" 
+              TOTAL_CONNUM_QTY = "  TOTAL *QUANTITY"
+              TOTAL_CONNUM_VALUE = " TOTAL *VALUE "
+              AVG_CONNUM_PRICE = "AVERAGE*PRICE"
+              MIN_CONNUM_PRICE = "LOWEST*PRICE"
+              MAX_CONNUM_PRICE = "HIGHEST*PRICE"
+              STD_CONNUM_PRICE = "STANDARD*DEVIATION*IN PRICE";
         SUM TOTAL_CONNUM_QTY TOTAL_CONNUM_VALUE;
         TITLE4 "OVERALL STATISTICS FOR EACH CONTROL NUMBER (ALL SALES--NO SEPARATION OF TEST AND BASE GROUP VALUES)";
     RUN;
 
-    /*--------------------------------------------------------------*/
-    /* STAGE 1: Test Control Numbers by Region, Time and Purchaser    */
-    /*--------------------------------------------------------------*/
+    /*-------------------------------------------------------------*/
+    /* STAGE 1: Test Control Numbers by Region, Time and Purchaser */
+    /*-------------------------------------------------------------*/
 
-        %MACRO COHENS_D(DP_GROUP,TITLE4);
+    %MACRO COHENS_D(DP_GROUP,TITLE4);
+        /*------------------------------------------------------------*/
+        /*  Put sales to be tested for each round in DPSALES_TEST.    */
+        /*  (All sales will remain in DPSALES.) Sales missing group   */
+        /*  will not be tested, but will be kept in the pool for      */
+        /*  purposes of calculating base group statistics.            */
+        /*------------------------------------------------------------*/
 
-            /*----------------------------------------------------------*/
-            /*  Put sales to be tested for each round in                */
-            /*    DPSALES_TEST. (All sales will remain in DPSALES.) Sales */
-            /*    missing group information will not be tested, but will     */
-            /*    be kept in the pool for purposes of    calculating base     */
-            /*    group statistics.                                        */
-            /*----------------------------------------------------------*/
+        %LET DSID = %SYSFUNC(OPEN(DPSALES));
+        %LET VARNUM = %SYSFUNC(VARNUM(&DSID, &DP_GROUP));
+        %LET VARTYPE = %SYSFUNC(VARTYPE(&DSID, &VARNUM));
+        %LET RC = %SYSFUNC(CLOSE(&DSID));
 
-            %LET DSID = %SYSFUNC(OPEN(DPSALES));
-            %LET VARNUM = %SYSFUNC(VARNUM(&DSID, &DP_GROUP));
-            %LET VARTYPE = %SYSFUNC(VARTYPE(&DSID, &VARNUM));
-            %LET RC = %SYSFUNC(CLOSE(&DSID));
+        DATA DPSALES_TEST NO_&DP_GROUP._TEST;
+            SET DPSALES;
+                %IF &VARTYPE = C %THEN
+                %DO;
+                    IF &DP_GROUP = "" THEN
+                %END;
+                %ELSE
+                %IF &VARTYPE = N %THEN
+                %DO;
+                    IF &DP_GROUP = . THEN
+                %END;
+                OUTPUT NO_&DP_GROUP._TEST;
+                ELSE OUTPUT DPSALES_TEST;
+        RUN;
+                    
+        PROC PRINT DATA = NO_&DP_GROUP._TEST (OBS = &PRINTOBS);
+            TITLE4 "SAMPLE OF SALES FOR WHICH THERE IS NO DESIGNATION FOR &DP_GROUP, SAMPLE OF &PRINTOBS";
+        RUN;
 
-            DATA DPSALES_TEST NO_&DP_GROUP._TEST;
-                SET DPSALES;
-                    %IF &VARTYPE = C %THEN
-                    %DO;
-                        IF &DP_GROUP = "" THEN
-                    %END;
-                    %ELSE
-                    %IF &VARTYPE = N %THEN
-                    %DO;
-                        IF &DP_GROUP = . THEN
-                    %END;
-                    OUTPUT NO_&DP_GROUP._TEST;
-                    ELSE OUTPUT DPSALES_TEST;
-            RUN;
-                        
-            PROC PRINT DATA = NO_&DP_GROUP._TEST (OBS = &PRINTOBS);
-                TITLE4 "SAMPLE OF SALES FOR WHICH THERE IS NO DESIGNATION FOR &DP_GROUP, SAMPLE OF &PRINTOBS" ;
-            RUN;
+        /*-------------------------------------*/
+        /*  Calculate test group information.  */
+        /*-------------------------------------*/
 
-            /*----------------------------------------------*/
-            /*  Calculate test group information.            */
-            /*----------------------------------------------*/
+        TITLE4 "&TITLE4";
 
-            TITLE4 " &TITLE4 ";
+        PROC SORT DATA = DPSALES_TEST OUT = DPSALES_TEST;
+            BY &USCONNUM &DP_GROUP;
+        RUN;
 
-            PROC SORT DATA = DPSALES_TEST;
-                   BY &USCONNUM &DP_GROUP;
-            RUN;
+        PROC MEANS DATA = DPSALES_TEST NOPRINT VARDEF = WEIGHT ;
+            BY &USCONNUM &DP_GROUP;
+            VAR DP_NETPRI;
+            WEIGHT &USQTY;
+            OUTPUT OUT = &DP_GROUP (DROP = _FREQ_ _TYPE_)
+                   N = TEST_&DP_GROUP._OBS
+                   SUMWGT = TEST_&DP_GROUP._QTY
+                   SUM = TEST_&DP_GROUP._VALUE
+                   MEAN = TEST_AVG_&DP_GROUP._PRICE
+                   STD = TEST_&DP_GROUP._STD;
+        RUN;
 
-            PROC MEANS DATA = DPSALES_TEST NOPRINT VARDEF=WEIGHT ;
-                BY &USCONNUM &DP_GROUP;
-                VAR DP_NETPRI;
-                WEIGHT &USQTY;
-                OUTPUT OUT = &DP_GROUP (DROP=_TYPE_ _FREQ_)
-                       N = TEST_&DP_GROUP._OBS
-                       SUMWGT = TEST_&DP_GROUP._QTY
-                       SUM = TEST_&DP_GROUP._VALUE
-                       MEAN = TEST_AVG_&DP_GROUP._PRICE
-                       STD = TEST_&DP_GROUP._STD;
-            RUN;
+        PROC PRINT DATA = &DP_GROUP (OBS = &PRINTOBS) SPLIT = "*";
+            BY &USCONNUM;
+            ID &USCONNUM;
+            LABEL &USCONNUM = "CONTROL NUMBER"
+                  &DP_GROUP = "TEST*GROUP*(&DP_GROUP.)"
+                  TEST_&DP_GROUP._OBS = "TRANSACTIONS*  IN  *TEST GROUP"
+                  TEST_&DP_GROUP._QTY = "TOTAL QTY*  OF  *TEST GROUP"
+                  TEST_&DP_GROUP._VALUE = "TOTAL VALUE*  OF  *TEST GROUP" 
+                  TEST_AVG_&DP_GROUP._PRICE = "WT AVG PRICE*  OF  *TEST GROUP"
+                  TEST_&DP_GROUP._STD = "STANDARD*DEVIATION*TEST GROUP*PRICE";
+            TITLE5 "CALCULATION OF TEST GROUP STATISTICS BY &DP_GROUP";
+        RUN;
 
-            PROC PRINT DATA = &DP_GROUP (OBS=&PRINTOBS) SPLIT="*";
-                BY &USCONNUM;
-                ID &USCONNUM;
-                LABEL     &USCONNUM="CONTROL NUMBER"
-                        &DP_GROUP="TEST*GROUP*(&DP_GROUP.)"
-                        TEST_&DP_GROUP._OBS="TRANSACTIONS*  IN  *TEST GROUP"
-                        TEST_&DP_GROUP._QTY="TOTAL QTY*  OF  *TEST GROUP"
-                        TEST_&DP_GROUP._VALUE="TOTAL VALUE*  OF  *TEST GROUP" 
-                        TEST_AVG_&DP_GROUP._PRICE="WT AVG PRICE*  OF  *TEST GROUP"
-                        TEST_&DP_GROUP._STD="STANDARD*DEVIATION*TEST GROUP*PRICE";
-                TITLE5 "CALCULATION OF TEST GROUP STATISTICS BY &DP_GROUP";
-            RUN;
+        /*-------------------------------------------------------------*/
+        /*  Attach overall control number information to               */
+        /*  each test group. Then separate base v. test group          */
+        /*  information re: value, quantity, observations, etc.  For   */
+        /*  example, if there are three purchasers (A,B and C), when   */
+        /*  purchaser A is in the test group, purchasers B and C will  */
+        /*  be the base/comparison group.                              */
+        /*                                                             */
+        /*  If there is no base group for a control number because all */
+        /*  sales are to one purchaser, for example, (as evidenced by  */
+        /*  zero obs/quantity) then no Cohen's d coefficient will be   */
+        /*  calculated.                                                */
+        /*-------------------------------------------------------------*/
 
-            /*--------------------------------------------------------------*/
-            /*  Attach overall control number information to                 */
-            /*    each test group. Then separate base v. test group             */
-            /*    information re: value, quantity, observations, etc.  For     */
-            /*    example, if there are three purchasers (A,B and C), when     */
-            /*    purchaser A is in the test group, purchasers B and C will    */
-            /*    be the base/comparison group.                                */
-            /*                                                                */
-            /*    If there is no base group for a control number because all     */
-            /*    sales are to one purchaser, for example, (as evidenced by     */
-            /*    zero obs/quantity) then no Cohen's d coefficient will be     */
-            /*    calculated.                                                    */
-            /*--------------------------------------------------------------*/
-
-            DATA DPGROUP NO_BASE_GROUP;  
-                MERGE &DP_GROUP (IN=A) DPCONNUM (IN=B);
-                BY &USCONNUM;
-                IF A & B;
-                    BASE_&DP_GROUP._OBS   = TOTAL_CONNUM_OBS   - TEST_&DP_GROUP._OBS;
-                    BASE_&DP_GROUP._QTY   = TOTAL_CONNUM_QTY   - TEST_&DP_GROUP._QTY;
-                    BASE_&DP_GROUP._VALUE = TOTAL_CONNUM_VALUE - TEST_&DP_GROUP._VALUE;
-                    IF BASE_&DP_GROUP._QTY EQ 0 OR BASE_&DP_GROUP._OBS EQ 0 THEN OUTPUT NO_BASE_GROUP;
-                    ELSE DO;
-                        BASE_AVG_&DP_GROUP._PRICE = BASE_&DP_GROUP._VALUE / BASE_&DP_GROUP._QTY;
-                        &DP_GROUP._QTY_RATIO = BASE_&DP_GROUP._QTY / TOTAL_CONNUM_QTY;
-                        OUTPUT DPGROUP;
-                    END;
-            RUN;
-
-            PROC PRINT DATA = DPGROUP (OBS=&PRINTOBS) SPLIT="*";
-                BY &USCONNUM;
-                ID &USCONNUM;
-                VAR &DP_GROUP TOTAL_CONNUM_OBS TEST_&DP_GROUP._OBS BASE_&DP_GROUP._OBS
-                    TOTAL_CONNUM_QTY TEST_&DP_GROUP._QTY BASE_&DP_GROUP._QTY
-                    TOTAL_CONNUM_VALUE  TEST_&DP_GROUP._VALUE BASE_&DP_GROUP._VALUE
-                    &DP_GROUP._QTY_RATIO BASE_AVG_&DP_GROUP._PRICE ;
-                FORMAT TOTAL_CONNUM_QTY TEST_&DP_GROUP._QTY BASE_&DP_GROUP._QTY
-                    TOTAL_CONNUM_VALUE TEST_&DP_GROUP._VALUE BASE_&DP_GROUP._VALUE &COMMA_FORMAT.;
-                LABEL &USCONNUM="CONTROL NUMBER"
-                    &DP_GROUP="TEST*GROUP*(&DP_GROUP.)"
-                    TOTAL_CONNUM_OBS=" TOTAL *CONTROL NUMBER*TRANSACTIONS* ( A ) "
-                    TEST_&DP_GROUP._OBS="TRANSACTIONS*  IN  *TEST GROUP* ( B ) "
-                    BASE_&DP_GROUP._OBS="TRANSACTIONS*  IN  *BASE GROUP*(C = A-B)"
-                    TOTAL_CONNUM_QTY=" TOTAL QUANTITY*  OF  *CONTROL NUMBER* ( D ) " 
-                    TEST_&DP_GROUP._QTY="TEST GROUP*QUANTITY* ( E ) "
-                    BASE_&DP_GROUP._QTY="BASE GROUP*QUANTITY*(F = D-E)"
-                    TOTAL_CONNUM_VALUE=" TOTAL VALUE *  OF  *CONTROL NUMBER*  ( G ) "
-                    TEST_&DP_GROUP._VALUE="TEST GROUP* VALUE  * ( H )  "
-                    BASE_&DP_GROUP._VALUE="BASE GROUP* VALUE  * (I = G-H)"
-                    &DP_GROUP._QTY_RATIO="QUANTITY* RATIO *(J = F/D)"
-                    BASE_AVG_&DP_GROUP._PRICE="WT AVG PRICE*  OF  *BASE GROUP*(K = I/F)" ;
-                    TITLE5 "CALCULATION OF BASE GROUP STATISTICS BY &DP_GROUP";
-            RUN;
-
-            /*---------------------------------------------------------------*/
-            /*  Attach sales of base group control numbers to                 */
-            /*    group-level information calculated above.  In the example of */
-            /*    three purchasers (A,B&C), when the DP_GROUP = A above, all      */
-            /*    sales to purchasers B&C will be joined. (See the condition      */
-            /*    DP_GROUP NE BASE_GROUP in the BASECALC dataset below.)         */
-            /*---------------------------------------------------------------*/
-
-            DATA BASE_PRICES;
-                SET DPSALES (KEEP=&USCONNUM &DP_GROUP DP_NETPRI &USQTY);
-                    RENAME     &USCONNUM = BASE_CONNUM
-                            &DP_GROUP = BASE_GROUP;
-            RUN;
-                            
-            PROC SQL NOPRINT;
-                CREATE TABLE BASECALC AS
-                    SELECT * FROM BASE_PRICES AS BP, DPGROUP AS DP
-                    WHERE BP.BASE_CONNUM EQ DP.&USCONNUM AND
-                    BP.BASE_GROUP NE DP.&DP_GROUP AND
-                    DP.BASE_&DP_GROUP._OBS GE 2 AND
-                    DP.TEST_&DP_GROUP._OBS GE 2 AND
-                    &DP_GROUP._QTY_RATIO GE 0.05;
-            QUIT;
-
-            /*-----------------------------------------------*/
-            /*  Calculate the base group standard deviation. */
-            /*-----------------------------------------------*/
-
-            PROC MEANS NOPRINT NWAY DATA = BASECALC VARDEF = WEIGHT;
-                CLASS &USCONNUM &DP_GROUP;
-                WEIGHT &USQTY;
-                VAR DP_NETPRI;
-                OUTPUT OUT = BASESTD (DROP = _FREQ_ _TYPE_) STD = BASE_STD;
-            RUN;
-
-            PROC PRINT DATA = BASESTD (OBS=&PRINTOBS) SPLIT="*";
-                BY &USCONNUM;
-                ID &USCONNUM;
-                VAR &DP_GROUP BASE_STD;
-                LABEL     &USCONNUM="CONTROL NUMBER"
-                        &DP_GROUP="TEST GROUP*(&DP_GROUP.)"
-                        BASE_STD="STANDARD DEVIATION*IN PRICE*OF BASE GROUP";
-                TITLE5 "CALCULATION OF BASE GROUP STANDARD DEVIATIONS BY &DP_GROUP";
-            RUN; 
-
-            PROC SORT DATA = DPGROUP;
-                BY &USCONNUM &DP_GROUP;
-            RUN;
-
-            DATA &DP_GROUP._RESULTS;
-                MERGE DPGROUP (IN=A) BASESTD (IN=B);
-                BY &USCONNUM &DP_GROUP;
-                IF A & B;
-
-                LENGTH &DP_GROUP._RESULT $7;
-                &DP_GROUP._RESULT = "No Pass";
-
-                IF BASE_&DP_GROUP._OBS GE 1 THEN 
+        DATA DPGROUP NO_BASE_GROUP;  
+            MERGE &DP_GROUP (IN = A) DPCONNUM (IN = B);
+            BY &USCONNUM;
+            IF A & B;
+                BASE_&DP_GROUP._OBS = TOTAL_CONNUM_OBS - TEST_&DP_GROUP._OBS;
+                BASE_&DP_GROUP._QTY = TOTAL_CONNUM_QTY - TEST_&DP_GROUP._QTY;
+                BASE_&DP_GROUP._VALUE = TOTAL_CONNUM_VALUE - TEST_&DP_GROUP._VALUE;
+                IF (BASE_&DP_GROUP._QTY EQ 0) OR (BASE_&DP_GROUP._OBS EQ 0) THEN
+                    OUTPUT NO_BASE_GROUP;
+                ELSE
                 DO;
-                    IF TEST_&DP_GROUP._STD NE . AND BASE_STD  NE . THEN 
+                    BASE_AVG_&DP_GROUP._PRICE = BASE_&DP_GROUP._VALUE / BASE_&DP_GROUP._QTY;
+                    &DP_GROUP._QTY_RATIO = BASE_&DP_GROUP._QTY / TOTAL_CONNUM_QTY;
+                    OUTPUT DPGROUP;
+                END;
+        RUN;
+
+        PROC PRINT DATA = DPGROUP (OBS = &PRINTOBS) SPLIT = "*";
+            BY &USCONNUM;
+            ID &USCONNUM;
+            VAR &DP_GROUP TOTAL_CONNUM_OBS TEST_&DP_GROUP._OBS BASE_&DP_GROUP._OBS
+                TOTAL_CONNUM_QTY TEST_&DP_GROUP._QTY BASE_&DP_GROUP._QTY
+                TOTAL_CONNUM_VALUE  TEST_&DP_GROUP._VALUE BASE_&DP_GROUP._VALUE
+                &DP_GROUP._QTY_RATIO BASE_AVG_&DP_GROUP._PRICE ;
+            FORMAT TOTAL_CONNUM_QTY TEST_&DP_GROUP._QTY BASE_&DP_GROUP._QTY
+                TOTAL_CONNUM_VALUE TEST_&DP_GROUP._VALUE BASE_&DP_GROUP._VALUE &COMMA_FORMAT.;
+            LABEL &USCONNUM = "CONTROL NUMBER"
+                &DP_GROUP = "TEST*GROUP*(&DP_GROUP.)"
+                TOTAL_CONNUM_OBS = " TOTAL *CONTROL NUMBER*TRANSACTIONS* ( A ) "
+                TEST_&DP_GROUP._OBS = "TRANSACTIONS*  IN  *TEST GROUP* ( B ) "
+                BASE_&DP_GROUP._OBS = "TRANSACTIONS*  IN  *BASE GROUP*(C = A-B)"
+                TOTAL_CONNUM_QTY = " TOTAL QUANTITY*  OF  *CONTROL NUMBER* ( D ) " 
+                TEST_&DP_GROUP._QTY = "TEST GROUP*QUANTITY* ( E ) "
+                BASE_&DP_GROUP._QTY = "BASE GROUP*QUANTITY*(F = D-E)"
+                TOTAL_CONNUM_VALUE = " TOTAL VALUE *  OF  *CONTROL NUMBER*  ( G ) "
+                TEST_&DP_GROUP._VALUE = "TEST GROUP* VALUE  * ( H )  "
+                BASE_&DP_GROUP._VALUE = "BASE GROUP* VALUE  * (I = G-H)"
+                &DP_GROUP._QTY_RATIO = "QUANTITY* RATIO *(J = F/D)"
+                BASE_AVG_&DP_GROUP._PRICE = "WT AVG PRICE*  OF  *BASE GROUP*(K = I/F)" ;
+                TITLE5 "CALCULATION OF BASE GROUP STATISTICS BY &DP_GROUP";
+        RUN;
+
+        /*--------------------------------------------------------------------------*/
+        /*  Conditionally attach sales of base group control numbers to group-level */
+        /*  information calculated above by performing a Cartesian join. In the     */
+        /*  example of three purchasers A, B, and C, when the DP_GROUP = A above,   */
+        /*  all sales to purchasers B and C who buy the same CONNUM as purchaser A  */
+        /*  will be joined. Exclude joins where the Test and Base observations are  */
+        /*  less than 2 and the Base qty less than 5 percent.                       */
+        /*--------------------------------------------------------------------------*/
+
+        DATA BASE_PRICES;
+            SET DPSALES (KEEP = &USCONNUM &DP_GROUP DP_NETPRI &USQTY);
+            RENAME &USCONNUM = BASE_CONNUM &DP_GROUP = BASE_GROUP;
+        RUN;
+
+        PROC SORT DATA = DPGROUP (KEEP = &USCONNUM &DP_GROUP TEST_&DP_GROUP._OBS 
+                                         TEST_AVG_&DP_GROUP._PRICE TEST_&DP_GROUP._STD
+                                         BASE_&DP_GROUP._OBS BASE_AVG_&DP_GROUP._PRICE
+                                         &DP_GROUP._QTY_RATIO)
+                  OUT = DPGROUP_VAR_SUBSET;
+            BY &USCONNUM &DP_GROUP;
+        RUN;
+
+        PROC SQL NOPRINT;
+            CREATE TABLE BASECALC AS
+            SELECT BP.BASE_CONNUM, BP.BASE_GROUP, BP.&USQTY, BP.DP_NETPRI,
+                   DP.&USCONNUM, DP.&DP_GROUP, DP.BASE_&DP_GROUP._OBS,
+                   DP.TEST_&DP_GROUP._OBS, DP.&DP_GROUP._QTY_RATIO 
+             FROM BASE_PRICES AS BP, DPGROUP_VAR_SUBSET AS DP
+             WHERE BP.BASE_CONNUM EQ DP.&USCONNUM AND BP.BASE_GROUP NE DP.&DP_GROUP AND
+                   DP.BASE_&DP_GROUP._OBS GE 2 AND DP.TEST_&DP_GROUP._OBS GE 2 AND
+                   DP.&DP_GROUP._QTY_RATIO GE 0.05;
+        QUIT;
+
+        /*-----------------------------------------------*/
+        /*  Calculate the base group standard deviation. */
+        /*-----------------------------------------------*/
+
+        PROC MEANS NOPRINT NWAY DATA = BASECALC VARDEF = WEIGHT;
+            CLASS &USCONNUM &DP_GROUP;
+            WEIGHT &USQTY;
+            VAR DP_NETPRI;
+            OUTPUT OUT = BASESTD (DROP = _FREQ_ _TYPE_) STD = BASE_STD;
+        RUN;
+
+        PROC PRINT DATA = BASESTD (OBS = &PRINTOBS) SPLIT = "*";
+            BY &USCONNUM;
+            ID &USCONNUM;
+            VAR &DP_GROUP BASE_STD;
+            LABEL &USCONNUM = "CONTROL NUMBER"
+                  &DP_GROUP = "TEST GROUP*(&DP_GROUP.)"
+                  BASE_STD = "STANDARD DEVIATION*IN PRICE*OF BASE GROUP";
+            TITLE5 "CALCULATION OF BASE GROUP STANDARD DEVIATIONS BY &DP_GROUP";
+        RUN; 
+
+        DATA &DP_GROUP._RESULTS;
+            MERGE DPGROUP_VAR_SUBSET (IN = A) BASESTD (IN = B);
+            BY &USCONNUM &DP_GROUP;
+            IF A & B;
+
+            LENGTH &DP_GROUP._RESULT $7;
+            &DP_GROUP._RESULT = "No Pass";
+
+            IF BASE_&DP_GROUP._OBS GE 1 THEN 
+            DO;
+                IF TEST_&DP_GROUP._STD NE . AND BASE_STD  NE . THEN 
+                DO;
+                    STD_POOLED = SQRT((BASE_STD**2 + TEST_&DP_GROUP._STD**2) / 2);
+                    IF BASE_&DP_GROUP._OBS GE 2 AND
+                       TEST_&DP_GROUP._OBS GE 2 AND 
+                       &DP_GROUP._QTY_RATIO GE 0.05 THEN
                     DO;
-                        STD_POOLED = SQRT((BASE_STD**2 + TEST_&DP_GROUP._STD**2)/2);
-                        IF     BASE_&DP_GROUP._OBS GE 2 AND
-                            TEST_&DP_GROUP._OBS GE 2 AND 
-                            &DP_GROUP._QTY_RATIO GE 0.05 THEN
+                        IF STD_POOLED NE 0 THEN 
                         DO;
-                            IF STD_POOLED NE 0 THEN 
-                            DO;
-                                COHEN_D=(BASE_AVG_&DP_GROUP._PRICE - TEST_AVG_&DP_GROUP._PRICE)/STD_POOLED;
-                                IF ABS(COHEN_D) GE 0.8 THEN &DP_GROUP._RESULT = "Pass";
-                            END;
-                            ELSE IF FUZZ(BASE_AVG_&DP_GROUP._PRICE - TEST_AVG_&DP_GROUP._PRICE) ^= 0  
-                                THEN &DP_GROUP._RESULT = "Pass"; 
-
+                            COHEN_D = (BASE_AVG_&DP_GROUP._PRICE - TEST_AVG_&DP_GROUP._PRICE) / STD_POOLED;
+                            IF ABS(COHEN_D) GE 0.8 THEN
+                                &DP_GROUP._RESULT = "Pass";
                         END;
+                        ELSE
+                        IF FUZZ(BASE_AVG_&DP_GROUP._PRICE - TEST_AVG_&DP_GROUP._PRICE) ^= 0 THEN
+                            &DP_GROUP._RESULT = "Pass"; 
                     END;
                 END;
-            RUN;
+            END;
+        RUN;
 
-            PROC SORT DATA=&DP_GROUP._RESULTS;
-                BY &DP_GROUP &USCONNUM;
-            RUN;
+        PROC SORT DATA = &DP_GROUP._RESULTS OUT = &DP_GROUP._RESULTS;
+            BY &DP_GROUP &USCONNUM;
+        RUN;
 
-            PROC PRINT DATA=&DP_GROUP._RESULTS (OBS=&PRINTOBS) SPLIT="*";
-                BY &DP_GROUP;
-                ID &DP_GROUP;
-                VAR &USCONNUM TEST_&DP_GROUP._OBS 
-                    TEST_AVG_&DP_GROUP._PRICE TEST_&DP_GROUP._STD
-                    BASE_&DP_GROUP._OBS BASE_AVG_&DP_GROUP._PRICE BASE_STD 
-                    &DP_GROUP._QTY_RATIO STD_POOLED COHEN_D &DP_GROUP._RESULT;
-                FORMAT     BASE_AVG_&DP_GROUP._PRICE &COMMA_FORMAT. &DP_GROUP._QTY_RATIO &PERCENT_FORMAT.;
-                LABEL     &USCONNUM="CONTROL NUMBER"
-                        &DP_GROUP="TEST GROUP*(&DP_GROUP.)"
-                        TEST_&DP_GROUP._OBS="TRANSACTIONS*  IN  *TEST GROUP" 
-                        TEST_AVG_&DP_GROUP._PRICE="WTD AVG*TEST GROUP*PRICE* ( A ) "
-                        TEST_&DP_GROUP._STD="STANDARD DEVIATION*TEST GROUP PRICE* ( C )"
-                        BASE_&DP_GROUP._OBS="TRANSACTIONS*  IN  *BASE GROUP" 
-                        BASE_AVG_&DP_GROUP._PRICE="WTD AVG *BASE GROUP*PRICE  * ( B )  "
-                        BASE_STD="STANDARD DEVIATION*BASE GROUP PRICE* ( D )  " 
-                        &DP_GROUP._QTY_RATIO="PERCENT QTY* OF *BASE GROUP"
-                        STD_POOLED="POOLED*STANDARD DEVIATION*E =SQ ROOT OF*((CxC + DxD)/2)" 
-                        COHEN_D="COHEN'S d*COEFFICIENT*(F = (A-B)/E)"
-                        &DP_GROUP._RESULT="RESULT OF*TEST BY*&DP_GROUP";
-                TITLE5 "COHEN'S-d CALCULATIONS BY &DP_GROUP FOR COMPARABLE MERCHANDISE";
-                TITLE6 "To pass: A) |COHEN'S-d| > 0.8, B) Test & Base obs >= 2, C) Base qty >= 5%";
-            RUN;
+        PROC PRINT DATA = &DP_GROUP._RESULTS (OBS = &PRINTOBS) SPLIT = "*";
+            BY &DP_GROUP;
+            ID &DP_GROUP;
+            VAR &USCONNUM TEST_&DP_GROUP._OBS 
+                TEST_AVG_&DP_GROUP._PRICE TEST_&DP_GROUP._STD
+                BASE_&DP_GROUP._OBS BASE_AVG_&DP_GROUP._PRICE BASE_STD 
+                &DP_GROUP._QTY_RATIO STD_POOLED COHEN_D &DP_GROUP._RESULT;
+            FORMAT BASE_AVG_&DP_GROUP._PRICE &COMMA_FORMAT. &DP_GROUP._QTY_RATIO &PERCENT_FORMAT.;
+            LABEL &USCONNUM = "CONTROL NUMBER"
+                   &DP_GROUP = "TEST GROUP*(&DP_GROUP.)"
+                   TEST_&DP_GROUP._OBS = "TRANSACTIONS*  IN  *TEST GROUP" 
+                   TEST_AVG_&DP_GROUP._PRICE = "WTD AVG*TEST GROUP*PRICE* ( A )"
+                   TEST_&DP_GROUP._STD = "STANDARD DEVIATION*TEST GROUP PRICE* ( C )"
+                   BASE_&DP_GROUP._OBS = "TRANSACTIONS*  IN  *BASE GROUP" 
+                   BASE_AVG_&DP_GROUP._PRICE = "WTD AVG *BASE GROUP*PRICE  * ( B )"
+                   BASE_STD = "STANDARD DEVIATION*BASE GROUP PRICE* ( D )  " 
+                   &DP_GROUP._QTY_RATIO = "PERCENT QTY* OF *BASE GROUP"
+                   STD_POOLED = "POOLED*STANDARD DEVIATION*E =SQ ROOT OF*((CxC + DxD)/2)" 
+                   COHEN_D = "COHEN'S d*COEFFICIENT*(F = (A-B)/E)"
+                   &DP_GROUP._RESULT = "RESULT OF*TEST BY*&DP_GROUP";
+            TITLE5 "COHEN'S-d CALCULATIONS BY &DP_GROUP FOR COMPARABLE MERCHANDISE";
+            TITLE6 "To pass: A) |COHEN'S-d| > 0.8, B) Test & Base obs >= 2, C) Base qty >= 5%";
+        RUN;
 
-            /*------------------------------------------------*/
-            /*  Merge results into U.S. sales data. Sales are */
-            /*    flagged as either passing or not passing.     */
-            /*------------------------------------------------*/
+        /*------------------------------------------------*/
+        /*  Merge results into U.S. sales data. Sales are */
+        /*    flagged as either passing or not passing.   */
+        /*------------------------------------------------*/
 
-            PROC SORT DATA = DPSALES;
-                BY &DP_GROUP &USCONNUM;
-            RUN;
+        PROC SORT DATA = DPSALES OUT = DPSALES;
+            BY &DP_GROUP &USCONNUM;
+        RUN;
 
-            DATA DPSALES DPSALES_PASS_&DP_GROUP;
-                MERGE DPSALES (IN=A) &DP_GROUP._RESULTS (IN=B KEEP=&DP_GROUP &USCONNUM &DP_GROUP._RESULT);
-                BY &DP_GROUP &USCONNUM;
-                IF A AND B THEN
-                DO;
-                    OUTPUT DPSALES;
-                    IF &DP_GROUP._RESULT = "Pass" THEN OUTPUT DPSALES_PASS_&DP_GROUP;
-                END;
-                IF A AND NOT B THEN 
-                DO;
-                    &DP_GROUP._RESULT = "No Pass";
-                    OUTPUT DPSALES;
-                END;            
-            RUN;
-
-        %MEND COHENS_D;
+        DATA DPSALES DPSALES_PASS_&DP_GROUP;
+            MERGE DPSALES (IN = A)
+                  &DP_GROUP._RESULTS (IN = B KEEP = &DP_GROUP &USCONNUM &DP_GROUP._RESULT);
+            BY &DP_GROUP &USCONNUM;
+            IF A AND B THEN
+            DO;
+                OUTPUT DPSALES;
+                IF &DP_GROUP._RESULT = "Pass" THEN
+                    OUTPUT DPSALES_PASS_&DP_GROUP;
+            END;
+            IF A AND NOT B THEN 
+            DO;
+                &DP_GROUP._RESULT = "No Pass";
+                OUTPUT DPSALES;
+            END;            
+        RUN;
+    %MEND COHENS_D;
  
     /*---------------------------------------------------*/
     /* Execute Stage 1: Cohen's d Test for region, time, */
@@ -2030,117 +2050,121 @@ RUN;
     /* Stage 2: Calculate Ratios of Sales Passing the Cohen's d Test */
     /*---------------------------------------------------------------*/
 
-        /*----------------------------------------------------------*/
-        /* Sales that pass any of the three rounds of the Cohen's d    */
-        /* analysis pass the test as a whole.                        */
-        /*----------------------------------------------------------*/
+    /*----------------------------------------------------------*/
+    /* Sales that pass any of the three rounds of the Cohen's d */
+    /* analysis pass the test as a whole.                       */
+    /*----------------------------------------------------------*/
 
-        DATA DPSALES DPPASS (KEEP=DP_COUNT COHENS_D_PASS);
-            SET DPSALES;
-            FORMAT COHENS_D_PASS $3.;
-            COHENS_D_PASS = "No";
-            IF    DP_PURCHASER_RESULT  = "Pass" OR   
-                DP_REGION_RESULT = "Pass" OR
-                DP_PERIOD_RESULT = "Pass" 
-            THEN COHENS_D_PASS = "Yes";
-        RUN;
+    DATA DPSALES DPPASS (KEEP = DP_COUNT COHENS_D_PASS);
+        SET DPSALES;
+        FORMAT COHENS_D_PASS $3.;
+        COHENS_D_PASS = "No";
+        IF    DP_PURCHASER_RESULT = "Pass" OR   
+            DP_REGION_RESULT = "Pass" OR
+            DP_PERIOD_RESULT = "Pass" 
+        THEN COHENS_D_PASS = "Yes";
+    RUN;
 
-        PROC SORT DATA = DPSALES;
-            BY &USCONNUM DP_PERIOD DP_REGION DP_PURCHASER;
-        RUN;
+    PROC SORT DATA = DPSALES OUT = DPSALES;
+        BY &USCONNUM DP_PERIOD DP_REGION DP_PURCHASER;
+    RUN;
 
-        DATA DPSALES_PRINT;
-            SET DPSALES;
-            BY &USCONNUM DP_PERIOD DP_REGION DP_PURCHASER;
-            IF FIRST.&USCONNUM OR FIRST.DP_PERIOD OR FIRST.DP_REGION OR FIRST.DP_PURCHASER   
-            THEN OUTPUT DPSALES_PRINT;
-        RUN;
+    DATA DPSALES_PRINT;
+        SET DPSALES;
+        BY &USCONNUM DP_PERIOD DP_REGION DP_PURCHASER;
+        IF FIRST.&USCONNUM OR FIRST.DP_PERIOD OR 
+           FIRST.DP_REGION OR FIRST.DP_PURCHASER THEN
+            OUTPUT DPSALES_PRINT;
+    RUN;
 
-        PROC SORT DATA = DPSALES_PRINT;
-            BY COHENS_D_PASS &USCONNUM;
-        RUN;
+    PROC SORT DATA = DPSALES_PRINT OUT = DPSALES_PRINT;
+        BY COHENS_D_PASS &USCONNUM;
+    RUN;
 
-        DATA DPSALES_PRINT (DROP=COUNT);
-            SET DPSALES_PRINT;
-            BY COHENS_D_PASS &USCONNUM;
-            IF FIRST.COHENS_D_PASS THEN COUNT = 1;
-            COUNT + 1;
-            IF COUNT LE &PRINTOBS THEN OUTPUT;
-        RUN;
+    DATA DPSALES_PRINT (DROP = COUNT);
+        SET DPSALES_PRINT;
+        BY COHENS_D_PASS &USCONNUM;
+        IF FIRST.COHENS_D_PASS THEN COUNT = 1;
+        COUNT + 1;
+        IF COUNT LE &PRINTOBS THEN
+            OUTPUT DPSALES_PRINT;
+    RUN;
 
-        PROC PRINT DATA = DPSALES_PRINT;
-            ID COHENS_D_PASS;
-            BY COHENS_D_PASS;
-            VAR &USCONNUM 
-                DP_PERIOD DP_REGION DP_PURCHASER DP_PERIOD_RESULT 
-                DP_REGION_RESULT DP_PURCHASER_RESULT;
-            TITLE4 "SAMPLE OF &PRINTOBS FOR EACH TYPE OF RESULT FROM THE COHEN'S-D ANALYSIS FOR";
-            TITLE5 "UNIQUE COMBINATIONS OF REGION, PURCHASER AND TIME PERIOD FOR EACH CONTROL NUMBER";
-        RUN;
+    PROC PRINT DATA = DPSALES_PRINT;
+        ID COHENS_D_PASS;
+        BY COHENS_D_PASS;
+        VAR &USCONNUM 
+            DP_PERIOD DP_REGION DP_PURCHASER DP_PERIOD_RESULT 
+            DP_REGION_RESULT DP_PURCHASER_RESULT;
+        TITLE4 "SAMPLE OF &PRINTOBS FOR EACH TYPE OF RESULT FROM THE COHEN'S-D ANALYSIS FOR";
+        TITLE5 "UNIQUE COMBINATIONS OF REGION, PURCHASER AND TIME PERIOD FOR EACH CONTROL NUMBER";
+    RUN;
 
-        /*------------------------------------------------------------------*/
-        /* Calculate the percentage of sales that pass the Cohen's d Test    */
-        /*------------------------------------------------------------------*/
+    /*----------------------------------------------------------------*/
+    /* Calculate the percentage of sales that pass the Cohen's d Test */
+    /*----------------------------------------------------------------*/
 
-        PROC MEANS NOPRINT DATA= DPSALES;
-            VAR DP_NETPRI;
-            WEIGHT &USQTY;
-            OUTPUT OUT = OVERALL (DROP=_FREQ_ _TYPE_) SUM = TOTAL_VALUE;
-        RUN;
+    PROC MEANS NOPRINT DATA = DPSALES;
+        VAR DP_NETPRI;
+        WEIGHT &USQTY;
+        OUTPUT OUT = OVERALL (DROP = _FREQ_ _TYPE_) SUM = TOTAL_VALUE;
+    RUN;
 
-        PROC MEANS NOPRINT DATA= DPSALES;
-          WHERE COHENS_D_PASS = "Yes";
-          VAR DP_NETPRI;
-          WEIGHT &USQTY;
-          OUTPUT OUT = PASS (DROP=_FREQ_ _TYPE_) SUM = PASS_VALUE;
-        RUN;
+    PROC MEANS NOPRINT DATA = DPSALES;
+      WHERE COHENS_D_PASS = "Yes";
+      VAR DP_NETPRI;
+      WEIGHT &USQTY;
+      OUTPUT OUT = PASS (DROP = _FREQ_ _TYPE_) SUM = PASS_VALUE;
+    RUN;
 
-        DATA OVERALL_DPRESULTS;
-            MERGE OVERALL (IN=A) PASS (IN=B);
-            IF NOT B THEN DO;
-                PASS_VALUE = 0;
-            END;
-            PERCENT_VALUE_PASSING = PASS_VALUE/TOTAL_VALUE;
-            %GLOBAL PERCENT_VALUE_PASSING;
-            CALL SYMPUT("PERCENT_VALUE_PASSING", PUT(PERCENT_VALUE_PASSING, &PERCENT_FORMAT.));
-            LENGTH CALC_METHOD $11.;
-            IF PERCENT_VALUE_PASSING = 0 THEN
-                CALC_METHOD = 'STANDARD';
+    DATA OVERALL_DPRESULTS;
+        MERGE OVERALL (IN = A) PASS (IN = B);
+        IF NOT B THEN
+            PASS_VALUE = 0;
+
+        PERCENT_VALUE_PASSING = PASS_VALUE / TOTAL_VALUE;
+        %GLOBAL PERCENT_VALUE_PASSING;
+        CALL SYMPUT("PERCENT_VALUE_PASSING", PUT(PERCENT_VALUE_PASSING, &PERCENT_FORMAT.));
+
+        LENGTH CALC_METHOD $11.;
+        IF PERCENT_VALUE_PASSING = 0 THEN
+            CALC_METHOD = 'STANDARD';
+        ELSE
+            IF PERCENT_VALUE_PASSING EQ 1 THEN
+                CALC_METHOD = 'ALTERNATIVE';
             ELSE
-                IF PERCENT_VALUE_PASSING EQ 1 THEN CALC_METHOD = 'ALTERNATIVE';
-                ELSE CALC_METHOD = 'MIXED';
-            %GLOBAL CALC_METHOD;
-            CALL SYMPUT("CALC_METHOD",CALC_METHOD);
-        RUN;
-
-        PROC PRINT DATA = OVERALL_DPRESULTS SPLIT="*" NOOBS;
-            VAR PASS_VALUE TOTAL_VALUE PERCENT_VALUE_PASSING;
-            FORMAT PASS_VALUE TOTAL_VALUE &COMMA_FORMAT.
-                PERCENT_VALUE_PASSING &PERCENT_FORMAT.;
-            LABEL    PASS_VALUE="VALUE OF*PASSING SALES*=============" 
-                    TOTAL_VALUE="VALUE OF*ALL SALES*=========" 
-                    PERCENT_VALUE_PASSING ="PERCENT OF*SALES PASSING*BY VALUE*=============";
-            TITLE4 "OVERALL RESULTS";
-            TITLE10 "CASE ANALYST:  Please notify management of results re: the selection of correct method to be used.";
-            FOOTNOTE1 "If some sales pass the Cohen's d Test and others do not pass, then three methods will be calculated:";
-            FOOTNOTE2 "1) the Standard Method (applied to all sales), 2) the A-to-T Alternative Method (applied to all sales)";
-            FOOTNOTE3 "3) and the Mixed Alternative Method which will be a combination of the A-to-A (with offsets)";
-            FOOTNOTE4 "applied to sales that did not pass, and A-to-T (without offsets) applied to sales that did pass.";
-            FOOTNOTE6 "If either no sale or all sales pass the Cohen's d Test, then the Mixed Alternative Method will yield the same";
-            FOOTNOTE7 "results as the Standard Method or the A-to-T Alternative Method, respectively, and will not be calculated.";
-            FOOTNOTE9 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
-            FOOTNOTE10 "&BDAY, &BWDATE - &BTIME";
-        RUN;
+                CALC_METHOD = 'MIXED';
+        %GLOBAL CALC_METHOD;
+        CALL SYMPUT("CALC_METHOD", CALC_METHOD);
+    RUN;
+    
+    PROC PRINT DATA = OVERALL_DPRESULTS SPLIT = "*" NOOBS;
+        VAR PASS_VALUE TOTAL_VALUE PERCENT_VALUE_PASSING;
+        FORMAT PASS_VALUE TOTAL_VALUE &COMMA_FORMAT.
+               PERCENT_VALUE_PASSING &PERCENT_FORMAT.;
+        LABEL PASS_VALUE = "VALUE OF*PASSING SALES*=============" 
+              TOTAL_VALUE = "VALUE OF*ALL SALES*=========" 
+              PERCENT_VALUE_PASSING = "PERCENT OF*SALES PASSING*BY VALUE*=============";
+        TITLE4 "OVERALL RESULTS";
+        TITLE10 "CASE ANALYST: Please notify management of results re: the selection of correct method to be used.";
+        FOOTNOTE1 "If some sales pass the Cohen's d Test and others do not pass, then three methods will be calculated:";
+        FOOTNOTE2 "1) the Standard Method (applied to all sales), 2) the A-to-T Alternative Method (applied to all sales)";
+        FOOTNOTE3 "3) and the Mixed Alternative Method which will be a combination of the A-to-A (with offsets)";
+        FOOTNOTE4 "applied to sales that did not pass, and A-to-T (without offsets) applied to sales that did pass.";
+        FOOTNOTE6 "If either no sale or all sales pass the Cohen's d Test, then the Mixed Alternative Method will yield the same";
+        FOOTNOTE7 "results as the Standard Method or the A-to-T Alternative Method, respectively, and will not be calculated.";
+        FOOTNOTE9 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
+        FOOTNOTE10 "&BDAY, &BWDATE - &BTIME";
+    RUN;
 
     FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
     FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
 
     %GLOBAL ABOVE_DEMINIMIS_STND ABOVE_DEMINIMIS_ALT ABOVE_DEMINIMIS_MIXED CASH_DEPOSIT_DONE;
-    %LET ABOVE_DEMINIMIS_STND = NO;/* Default value. Do not edit. */
-    %LET ABOVE_DEMINIMIS_ALT = NO; /* Default value. Do not edit. */
-    %LET ABOVE_DEMINIMIS_MIXED = NO;/* Default value. Do not edit. */
-    %LET CASH_DEPOSIT_DONE = NO;  /* Default value.  Do not edit. */
-
+    %LET ABOVE_DEMINIMIS_STND = NO;  /* Default value. Do not edit. */
+    %LET ABOVE_DEMINIMIS_ALT = NO;   /* Default value. Do not edit. */
+    %LET ABOVE_DEMINIMIS_MIXED = NO; /* Default value. Do not edit. */
+    %LET CASH_DEPOSIT_DONE = NO;     /* Default value.  Do not edit. */
 %MEND COHENS_D_TEST;
 
 %COHENS_D_TEST

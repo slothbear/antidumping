@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                      ANALYSIS OF HOME MARKET SALES                      */
 /*                                                                         */
-/*                  LAST PROGRAM UPDATED SEPTEMBER 19, 2019                */
+/*                  LAST PROGRAM UPDATE DECEMBER 30, 2019                  */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring in Home Market Sales, Convert Date Variable, If          */
@@ -164,6 +164,10 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /* The macro variables BEGINPERIOD and ENDPERIOD refer to the begin- */
 /* ning and at the end of the official POI/POR. They are used for    */
 /* titling. BEGINPERIOD is also used in the Cohen’s d Test.          */
+/*                                                                   */
+/* Note: In a review the HM macro variable BEGINDAY needs to have    */
+/* the same value as the Margin Calculation macro variable           */
+/* BEGINWINDOW so that model matching will work properly.            */
 /*-------------------------------------------------------------------*/
 
 %LET HMSALEDATE = <        >;       /* (V) Variable representing the */
@@ -306,15 +310,21 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*--------------------------------------------------------*/
 
 %LET HMDATA = <  >;           /*(D) HM sales dataset filename.           */
-%LET HMBARCODE = <  >;        /*(T) Bar code number(s) of original       */
-                              /*     HM sales dataset(s).                */
+%LET HMBARCODE = <  >;        /*(T) Bar code number(s) of HM sales       */
+                              /*    dataset(s) used in this program.     */
 %LET HMCONNUM = <  >;         /*(V) Control number                       */
 %LET HMCPPROD = <  >;         /*(V) Variable (usually CONNUMH) linking   */
                               /*    sales to cost data.                  */
+
+/* Note: For model matching to work, physical characteristic variables   */
+/* need to be defined as all character or all numeric. Physical          */
+/* characteristic variable values need to be all numeric.                */
+
 %LET HMCHAR = <  >;           /*(V) Product matching characteristics.    */
                               /*    List them from left to right         */
                               /*    in order of importance, with spaces  */
-                              /*    separating them.                     */
+                              /*    separating them. Do not surround the */
+                              /*    values with quotes.                  */
 %LET HMQTY = <  >;            /*(V) Quantity.                            */
 %LET HMGUP  = <  >;           /*(V) Gross price. Need not be in          */
                               /*    consistent currency, used only to    */
@@ -358,14 +368,29 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*---------------------------------------------------------------*/
 
 %LET COST_DATA = <  >;    /*(D) Cost dataset name                   */
-%LET COSTBARCODE = <  >;  /*(T) Bar code number(s) of original      */
-                          /*    cost dataset(s).                    */
-%LET COST_QTY = <  >;     /*(V) Production quantity                 */
+%LET COSTBARCODE = <  >;  /*(T) Bar code number(s) of cost          */
+                          /*    dataset(s) used in this program.    */
 %LET COST_MATCH = <  >;   /*(V) The variable (usually CONNUM)       */
                           /*    linking cost data to sales data.    */
+%LET COST_QTY = <  >;     /*(V) Production quantity                 */
 %LET COST_MANUF = <NA>;   /*(V) Manufacturer code. If not           */
                           /*    applicable, type "NA" (without      */
                           /*    quotes).                            */
+
+/********************************************************************/
+/* If there are time-specific costs (Section 1-E-iii-a.) and/or the */
+/* need to find surrogate costs (Section 1-E-iii-b.) but there are  */
+/* no product matching characteristics in cost data, fill in the    */
+/* macro variable USDATA. Otherwise leave it blank.                 */
+/********************************************************************/
+
+%LET      USDATA = <  >;    /*(D) U.S. sales dataset filename, needed */
+                            /*    if there are time-specific costs    */
+                            /*    and/or the need to find surrogate   */
+                            /*    there are no product matching       */
+                            /*    characteristics in cost data.       */
+%LET      USBARCODE = <  >; /*(T) Bar code number(s) of US sales      */
+                            /*    dataset(s) used in this program.    */
 
 /*--------------------------------------------------*/
 /* 1-E-iii-a. TIME-SPECIFIC COSTS                   */
@@ -374,32 +399,38 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /* line, also complete the rest of this section.    */
 /*--------------------------------------------------*/
 
-%LET COMPARE_BY_TIME = <YES/NO>;     /*(T) Calculate costs by        */
-                                     /*    time periods? Type "YES"  */
-                                     /*    or "NO" (without quotes). */
-%LET      COST_TIME_PERIOD = <  >;   /*(V) Variable in cost data     */
-                                     /*    for time periods.         */
-%LET      TIME_INSIDE_POR  = <  >;   /*(T) List of values of         */
-                                     /*    &COST_TIME_PERIOD         */
-                                     /*    variable for periods      */
-                                     /*    during the POR,           */
-                                     /*    separated by commas,      */
-                                     /*    quotes around character   */
-                                     /*    data. Values in the       */
-                                     /*    variables must only be    */
-                                     /*    numbers, i.e. '-1', '0',  */
-                                     /*    '1', '2', '3', etc.       */
-%LET      DIRMAT_VARS = <  >;        /*(V) List the direct materials */
-                                     /*    variables in the          */
-                                     /*    cost dataset that will    */
-                                     /*    need to be indexed.  I.e. */
-                                     /*    COIL ZINC SCRAPS.  List   */
-                                     /*    the variables separately  */
-                                     /*    do not put in quotes or   */
-                                     /*    separate using commas.    */
-%LET      TOTCOM = <  >;             /*(V) Reported total cost of    */
-                                     /*    manufacturing.            */
-                                     /*    Generally TOTCOM.         */
+%LET COMPARE_BY_TIME = <YES/NO>;     /*(T) Calculate costs by time      */
+                                     /*    periods? Type "YES" or "NO"  */
+                                     /*    (without quotes).            */
+
+/* Note: The cost time period variable needs to be defined as a two     */
+/* digit character variable. The cost time period variable values need  */
+/* to be all numeric and left justified.                                */
+
+%LET      COST_TIME_PERIOD = <  >;   /*(V) Variable in cost data for    */
+                                     /*    time periods.                */
+%LET      TIME_INSIDE_POR  = <  >;   /*(T) List of values of            */
+                                     /*    &COST_TIME_PERIOD variable   */
+                                     /*    for periods during the POR,  */
+                                     /*    separated by commas and      */
+                                     /*    surrounded by quotes. Values */
+                                     /*    in the variables must be     */
+                                     /*    numbers, i.e. '-1', '0',     */
+                                     /*    '1', '2', '3', etc.          */
+%LET      DIRMAT_VARS = <  >;        /*(V) List the direct materials    */
+                                     /*    variables in the cost        */
+                                     /*    dataset that will need to    */
+                                     /*    have average purchase        */
+                                     /*    cost(s). I.e. COIL ZINC      */
+                                     /*    SCRAPS. List the variables   */
+                                     /*    separately. Do not put them  */
+                                     /*    in quotes or separate them   */
+                                     /*    using commas.                */
+%LET      TOTCOM = <  >;             /*(V) Reported total cost of       */
+                                     /*    manufacturing. Usually       */
+                                     /*    TOTCOM.                      */
+%LET      USSALEDATE = <        >;   /*(V) Variable representing the    */
+                                     /*    U.S. sale date.              */
 
 /*----------------------------------------------------*/
 /* 1-E-iii-b. SURROGATE COSTS FOR NON-PRODUCTION      */
@@ -421,33 +452,39 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                      /*    characteristic variables in the */
                                      /*    cost database? Type "YES" or    */
                                      /*    "NO" without quotes).           */
+
+/* Note: For model matching to work, physical characteristic variables     */
+/* need to be defined as all character or all numeric. Physical            */
+/* characteristic variable values need to be all numeric.                  */
+
 %LET    COST_CHAR = <  >; /*(V) Product matching characteristics in cost   */
                           /*    data. List them from left-to-right in      */
                           /*    order of importance, with spaces           */
-                          /*    separating them. If no product             */
-                          /*    characteristics in cost data, complete the */
-                          /*    indented macro variables.                  */
-%LET    USDATA = <  >;    /*(D) U.S. sales data set. Needed only if        */
-                          /*    no product matching characteristics        */
-                          /*    in cost data. Also needed if you are       */
-                          /*    comparing by time.  (Section 1-E-iii-b.)   */
-%LET    USBARCODE = <  >; /*(T) Bar code number(s) of original             */
-                          /*    US sales dataset(s).                       */
-%LET    USCVPROD = <  >;  /*(V) U.S. product matching to &CVPROD. Needed   */
-                          /*    only if no product matching                */
-                          /*    characteristics in cost data OR you are    */
-                          /*    comparing by time. (Section 1-E-iii-b.)    */
+                          /*    separating them. Do not surround the       */
+                          /*    values with quotes. If there are no        */
+                          /*    product characteristics in cost data,      */
+                          /*    complete the indented macro variables.     */
+%LET    USCVPROD = <  >;  /*(V) Variable (usually CONNUMU) linking sales   */
+                          /*    to cost data. Needed only if no product    */
+                          /*    matching characteristics in cost data OR   */
+                          /*    you are comparing by time.                 */
+                          /*    (Section 1-E-iii-a.)                       */
+
+/* Note: For model matching to work, physical characteristic variables     */
+/* need to be defined as all character or all numeric. Physical            */
+/* characteristic variable values need to be all numeric.                  */
+
 %LET    USCHAR = <  >;    /*(V) Product matching characteristics in U.S.   */
                           /*    data. List them from left-to-right in      */
-                          /*    order of importance, with spaces           */
-                          /*    separating them. Needed only if there is   */
-                          /*    no product matching characteristics in     */
+                          /*    order of importance, with spaces separat-  */
+                          /*    ing them. Do not surrounded the values     */
+                          /*    with quotes. Needed only if there are no   */
+                          /*    product matching characteristics in the    */
                           /*    cost data. NOTE:  If period cost is being  */
                           /*    run, matching characteristics must be      */
                           /*    included.                                  */
-%LET    USMANF = <  > ;        /*(V) US manufacturer code. If not          */
-                               /*    applicable, type "NA" (without        */
-                               /*    quotes).                              */
+%LET    USMANF = <  >;    /*(V) US manufacturer code. If not applicable,   */
+                          /*    type "NA" (without quotes).                */
 
 /*----------------------------------------------------------------------*/
 /* 1-F: CONDITIONAL PROGRAMMING OPTIONS:                                */
@@ -651,20 +688,19 @@ DATA HMSALES;
 
     %G4_LOT(&HMLOT,HMLOT)
 
-    %CREATE_QUARTERS(&HMSALEDATE)   /* Assigns quarters to HM sales based on */
-                                    /* the date of sale variable and the     */
-                                    /* first day of the POR/POI. The         */
-                                    /* values will be '-1', '0', '1', etc.   */
-
+    %CREATE_QUARTERS(&HMSALEDATE, HM)   /* Assigns quarters to HM sales based on */
+                                        /* the date of sale variable and the     */
+                                        /* first day of the POR/POI. The         */
+                                        /* values will be '-1', '0', '1', etc.   */
 RUN;
 
 /*ep*/
 
-    /*------------------------------------------------------------------*/
-    /* 2-C-iii: GET HMSALES COUNT FOR LOG REPORTING                     */
-    /*------------------------------------------------------------------*/
+/*------------------------------------------------------------------*/
+/* 2-C-iii: GET HMSALES COUNT FOR LOG REPORTING                     */
+/*------------------------------------------------------------------*/
 
-    %CMAC2_COUNTER (DATASET = HMSALES, MVAR=ORIG_HMSALES);
+%CMAC2_COUNTER (DATASET = COMPANY.&HMDATA, MVAR = ORIG_HMSALES);
 
 /*ep*/
 
@@ -739,10 +775,10 @@ RUN;
         /* Make changes to U.S. control numbers and product */
         /* characteristic variables here, if required.      */
 
-        %CREATE_QUARTERS(&USSALEDATE)   /* Assigns quarters to US sales based on */
-                                        /* the date of sale variable and the     */
-                                        /* first day of the POR/POI. The         */
-                                        /* values will be '-1', '0', '1', etc.   */
+        %CREATE_QUARTERS(&USSALEDATE, HM)   /* Assigns quarters to US sales based on */
+                                            /* the date of sale variable and the     */
+                                            /* first day of the POR/POI. The         */
+                                            /* values will be '-1', '0', '1', etc.   */
     RUN;
 %MEND READ_US;
 
@@ -801,12 +837,27 @@ RUN;
 DATA COST;
     SET COMPANY.&COST_DATA /* <COMPANY.CVDATABASE> */;
 
-    /*-----------------------------------------------------------*/
-    /* 3-A-i: Insert and annotate any major input changes below. */
-    /*-----------------------------------------------------------*/
+    /*------------------------------------------------------------*/
+    /* 3-A-i: Insert and annotate any major input changes below.  */
+    /*                                                            */
+    /* If there are time-specific costs, insert language for      */
+    /* creating the cost time period variable. The variable needs */
+    /* to be defined as a two-digit character variable. The cost  */
+    /* period variable values need to be all numeric and left     */
+    /* justified. E.g. '-1', '0', '1', '2', etc.  The first       */
+    /* quarter of the POI/POR must be '1'.                        */
+    /*------------------------------------------------------------*/
 
     /* <Insert major input changes here, if required.> */          
 RUN;
+
+/*ep*/
+
+/*--------------------------------------------------------------*/
+/* 3-a-ii: GET COST COUNT FOR LOG REPORTING                     */
+/*--------------------------------------------------------------*/
+
+%CMAC2_COUNTER (DATASET = COMPANY.&COST_DATA, MVAR = ORIG_COST);
 
 /*ep*/
 
@@ -894,68 +945,64 @@ RUN;
 
 /*ep*/
 
-/*------------------------------------------------------------*/
-/* 3-B-iii: Input the period cost indexing below              */
-/* There must be a separate indexing table for each of the    */
-/* direct materials that are subject to quarterly costs.      */
-/* I.E. there should be a separate  table for each variable   */
-/* listed in the %LET DIRMAT_VARS in section 1-E-iii-a above. */
-/*                                                            */
-/* The values below are boilerplate examples only.            */
-/*------------------------------------------------------------*/
+/*---------------------------------------------------------------*/
+/* 3-B-iii: Input the period raw material average purchase cost. */
+/* There must be a separate average purchase cost table for each */
+/* of the direct materials that are subject to quarterly         */
+/* costs. I.E. there should be a separate  table for each        */
+/* variable listed in the %LET DIRMAT_VARS in section 1-E-iii-a  */
+/* above.                                                        */
+/*---------------------------------------------------------------*/
 
 PROC FORMAT;
 
-/**************************************/
-/* Example 1: Indexing of HR COIL     */
-/*            Per-unit purchase price */
-/*            of HR COIL by period.   */
-/**************************************/
+/***********************************************/
+/* Example 1: Average purchase cost of HR COIL */
+/*            per-unit by period.              */
+/***********************************************/
 
-/*    VALUE $COIL_INPUT */
-/*        '-1' = 100    */
-/*        '0' = 200     */
-/*        '1' = 300     */
-/*        '2' = 400     */
-/*        '3' = 500     */
-/*        '4' = 600     */
-/*        '5' = 700     */
-/*        '6' = 800     */
-/*        '7' = 900;    */
+/*    VALUE $COIL_INPUT                                 */
+/*        '-1' = <average purchase cost for the period> */
+/*        '0' = <average purchase cost for the period>  */
+/*        '1' = <average purchase cost for the period>  */
+/*        '2' = <average purchase cost for the period>  */
+/*        '3' = <average purchase cost for the period>  */
+/*        '4' = <average purchase cost for the period>  */
+/*        '5' = <average purchase cost for the period>  */
+/*        '6' = <average purchase cost for the period>  */
+/*        '7' = <average purchase cost for the period>; */
 
-/**************************************/
-/* Example 2: Indexing of ZINC        */
-/*            Per-unit purchase price */
-/*            of ZINC by period.      */
-/**************************************/
+/********************************************/
+/* Example 2: Average purchase cost of ZINC */
+/*            per-unit by period.           */
+/********************************************/
 
-/*    VALUE $ZINC_INPUT */
-/*        '-1' = 123    */
-/*        '0' = 456     */
-/*        '1' = 789     */
-/*        '2' = 012     */
-/*        '3' = 345     */
-/*        '4' = 678     */
-/*        '5' = 901     */
-/*        '6' = 234     */
-/*        '7' = 567;    */
+/*    VALUE $ZINC_INPUT                                 */
+/*        '-1' = <average purchase cost for the period> */
+/*        '0' = <average purchase cost for the period>  */
+/*        '1' = <average purchase cost for the period>  */
+/*        '2' = <average purchase cost for the period>  */
+/*        '3' = <average purchase cost for the period>  */
+/*        '4' = <average purchase cost for the period>  */
+/*        '5' = <average purchase cost for the period>  */
+/*        '6' = <average purchase cost for the period>  */
+/*        '7' = <average purchase cost for the period>; */
 
-/**************************************/
-/* Example 3: Indexing of SCRAPS      */
-/*            Per-unit purchase price */
-/*            of SCRAPS by period.    */
-/**************************************/
+/**********************************************/
+/* Example 3: Average purchase cost of SCRAPS */
+/*            per-unit by period.             */
+/**********************************************/
 
-/*    VALUE $SCRAPS_INPUT */
-/*        '-1' = 0.12     */
-/*        '0' = 0.23      */
-/*        '1' = 0.34      */
-/*        '2' = 0.45      */
-/*        '3' = 0.56      */
-/*        '4' = 0.67      */
-/*        '5' = 0.78      */
-/*        '6' = 0.89      */
-/*        '7' = 0.90;     */
+/*    VALUE $SCRAPS_INPUT                               */
+/*        '-1' = <average purchase cost for the period> */
+/*        '0' = <average purchase cost for the period>  */
+/*        '1' = <average purchase cost for the period>  */
+/*        '2' = <average purchase cost for the period>  */
+/*        '3' = <average purchase cost for the period>  */
+/*        '4' = <average purchase cost for the period>  */
+/*        '5' = <average purchase cost for the period>  */
+/*        '6' = <average purchase cost for the period>  */
+/*        '7' = <average purchase cost for the period>; */
 RUN;
         
 %G10_TIME_PROD_LIST
@@ -1019,7 +1066,23 @@ RUN;
 /* AVGINT and AVGCOST.                                                     */
 /*-------------------------------------------------------------------------*/
 
+/*--------------------------------------------------------------*/
+/* 3-F-ii: GET COST COUNT FOR LOG REPORTING                     */
+/*--------------------------------------------------------------*/
+
+%CMAC2_COUNTER (DATASET = COST, MVAR = PRE_AVGCOST);
+
+/*ep*/
+
 %G17_FINALIZE_COSTDATA
+
+/*ep*/
+
+/*--------------------------------------------------------------*/
+/* 3-F-iiI: GET COST COUNT FOR LOG REPORTING                    */
+/*--------------------------------------------------------------*/
+
+%CMAC2_COUNTER (DATASET = AVGCOST, MVAR = AVGCOST);
 
 /*ep*/
 
