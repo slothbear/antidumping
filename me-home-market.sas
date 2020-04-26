@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                      ANALYSIS OF HOME MARKET SALES                      */
 /*                                                                         */
-/*                  LAST PROGRAM UPDATE DECEMBER 30, 2019                  */
+/*                    LAST PROGRAM UPDATE APRIL 2, 2020                    */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring in Home Market Sales, Convert Date Variable, If          */
@@ -24,18 +24,22 @@
 /* Part 14: Review Log for Errors, Warnings, Uninitialized etc.            */
 /***************************************************************************/
 
-/*---------------------------------------------------------------------*/
-/*    EDITING THE PROGRAM:                                             */
-/*                                                                     */
-/*          Places requiring edits are indicated by angle brackets     */
-/*          (i.e., '< >'). Replace angle brackets with case-specific   */
-/*          information.                                               */
-/*                                                                     */
-/*          Types of Inputs:(D) = SAS dataset name                     */
-/*                          (V) = Variable name                        */
-/*                          (T) = Text (no specific format),           */
-/*                                do NOT use punctuation marks         */
-/*---------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------*/
+/* EDITING THE PROGRAM:                                                  */
+/*                                                                       */
+/* Places requiring edits are indicated by angle brackets (i.e., '< >'). */
+/* Replace angle brackets with case-specific information.                */
+/*                                                                       */
+/*          Types of Inputs: (D) = SAS dataset name                      */
+/*                           (V) = Variable name                         */
+/*                           (T) = Text (no specific format),            */
+/*                                do NOT use punctuation marks           */
+/*                                                                       */
+/* If there are angle brackets that are commented out, replacing the     */
+/* angles brackets with case specific code is optional. For example:     */
+/*                                                                       */
+/*          <Insert changes here, if required.>                          */
+/*-----------------------------------------------------------------------*/
 
 /*---------------------------------------------------------------------*/
 /*     EXECUTING/RUNNING THE PROGRAM:                                  */
@@ -128,14 +132,14 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /* HMSALEDATE will be used to capture all HM sales within the date   */
 /* range specified by the macro variables BEGINDAY and ENDAY.        */
 /*                                                                   */
-/* DATEBEFORESALE and EARLIERDATE:                                   */
+/* HMDATEBEFORESALE and HMEARLIERDATE:                               */
 /*                                                                   */
 /* If there are reported dates before the sale date and you want     */
 /* the earlier dates to be assigned to sale date, define the macro   */
-/* variable DATEBEFORESALE to 'YES' and assign the variable with     */
-/* earlier dates to the macro variable EARLIERDATE (ex. SHIPDATE).   */
-/* Otherwise define the macro variable DATEBEFORESALE to 'NO' and    */
-/* ignore the macro variable EARLIERDATE.                            */
+/* variable HMDATEBEFORESALE to 'YES' and assign the variable with   */
+/* earlier dates to the macro variable HMEARLIERDATE (ex. SHIPDATE). */
+/* Otherwise define the macro variable HMDATEBEFORESALE to 'NO' and  */
+/* ignore the macro variable HMEARLIERDATE.                          */
 /*                                                                   */
 /* BEGINDAY and ENDDAY:                                              */
 /*                                                                   */
@@ -172,15 +176,15 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 
 %LET HMSALEDATE = <        >;       /* (V) Variable representing the */
                                     /*     HM sale date.             */
-%LET DATEBEFORESALE = <YES/NO>;     /* (T) Adjust sale date based on */
+%LET HMDATEBEFORESALE = <YES/NO>;   /* (T) Adjust sale date based on */
                                     /*     an earlier date variable? */
                                     /*     Type 'YES' (no quotes) to */
                                     /*     adjust the sale date, or  */
                                     /*     'NO' to skip this part.   */
                                     /*     If you typed 'YES' then   */
                                     /*     also complete the macro   */
-                                    /*     variable EARLIERDATE.     */
-%LET      EARLIERDATE = <        >; /* (V) Variable representing the */
+                                    /*     variable HMEARLIERDATE.   */
+%LET    HMEARLIERDATE = <        >; /* (V) Variable representing the */
                                     /*     earlier date variable.    */
 
 /* Note: In a review the HM macro variable BEGINDAY needs to have    */
@@ -429,8 +433,18 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET      TOTCOM = <  >;             /*(V) Reported total cost of       */
                                      /*    manufacturing. Usually       */
                                      /*    TOTCOM.                      */
-%LET      USSALEDATE = <        >;   /*(V) Variable representing the    */
-                                     /*    U.S. sale date.              */
+%LET USSALEDATE = <        >;        /* (V) Variable representing the   */
+                                     /*     U.S. sale date.             */
+%LET USDATEBEFORESALE = <YES/NO>;    /* (T) Adjust sale date based on   */
+                                     /*     an earlier date variable?   */
+                                     /*     Type 'YES' (no quotes) to   */
+                                     /*     adjust the sale date, or    */
+                                     /*     'NO' to skip this part.     */
+                                     /*     If you typed 'YES' then     */
+                                     /*     also complete the macro     */
+                                     /*     variable USEARLIERDATE.     */
+%LET     USEARLIERDATE = <        >; /* (V) Variable representing the   */
+                                     /*     earlier date variable.      */
 
 /*----------------------------------------------------*/
 /* 1-E-iii-b. SURROGATE COSTS FOR NON-PRODUCTION      */
@@ -647,11 +661,11 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 
 DATA HMSALES;
     SET COMPANY.&HMDATA;
+    &HMSALEDATE = FLOOR(&HMSALEDATE); /* Eliminates the time part of sale date when defined as a datetime variable. */
 
-    /* Selectively adjust sale date based */
-    /* on an earlier date variable.       */
+    /* Selectively adjust sale date based on an earlier date variable. */
 
-    %DEFINE_SALE_DATE (SALEDATE = &HMSALEDATE);
+    %DEFINE_SALE_DATE (SALEDATE = &HMSALEDATE, DATEBEFORESALE = &HMDATEBEFORESALE, EARLIERDATE = &HMEARLIERDATE);
 
     /*------------------------------------------------------------------*/
     /* 2-B: Insert and annotate any changes below.                      */
@@ -771,10 +785,15 @@ RUN;
 %MACRO READ_US;
     DATA USSALES;
         SET COMPANY.&USDATA;
+        &USSALEDATE = FLOOR(&USSALEDATE); /* Eliminates the time part of sale date when defined as a datetime variable. */
 
-        /* Make changes to U.S. control numbers and product */
-        /* characteristic variables here, if required.      */
+        /* <Make changes to U.S. control numbers and product> */
+        /* <characteristic variables here, if required.     > */
 
+        /* Selectively adjust sale date based on an earlier date variable. */
+
+        %DEFINE_SALE_DATE (SALEDATE = &USSALEDATE, DATEBEFORESALE = &USDATEBEFORESALE, EARLIERDATE = &USEARLIERDATE); 
+ 
         %CREATE_QUARTERS(&USSALEDATE, HM)   /* Assigns quarters to US sales based on */
                                             /* the date of sale variable and the     */
                                             /* first day of the POR/POI. The         */
@@ -1290,21 +1309,29 @@ DATA HMSALES;
         /*-------------------------------------------------------------*/
 
         /* Net price for price comparisons. Deduct imputed credit expenses. */
-        /* Must be in the same currency as the cost data. */
+        /* Must be in the same currency as the cost data.                   */
 
         HMNETPRI  = HMGUP + HMGUPADJ - HMDISREB - HMMOVE
                   - HMDSELL - HMCRED - HMCOMM - HMPACK;
 
         /* Net price for the cost test. Do NOT deduct imputed expenses. */
-        /* Must be in the same currency as the cost data. */
+        /* Must be in the same currency as the cost data.               */
 
         HMNPRICOP = HMGUP + HMGUPADJ - HMDISREB - HMMOVE
                   - HMDSELL - HMISELL - HMCOMM - HMPACK;
 
-        /* Net price for calculating the credit ratio for CV selling expenses.  */
-        /* Must be in the same currency as the cost data. */
+        /* Net price for calculating the credit ratio for CV selling expenses. */
+        /* Must be in the same currency as the cost data.                      */
 
         CVCREDPR = HMGUP + HMGUPADJ - HMDISREB - HMMOVE;
+
+        /**************************************************/
+        /* 4-B-iii: HM VALUES FOR CEP PROFIT CALCULATIONS */
+        /**************************************************/
+
+        /* Calculate the HM values for CEP profit. */
+
+        %HM4_CEPTOT_PART_ONE
     %MEND NETPRICE;
 
     %NETPRICE
@@ -1344,6 +1371,8 @@ RUN;
                                   /*     to work on downstream sales.      */                                      
     DATA DOWNSTREAM;
         SET COMPANY.&DOWNSTREAMDATA;
+        &HMSALEDATE = FLOOR(&HMSALEDATE); /* Eliminates the time part of sale date when defined as a datetime variable. */
+
 
 /*-------------------------------------------------------------------------*/
 /*     6-A-i: ALIGN VARIABLES IN HM AND DOWNSTREAM DATABASES               */
@@ -1574,7 +1603,7 @@ RUN;
 /*     standardized naming convention, 'RESPONDENT_SEGMENT_STAGE'_HMCEP.   */
 /***************************************************************************/
 
-%HM4_CEPTOT
+%HM4_CEPTOT_PART_TWO
 
 /*ep*/
 

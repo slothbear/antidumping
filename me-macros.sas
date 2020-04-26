@@ -4,7 +4,7 @@ OPTIONS SYMBOLGEN MPRINT;
 /*                     ANTIDUMPING MARKET-ECONOMY                   */
 /*                           MACROS PROGRAM                         */
 /*                                                                  */
-/*                 LAST PROGRAM UPDATE DECEMBER 31, 2019            */
+/*                 LAST PROGRAM UPDATE APRIL 13, 2020               */
 /*                                                                  */
 /********************************************************************/
 /*                              GENERAL MACROS                      */
@@ -122,7 +122,7 @@ RUN;
         %LET CALC_TYPE = ;
     %END;
 
-    TITLE1 "&PROGRAM PROGRAM - &PRODUCT FROM &COUNTRY";
+    TITLE1 "&PROGRAM PROGRAM - &PRODUCT FROM &COUNTRY (&BEGINPERIOD - &ENDPERIOD)";
     TITLE2 "&SEGMENT &STAGE FOR RESPONDENT &RESPONDENT (&CASE_NUMBER)";
 
     FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
@@ -588,8 +588,8 @@ RUN;
         %MEND RENAME_TIME_TYPE;
     %END;
 
-    PROC MEANS DATA = COST NOPRINT;
-        BY &COST_MANF &COST_MATCH &COST_TIME_PERIOD;     
+    PROC MEANS NWAY DATA = COST NOPRINT;
+        CLASS &COST_MANF &COST_MATCH &COST_TIME_PERIOD;     
         %WHERE_STMT 
         VAR &COST_QTY;
         OUTPUT OUT = TOTPRODQTY (DROP = _:) 
@@ -1010,13 +1010,9 @@ RUN;
     /* Make a list of all time periods with production in the cost data. */
     /*-------------------------------------------------------------------*/
 
-    PROC SORT DATA = COST OUT = COST;
-        BY &COST_MANF &COST_TIME_PERIOD;
-    RUN;
-
-    PROC MEANS DATA = COST NOPRINT;
+    PROC MEANS NWAY DATA = COST NOPRINT;
         WHERE &COST_QTY GT 0;
-        BY &COST_MANF &COST_TIME_PERIOD;
+        CLASS &COST_MANF &COST_TIME_PERIOD;
         VAR &COST_QTY;
         OUTPUT OUT = COST_TIMES (DROP = _:) SUM = ;
     RUN;
@@ -1058,22 +1054,18 @@ RUN;
 
         /* Create POR weight averaged cost dataset */
 
-        PROC SORT DATA = COST OUT = COST;
-            BY &COST_MANF &COST_MATCH;
-        RUN;
-
-        PROC MEANS DATA = COST NOPRINT;
+        PROC MEANS NWAY DATA = COST NOPRINT;
             WHERE &COST_TIME_PERIOD IN (&TIME_INSIDE_POR);
             ID &COST_CHAR;
-            BY &COST_MANF &COST_MATCH;
+            CLASS &COST_MANF &COST_MATCH;
             VAR _NUMERIC_;
             WEIGHT &COST_QTY;
             OUTPUT OUT = POR_COST (DROP = _:) MEAN =;
         RUN;
 
-        PROC MEANS DATA = COST NOPRINT;
+        PROC MEANS NWAY DATA = COST NOPRINT;
             WHERE &COST_TIME_PERIOD IN (&TIME_INSIDE_POR);
-            BY &COST_MANF &COST_MATCH;
+            CLASS &COST_MANF &COST_MATCH;
             VAR &COST_QTY;
             OUTPUT OUT = POR_COST_QTYS (DROP = _:) SUM =;
         RUN;
@@ -1106,6 +1098,10 @@ RUN;
 /* G-11 CREATE COST DATABASE FOR PERIODS WITH ZERO PRODUCTION, BUT SALES */
 /*************************************************************************/
 
+/*************************************************************************/
+/* G-11 CREATE COST DATABASE FOR PERIODS WITH ZERO PRODUCTION, BUT SALES */
+/*************************************************************************/
+
 %MACRO G11_CREATE_TIME_COST_DB;
     %IF %UPCASE(&COMPARE_BY_TIME) = YES %THEN
     %DO;
@@ -1114,7 +1110,7 @@ RUN;
             %MACRO NTC_MFR;
                 (RENAME = &COST_MANF = NTC_&COST_MANF)
             %MEND;
-    
+
             %MACRO WHERENTCMFR;    
                 WHERE &COST_MANF = NTC_&COST_MANF;
             %MEND;
@@ -1128,56 +1124,26 @@ RUN;
             %MEND;
         %END;
 
+/*****************************************************************************/
+/* Pull closest quarter into need quarter for the direct material variables. */
+/*****************************************************************************/
+
         %IF &NEEDTIMELST NE ( ) %THEN
         %DO;
-            /*********************************************************************************************/
-            /* CREATE THE INDEXING CALCULATIONS                                                          */
-            /*     NO_PROD_DIRMAT = INPUT(PUT(NEED_TIME, $DIRMAT_INPUT.), 8.);                           */
-            /*     CLOSEST_PROD_DIRMAT= INPUT(PUT(&COST_TIME_PERIOD, $DIRMAT_INPUT.), 8.);               */
-            /*     PERCENT_CHANGE_DIRMAT = (NO_PROD_DIRMAT - CLOSEST_PROD_DIRMAT) / CLOSEST_PROD_DIRMAT; */
-            /*     RDIRMAT = DIRMAT * (1 + PERCENT_CHANGE_DIRMAT);                                       */
-            /*********************************************************************************************/
-
-            DATA DIRMAT_VARS_CHANGE (DROP = I);
-                DO I = 1 TO COUNTW("&DIRMAT_VARS");
-                    DMT_VRS = STRIP(SCAN("&DIRMAT_VARS", I));
-                    R_DRMT_VRS = STRIP(CATS("R",SCAN("&DIRMAT_VARS", I))); 
-                    RNMAME_RDRIMATS = STRIP(CATS(SCAN("&DIRMAT_VARS", I), "=", R_DRMT_VRS,";")); 
-                    NOPRDDMT = CATS("NO_PROD_",DMT_VRS, " = INPUT(PUT(NEED_TIME, $", DMT_VRS, "_INPUT.), 8.)");    
-                    CLSTPRDDMT = CATS("CLOSEST_PROD_",DMT_VRS," = INPUT(PUT(&COST_TIME_PERIOD, $",DMT_VRS, "_INPUT.), 8.)");
-                    PCTCHADMT = CATS("PERCENT_CHANGE_",DMT_VRS, " = (NO_PROD_", DMT_VRS, " - CLOSEST_PROD_", DMT_VRS, ") / CLOSEST_PROD_", DMT_VRS);
-                    RDMT = CATS("R", DMT_VRS, " = ", DMT_VRS," * (1 + PERCENT_CHANGE_", DMT_VRS, ")");
-                    OUTPUT;
-                END; 
-            RUN;
-
-            PROC SQL NOPRINT;
-                SELECT DMT_VRS, RNMAME_RDRIMATS, NOPRDDMT, CLSTPRDDMT, PCTCHADMT, RDMT
-                    INTO :SUM_DIRMAT_VARS SEPARATED BY ",", 
-                         :REPLACE_INDEXED_DIRMATS SEPARATED BY " ",
-                         :NOPRDDMT SEPARATED BY "; ",
-                         :CLSTPRDDMT SEPARATED BY "; ",
-                         :PCTCHADMT SEPARATED BY "; ",
-                         :RDMT SEPARATED BY "; "
-                    FROM DIRMAT_VARS_CHANGE ;
-            QUIT;
-
-            /* Pull closest quarter into need quarter for DIRMAT variables */
-
             DATA NEED_TIMES_COST;
                 SET COST;
                 DO J = 1 TO LAST;
                     SET NEED_COST_TIMES_LIST %NTC_MFR  POINT = J NOBS = LAST;
-                    TIME_DIF = ABS(NEED_TIME - &COST_TIME_PERIOD);
+                    TIME_DIF=  ABS(NEED_TIME - &COST_TIME_PERIOD);
                     OUTPUT;              
                 END;
             RUN;
 
-            PROC SORT DATA = NEED_TIMES_COST;
+            PROC SORT DATA = NEED_TIMES_COST OUT = NEED_TIMES_COST;
                 BY NEED_TIME &COST_MANF &COST_MATCH TIME_DIF;
             RUN;
 
-            DATA NO_PROD_TIMES_COST ;
+            DATA NO_PROD_TIMES_COST;
                 SET NEED_TIMES_COST;
                 %WHERENTCMFR;
                 BY NEED_TIME &COST_MANF &COST_MATCH TIME_DIF;
@@ -1185,13 +1151,15 @@ RUN;
                     OUTPUT NO_PROD_TIMES_COST;
             RUN;
 
-            /************************************************************************************************************/
-            /* USING THE INDEXING CALCULATIONS FROM ABOVE.  FOR EACH INDEXED COST VAR, THE CALCUATIONS SHOULD BE:       */
-            /*        NO_PROD_DIRMAT = INPUT(PUT(NEED_TIME, $DIRMAT_INPUT.), 8.);                                       */
-            /*        CLOSEST_PROD_DIRMAT= INPUT(PUT(&COST_TIME_PERIOD, $DIRMAT_INPUT.), 8.);                           */
-            /*        PERCENT_CHANGE_DIRMAT = (NO_PROD_DIRMAT - CLOSEST_PROD_DIRMAT)/CLOSEST_PROD_DIRMAT;               */
-            /*        RDIRMAT = DIRMAT * (1+PERCENT_CHANGE_DIRMAT);                                                     */
-            /************************************************************************************************************/
+/*******************************************************************************************/
+/* Use the indexing calculations from Section G10. For each indexed cost variable,         */
+/* the calculations should be:                                                             */
+/*                                                                                         */
+/*   NO_PROD_DIRMAT = INPUT(PUT(NEED_TIME, $DIRMAT_INPUT.), 8.);                           */
+/*   CLOSEST_PROD_DIRMAT = INPUT(PUT(&COST_TIME_PERIOD, $DIRMAT_INPUT.), 8.);              */
+/*   PERCENT_CHANGE_DIRMAT = (NO_PROD_DIRMAT - CLOSEST_PROD_DIRMAT) / CLOSEST_PROD_DIRMAT; */
+/*   RDIRMAT = DIRMAT * (1 + PERCENT_CHANGE_DIRMAT);                                       */
+/*******************************************************************************************/
 
             DATA NO_PROD_TIMES_COST;
                 SET NO_PROD_TIMES_COST;
@@ -1199,11 +1167,13 @@ RUN;
                 &CLSTPRDDMT; 
                 &PCTCHADMT; 
                 &RDMT; 
+                %LET REVISED_DIRMAT_VARS = R%SYSFUNC(TRANWRD(%QUOTE(&SUM_DIRMAT_VARS), %STR(,), %STR(, R)));
             RUN;
 
             PROC PRINT DATA = NO_PROD_TIMES_COST (OBS = &PRINTOBS);
-               VAR &ALLCOSTVARS NEED_TIME TIME_DIF NO_PROD: CLOSEST_PROD: PERCENT_CHANGE: R:;
-               TITLE3 "DIRECT MATERIALS ADJUSTMENT CALCULATIONS FOR COSTS IN PERIODS WITHOUT PRODUCTION";
+                VAR &ALLCOSTVARS NEED_TIME TIME_DIF NO_PROD: CLOSEST_PROD: PERCENT_CHANGE: R:;
+                TITLE3 "DIRECT MATERIALS ADJUSTMENT CALCULATIONS (&REVISED_DIRMAT_VARS)";
+                TITLE4 "FOR COSTS IN PERIODS WITHOUT PRODUCTION";
             RUN;
 
             DATA NO_PROD_TIMES_COST (KEEP = &ALLCOSTVARS);
@@ -1212,56 +1182,56 @@ RUN;
                 &COST_TIME_PERIOD = NEED_TIME;
             RUN;
 
-            /* Replace time period specific conversion costs with por average conversion costs */
+/***************************************************************************************/
+/* Replace time period specific conversion costs with period average conversion costs. */
+/***************************************************************************************/
 
-            PROC SORT DATA = NO_PROD_TIMES_COST (KEEP = &DIRMAT_VARS &COST_MATCH &COST_MANF &COST_TIME_PERIOD)
-                      OUT = NO_PROD_TIMES_COST;
+            PROC SORT DATA= NO_PROD_TIMES_COST (KEEP = &DIRMAT_VARS &COST_MATCH &COST_MANF &COST_TIME_PERIOD);
                 BY &COST_MANF &COST_MATCH;
             RUN;
 
             DATA POR_COST_2;
                 SET POR_COST;
                 SUMDURMATS = SUM(&SUM_DIRMAT_VARS);
-                R&TOTCOM = &TOTCOM - SUMDURMATS;
+                REDUCED_&TOTCOM = &TOTCOM - SUMDURMATS;
+                %LET DIRMAT_VARS_WITHOUT_COMMAS = %SYSFUNC(TRANWRD(%QUOTE(&SUM_DIRMAT_VARS), %STR(,), %STR(  )));
             RUN;
 
-            PROC SORT DATA = POR_COST_2 (DROP = &DIRMAT_VARS SUMDURMATS &TOTCOM
-                                         RENAME = (R&TOTCOM = &TOTCOM))
-                      OUT = POR_COST_2;
+            PROC PRINT DATA = POR_COST_2 (OBS = &PRINTOBS);
+                VAR &COST_MANF &COST_MATCH &TOTCOM &DIRMAT_VARS_WITHOUT_COMMAS REDUCED_&TOTCOM;
+                TITLE3 "REDUCED TOTAL COST OF MANUFACTURING (REDUCED_&TOTCOM)";
+                TITLE4 "WITH DIRECT MATERIAL VARIABLES NEEDING AVERAGE PURCHASE COSTS (&SUM_DIRMAT_VARS)";
+                TITLE5 "BACKED OUT OF THE ORIGINAL TOTAL COST OF MANUFACTURING (&TOTCOM)";
+            RUN;
+
+            PROC SORT DATA = POR_COST_2 (DROP = &DIRMAT_VARS SUMDURMATS) OUT = POR_COST_2;
                 BY &COST_MANF &COST_MATCH;
             RUN;
 
-            DATA NO_PROD_TIMES_COST (DROP = SUM_INDEXED_DIRMATS)
-                 TEST (DROP = SUM_INDEXED_DIRMATS);
-                MERGE NO_PROD_TIMES_COST (IN = A) POR_COST_2 (IN = B);
+            DATA NO_PROD_TIMES_COST TEST;
+                MERGE NO_PROD_TIMES_COST (IN = A) POR_COST_2(IN = B);
                 BY &COST_MANF &COST_MATCH;
 
+                IF A AND NOT B
+                    THEN OUTPUT TEST;
+                ELSE IF A THEN
+                    OUTPUT NO_PROD_TIMES_COST;
+            RUN;
+
+            DATA NO_PROD_TIMES_COST(DROP = SUM_INDEXED_DIRMATS);
+                SET NO_PROD_TIMES_COST;
                 SUM_INDEXED_DIRMATS = SUM(&SUM_DIRMAT_VARS);
-                &TOTCOM = &TOTCOM + SUM_INDEXED_DIRMATS;
-
-                IF A AND NOT B THEN
-                    OUTPUT TEST;
-                ELSE
-                IF A THEN OUTPUT
-                    NO_PROD_TIMES_COST;
+                REVISED_&TOTCOM = REDUCED_&TOTCOM + SUM_INDEXED_DIRMATS;
             RUN;
 
-            %IF &COST_PROD_CHARS = NO %THEN
-            %DO;
-                PROC SQL NOPRINT UNDO_POLICY = NONE;
-                    CREATE TABLE NO_PROD_TIMES_COST (DROP = &PROD_MATCH) AS
-                    SELECT *
-                    FROM NO_PROD_TIMES_COST AS NPT, CONNUMLIST AS CNL
-                    WHERE NPT.&COST_MATCH = CNL.&PROD_MATCH;
-                QUIT;    
-            %END;
-
-            PROC PRINT DATA = NO_PROD_TIMES_COST (OBS = 12);
+            PROC PRINT DATA = NO_PROD_TIMES_COST (OBS = &PRINTOBS);
                 TITLE3 "SELECTION OF COSTS IN PERIODS WITHOUT PRODUCTION";
+                TITLE4 "WITH REVISED DIRECT MATERIAL VARIABLES WITH AVERAGE PURCHASE COSTS (&SUM_DIRMAT_VARS)";
+                TITLE5 "ADDED TO REDUCED TOTAL COST OF MANUFACTURING (REDUCED_&TOTCOM)";
             RUN;
 
             DATA COST;
-                SET COST NO_PROD_TIMES_COST;
+                SET COST NO_PROD_TIMES_COST (DROP = &TOTCOM REDUCED_&TOTCOM RENAME = REVISED_&TOTCOM = &TOTCOM);
             RUN;
         %END;
     %END;
@@ -1395,7 +1365,7 @@ RUN;
         RUN;
 
         DATA ZERO_PROD_ALLCOST;
-            MERGE ZERO_PROD_SIMCOST_TOP1 (IN = A) POR_COST_3 (IN = B);
+            MERGE ZERO_PROD_SIMCOST_TOP1 (IN = A) POR_CONV_COST (IN = B);
             BY &COST_MANF &COST_MATCH;
             IF A AND B THEN
                 OUTPUT ZERO_PROD_ALLCOST;
@@ -1615,12 +1585,8 @@ RUN;
             /* G-15-A-ii: Weight-average cost data. */
             /*--------------------------------------*/
                 
-            PROC SORT DATA = COST OUT = COST;                                   
-                BY &COST_MANF &COST_MATCH &COST_TIME_PERIOD;
-            RUN;
-
-            PROC MEANS DATA = COST NOPRINT;
-                BY &COST_MANF &COST_MATCH &COST_TIME_PERIOD;
+            PROC MEANS NWAY DATA = COST NOPRINT;
+                CLASS &COST_MANF &COST_MATCH &COST_TIME_PERIOD;
                 %IDCHARS
                 VAR VCOMCOP TCOMCOP GNACOP INTEXCOP TOTALCOP;
                 WEIGHT &COST_QTY;
@@ -2264,12 +2230,8 @@ RUN;
         /* HM3-A: Check Customer Affiliation and LOT */
         /*-------------------------------------------*/
 
-        PROC SORT DATA = HMSALES OUT = HMSALES;
-            BY &HMAFFL HMLOT &HMMANF &HMPRIM &HMCUST;
-        RUN;
-
-        PROC MEANS DATA = HMSALES NOPRINT;
-            BY &HMAFFL HMLOT &HMMANF &HMPRIM ;
+        PROC MEANS NWAY DATA = HMSALES NOPRINT;
+            CLASS &HMAFFL HMLOT &HMMANF &HMPRIM ;
             VAR &HMQTY;
             OUTPUT OUT = TOTS (DROP = _:)
                    N = SALES SUM = TOTQTY;
@@ -2307,12 +2269,8 @@ RUN;
         /* HM3-B: Weighted-average net prices of affiliated customers */
         /*------------------------------------------------------------*/
 
-        PROC SORT DATA = HMAFF OUT = HMAFF;
-            BY &HMCUST HMLOT &HMMANF &HMPRIM &HM_TIME_PERIOD &HMCONNUM;
-        RUN;
-
-        PROC MEANS DATA = HMAFF NOPRINT;
-            BY &HMCUST HMLOT &HMMANF &HMPRIM &HM_TIME_PERIOD &HMCONNUM;
+        PROC MEANS NWAY DATA = HMAFF NOPRINT;
+            CLASS &HMCUST HMLOT &HMMANF &HMPRIM &HM_TIME_PERIOD &HMCONNUM;
             ID AVGVCOM AVGTCOM &HMCHAR;
             VAR HMNETPRI;
             WEIGHT &HMQTY;
@@ -2332,12 +2290,8 @@ RUN;
         /* HM3-C: Weight-average net prices of non-affiliated customers */
         /*--------------------------------------------------------------*/
    
-        PROC SORT DATA = HMNAF OUT = HMNAF;
-            BY HMLOT &HMMANF &HMPRIM &HM_TIME_PERIOD &HMCONNUM;
-        RUN;
-
-        PROC MEANS DATA = HMNAF NOPRINT;
-            BY HMLOT &HMMANF &HMPRIM &HM_TIME_PERIOD &HMCONNUM;
+        PROC MEANS NWAY DATA = HMNAF NOPRINT;
+            CLASS HMLOT &HMMANF &HMPRIM &HM_TIME_PERIOD &HMCONNUM;
             ID NAFLOT &NAFMANF &NAFPRIME &NAF_TIME_PERIOD NAFCONN NAFVCOM &NAFCHAR;
             VAR HMNETPRI;
             WEIGHT &HMQTY;
@@ -2528,8 +2482,8 @@ RUN;
             OUTPUT OUT = AFFCUST (DROP = _:) N = NUMCOMP MEAN = CUSRATIO;
         RUN;
 
-        PROC MEANS DATA = HMAFF NOPRINT;
-            BY &HMCUST;
+        PROC MEANS NWAY DATA = HMAFF NOPRINT;
+            CLASS &HMCUST;
             OUTPUT OUT = AFFOBS (DROP = _:) N = AFFOBS;
         RUN;
 
@@ -2597,18 +2551,24 @@ RUN;
 /* HM-4: HM VALUES FOR CEP PROFIT CALCULATIONS */
 /***********************************************/
 
-%MACRO HM4_CEPTOT;
+%MACRO HM4_CEPTOT_PART_ONE;
+    /* Calculate the HM values of CEP profit. */
+
     %IF %UPCASE(&RUN_HMCEPTOT) = YES %THEN
     %DO;
-        DATA HMSALES;
-            SET HMSALES;
-                REVENUH = (HMGUP + HMGUPADJ - HMDISREB) * &HMQTY;
-                COGSH = (AVGCOST + HMPACK) * &HMQTY;
-                SELLEXPH = (HMDSELL + HMISELL + HMCOMM) * &HMQTY;
-                MOVEEXPH = HMMOVE * &HMQTY;
-        RUN;
+        REVENUH  = (HMGUP + HMGUPADJ - HMDISREB) * &HMQTY;
+        COGSH    = (AVGCOST + HMPACK) * &HMQTY;
+        SELLEXPH = (HMDSELL + HMISELL + HMCOMM) * &HMQTY;
+        MOVEEXPH = HMMOVE * &HMQTY;
+    %END;
+%MEND HM4_CEPTOT_PART_ONE;
 
-        PROC MEANS DATA = HMSALES NOPRINT;
+%MACRO HM4_CEPTOT_PART_TWO;
+    /* Sum up and save the HM values of CEP profit. */
+
+    %IF %UPCASE(&RUN_HMCEPTOT) = YES %THEN
+    %DO;
+        PROC MEANS NOPRINT DATA = HMSALES;
             VAR REVENUH COGSH SELLEXPH MOVEEXPH;
             OUTPUT OUT = COMPANY.&RESPONDENT._&SEGMENT._&STAGE._HMCEP (DROP = _:)
                    SUM = TOTREVH TOTCOGSH TOTSELLH TOTMOVEH;
@@ -2618,7 +2578,7 @@ RUN;
             TITLE3 "HM VALUES FOR CEP PROFIT CALCULATIONS";
         RUN;
     %END;
-%MEND HM4_CEPTOT;
+%MEND HM4_CEPTOT_PART_TWO;
 
 /*******************/
 /* HM-5: COST TEST */
@@ -2831,12 +2791,8 @@ RUN;
         OUTPUT HMSALES;
     RUN;
 
-    PROC SORT DATA = HMSALES OUT = HMSALES;
-        BY &HMMANF &HMPRIM COSTTYPE;
-    RUN;
-
-    PROC MEANS DATA = HMSALES NOPRINT;
-        BY &HMMANF &HMPRIM COSTTYPE;
+    PROC MEANS NWAY DATA = HMSALES NOPRINT;
+        CLASS &HMMANF &HMPRIM COSTTYPE;
         VAR HMNETPRI;
         WEIGHT &HMQTY;
         OUTPUT OUT = COSTSUMM (DROP = _:)
@@ -2892,12 +2848,8 @@ RUN;
     %DO;
         %IF &RUN_RECOVERY = YES %THEN
         %DO;
-            PROC SORT DATA = COMPANY.&RESPONDENT._&SEGMENT._&STAGE._COST;
-                BY &COP_MANF_OUT COST_MATCH;
-            RUN;
-
-            PROC MEANS DATA = COMPANY.&RESPONDENT._&SEGMENT._&STAGE._COST NOPRINT;
-                BY &COP_MANF_OUT COST_MATCH;
+            PROC MEANS NWAY DATA = COMPANY.&RESPONDENT._&SEGMENT._&STAGE._COST NOPRINT;
+                CLASS &COP_MANF_OUT COST_MATCH;
                 VAR AVGCOST;
                 WEIGHT COST_QTY;
                OUTPUT OUT = CONNUMCOST (DROP = _:) MEAN = CONNUM_COST;
@@ -2907,12 +2859,8 @@ RUN;
                 BY &SALES_COST_MANF &HMPRIM &HMCONNUM;
             RUN;
 
-            PROC SORT DATA = HMSALES OUT = HMSALES;
-                BY &SALES_COST_MANF &HMPRIM &HMCONNUM;
-            RUN;
-
-            PROC MEANS DATA = HMSALES NOPRINT;
-                BY &SALES_COST_MANF &HMPRIM &HMCONNUM;
+            PROC MEANS NWAY DATA = HMSALES NOPRINT;
+                CLASS &SALES_COST_MANF &HMPRIM &HMCONNUM;
                 VAR HMNPRICOP;
                 WEIGHT &HMQTY;
                 OUTPUT OUT = CONNUMPRICE (DROP = _:)
@@ -3054,8 +3002,8 @@ RUN;
         %MEND PRIME_RENAME;
     %END;
         
-    PROC MEANS DATA = HM NOPRINT;
-        BY &HMMANF &HMPRIM HMLOT &MONTH &HMCONNUM &HM_TIME_PERIOD; 
+    PROC MEANS NWAY DATA = HM NOPRINT;
+        CLASS &HMMANF &HMPRIM HMLOT &MONTH &HMCONNUM &HM_TIME_PERIOD; 
         ID &HMCHAR AVGVCOM;
         VAR &WGTAVGVARS;
         WEIGHT &HMQTY;
@@ -3080,12 +3028,8 @@ RUN;
 /************************************************************************/
 
 %MACRO HM8_CVSELL;
-    PROC SORT DATA = HM OUT = HM;
-        BY HMLOT;
-    RUN;
-
-    PROC MEANS DATA = HM NOPRINT;
-        BY HMLOT;
+    PROC MEANS NWAY DATA = HM NOPRINT;
+        CLASS HMLOT;
         VAR HMDSELL HMISELL HMCOMM HMCRED HMICC
             HMINDCOM HMNPRICOP CVCREDPR AVGCOST;
         WEIGHT &HMQTY;
@@ -3124,14 +3068,8 @@ RUN;
 
     %IF %UPCASE(&RUN_HMLOTADJ) = YES %THEN
     %DO;
-        PROC SORT DATA = HM (KEEP = HMLOT &HMCONNUM &HM_TIME_PERIOD HMNETPRI &HMQTY 
-                             RENAME = (&HMCONNUM = HMCONNUM))
-                  OUT = LOTS;
-        BY HMLOT HMCONNUM &HM_TIME_PERIOD;
-        RUN;
-
-        PROC MEANS DATA = LOTS NOPRINT;
-        BY HMLOT HMCONNUM &HM_TIME_PERIOD;
+        PROC MEANS NWAY DATA = LOTS RENAME = (&HMCONNUM = HMCONNUM) NOPRINT;
+        CLASS HMLOT HMCONNUM &HM_TIME_PERIOD;
             VAR HMNETPRI;
             WEIGHT &HMQTY;
             OUTPUT OUT=LOT1 (DROP = _:) MEAN = HMPRICE SUMWGT = HMQTY;
@@ -3182,19 +3120,15 @@ RUN;
             END;
         RUN;
 
-        PROC SORT DATA = DIFF OUT = DIFF;
-            BY USLOT HMLOT;
-        RUN;
-
-        PROC MEANS DATA = DIFF NOPRINT;
-            BY USLOT HMLOT;
+        PROC MEANS NWAY DATA = DIFF NOPRINT;
+            CLASS USLOT HMLOT;
             VAR GNUM GQTY LNUM LQTY ENUM EQTY;
             OUTPUT OUT = RESULTS (DROP = _:)
                    SUM = GTNUM GTQTY LTNUM LTQTY EQNUM EQQTY;
         RUN;
 
-        PROC MEANS DATA = DIFF NOPRINT;
-            BY USLOT HMLOT;
+        PROC MEANS NWAY DATA = DIFF NOPRINT;
+            CLASS USLOT HMLOT;
             VAR DIFF;
             WEIGHT QTY;
             OUTPUT OUT = RESULTS2 (DROP = _:) MEAN = LOTADJ;
@@ -3701,16 +3635,12 @@ OPTIONS SYMBOLGEN;
             OUTPUT USSALES;
         RUN;
 
-        PROC SORT DATA = USSALES OUT = USSALES; 
-            BY US_IMPORTER SALE_TYPE SOURCEDATA;
-        RUN;
-
-        PROC MEANS DATA = USSALES NOPRINT;
-            BY US_IMPORTER SALE_TYPE SOURCEDATA;
+        PROC MEANS NWAY DATA = USSALES NOPRINT;
+            CLASS US_IMPORTER SALE_TYPE SOURCEDATA;
             VAR ENTERED_VALUE;
             WEIGHT &USQTY;
             OUTPUT OUT = IMPDATA (DROP = _:)
-                         N=SALES SUMWGT=TOTQTY SUM=TOTEVALU;
+                         N = SALES SUMWGT = TOTQTY SUM = TOTEVALU;
         RUN;
 
         DATA SOURCECHK (KEEP = US_IMPORTER SOURCEU);
@@ -4669,19 +4599,13 @@ OPTIONS SYMBOLGEN;
             TITLE4 "NET PRICE CALCULATIONS AND PURCHASER/TIME/REGION ASSIGNMENTS FOR COHENS-D";
         RUN;
 
-    **********************************************************************;
-    **  US-13-C. Calculate Information Using Comparable Merchandise        **;
-    **             Criteria for Cohens-D.                                    **;
-    **********************************************************************;
+    /***************************************************************/
+    /* US-13-C. Calculate Information Using Comparable Merchandise */
+    /*          Criteria for Cohens-D.                             */
+    /***************************************************************/
 
-    PROC SORT DATA = DPSALES (KEEP = &USMANF &USPRIM USLOT &USCONNUM DP_NETPRI 
-                                     &USQTY DP_REGION DP_PURCHASER DP_PERIOD DP_COUNT)
-              OUT = DPSALES;
-           BY &USMANF &USPRIM USLOT &USCONNUM;
-    RUN;
-
-    PROC MEANS DATA = DPSALES VARDEF = WEIGHT NOPRINT;
-        BY &USMANF &USPRIM USLOT &USCONNUM;
+    PROC MEANS NWAY DATA = DPSALES VARDEF = WEIGHT NOPRINT;
+        CLASS &USMANF &USPRIM USLOT &USCONNUM;
         VAR DP_NETPRI;
         WEIGHT &USQTY;
         OUTPUT OUT = DPCONNUM (DROP = _:)
@@ -4694,15 +4618,15 @@ OPTIONS SYMBOLGEN;
                STD = STD_CONNUM_PRICE;
     RUN;
 
-    PROC PRINT DATA = DPCONNUM (OBS=&PRINTOBS) SPLIT="*";
-        LABEL    &USCONNUM="CONTROL NUMBER"
-                TOTAL_CONNUM_OBS="NUMBER*  OF  *OBSERVATIONS" 
-                TOTAL_CONNUM_QTY="  TOTAL *QUANTITY"
-                TOTAL_CONNUM_VALUE=" TOTAL *VALUE "
-                AVG_CONNUM_PRICE="AVERAGE*PRICE "
-                MIN_CONNUM_PRICE="LOWEST*PRICE "
-                MAX_CONNUM_PRICE="HIGHEST*PRICE "
-                STD_CONNUM_PRICE="STANDARD*DEVIATION*IN PRICE";
+    PROC PRINT DATA = DPCONNUM (OBS = &PRINTOBS) SPLIT = "*";
+        LABEL &USCONNUM = "CONTROL NUMBER"
+              TOTAL_CONNUM_OBS = "NUMBER*  OF  *OBSERVATIONS" 
+              TOTAL_CONNUM_QTY = "  TOTAL *QUANTITY"
+              TOTAL_CONNUM_VALUE = " TOTAL *VALUE "
+              AVG_CONNUM_PRICE = "AVERAGE*PRICE "
+              MIN_CONNUM_PRICE = "LOWEST*PRICE "
+              MAX_CONNUM_PRICE = "HIGHEST*PRICE "
+              STD_CONNUM_PRICE = "STANDARD*DEVIATION*IN PRICE";
         BY &USMANF &USPRIM USLOT;
         ID &USMANF &USPRIM USLOT;
         SUM TOTAL_CONNUM_QTY TOTAL_CONNUM_VALUE;
@@ -4747,18 +4671,14 @@ OPTIONS SYMBOLGEN;
                 TITLE4 "SAMPLE OF SALES FOR WHICH THERE IS NO DESIGNATION FOR &DP_GROUP, SAMPLE OF &PRINTOBS" ;
             RUN;
 
-            ******************************************************;
-            **  US-13-D-ii-b. Calculate test group information. **;
-            ******************************************************;
+            /***************************************************/
+            /* US-13-D-ii-b. Calculate test group information. */
+            /***************************************************/
 
             TITLE4 "&TITLE4";
 
-            PROC SORT DATA = DPSALES_TEST OUT = DPSALES_TEST;
-                   BY &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP;
-            RUN;
-
-            PROC MEANS DATA = DPSALES_TEST VARDEF = WEIGHT NOPRINT;
-                BY &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP;
+            PROC MEANS NWAY DATA = DPSALES_TEST VARDEF = WEIGHT NOPRINT;
+                CLASS &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP;
                 VAR DP_NETPRI;
                 WEIGHT &USQTY;
                 OUTPUT OUT = &DP_GROUP (DROP = _:)
@@ -4782,19 +4702,19 @@ OPTIONS SYMBOLGEN;
                 TITLE5 "CALCULATION OF TEST GROUP STATISTICS BY &DP_GROUP";
             RUN;
 
-            ******************************************************************;
-            **  US-13-D-ii-c. Attach overall control number information to     **;
-            **    each test group. Then separate base v. test group             **;
-            **    information re: value, quantity, observations, etc.  For     **;
-            **    example, if there are three purchasers (A,B and C), when     **;
-            **    purchaser A is in the test group, purchasers B and C will    **;
-            **    be the base/comparison group.                                **;
-            **                                                                **;
-            **    If there is no base group for a control number because all     **;
-            **    sales are to one purchaser, for example, (as evidenced by     **;
-            **    zero obs/quantity) then no Cohens-d coefficient will be     **;
-            **    calculated.                                                    **;
-            ******************************************************************;
+            /*****************************************************************/
+            /*  US-13-D-ii-c. Attach overall control number information to   */
+            /*    each test group. Then separate base v. test group          */
+            /*    information re: value, quantity, observations, etc.  For   */
+            /*    example, if there are three purchasers (A,B and C), when   */
+            /*    purchaser A is in the test group, purchasers B and C will  */
+            /*    be the base/comparison group.                              */
+            /*                                                               */
+            /*    If there is no base group for a control number because all */
+            /*    sales are to one purchaser, for example, (as evidenced by  */
+            /*    zero obs/quantity) then no Cohens-d coefficient will be    */
+            /*    calculated.                                                */
+            /*****************************************************************/
 
             DATA DPGROUP NO_BASE_GROUP;  
                 MERGE &DP_GROUP (IN=A) DPCONNUM (IN=B);
@@ -4868,28 +4788,24 @@ OPTIONS SYMBOLGEN;
                 END;
             RUN; 
 
-            ******************************************************************;
-            **  US-13-D-ii-e. Calculate the base group standard deviation.    **; 
-            ******************************************************************;
+            /**************************************************************/
+            /* US-13-D-ii-e. Calculate the base group standard deviation. */ 
+            /**************************************************************/
 
-            PROC SORT DATA = BASECALC OUT = BASECALC;
-                BY &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP;
-            RUN;
-
-            PROC MEANS DATA = BASECALC VARDEF = WEIGHT NOPRINT;
-                BY &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP;
+            PROC MEANS NWAY DATA = BASECALC VARDEF = WEIGHT NOPRINT;
+                CLASS &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP;
                 WEIGHT &USQTY;
                 VAR DP_NETPRI;
                 OUTPUT OUT = BASESTD (DROP = _:) STD = BASE_STD;
             RUN;
 
-            PROC PRINT DATA = BASESTD (OBS=&PRINTOBS) SPLIT="*";
+            PROC PRINT DATA = BASESTD (OBS = &PRINTOBS) SPLIT="*";
                 BY &USMANF &USPRIM USLOT &USCONNUM;
                 ID &USMANF &USPRIM USLOT &USCONNUM;
                 VAR &DP_GROUP BASE_STD;
-                LABEL     &USCONNUM="CONTROL NUMBER"
-                        &DP_GROUP="TEST GROUP*(&DP_GROUP.)"
-                        BASE_STD="STANDARD DEVIATION*IN PRICE*OF BASE GROUP";
+                LABEL &USCONNUM = "CONTROL NUMBER"
+                      &DP_GROUP = "TEST GROUP*(&DP_GROUP.)"
+                      BASE_STD = "STANDARD DEVIATION*IN PRICE*OF BASE GROUP";
                 TITLE5 "CALCULATION OF BASE GROUP STANDARD DEVIATIONS BY &DP_GROUP";
             RUN; 
 
@@ -4898,7 +4814,7 @@ OPTIONS SYMBOLGEN;
             RUN;
 
             DATA &DP_GROUP._RESULTS;
-                MERGE DPGROUP (IN=A) BASESTD (IN=B);
+                MERGE DPGROUP (IN = A) BASESTD (IN = B);
                 BY &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP;
                 IF A & B;
 
@@ -5243,7 +5159,7 @@ OPTIONS SYMBOLGEN;
             VAR USNETPRI USPACK USCOMM USCREDIT USDIRSELL
                 CEPOFFSET COMOFFSET;
             WEIGHT &USQTY;
-            OUTPUT OUT=USAVG (DROP = _:) MEAN = &NAMES;
+            OUTPUT OUT = USAVG (DROP = _:) MEAN = &NAMES;
         RUN;
 
         DATA USNETPR;
@@ -6236,12 +6152,8 @@ OPTIONS SYMBOLGEN;
         /*----------------------------------------------------------*/
 
         %MACRO CALC_ASSESS(INDATA, CTYPE, CALC_TYPE);
-            PROC SORT DATA = SUMMARG_&INDATA OUT = SUMMARG_&INDATA;
-                BY US_IMPORTER SOURCEU;
-            RUN;
-
-            PROC MEANS DATA = SUMMARG_&INDATA NOPRINT;
-                BY US_IMPORTER SOURCEU;
+            PROC MEANS NWAY DATA = SUMMARG_&INDATA NOPRINT;
+                CLASS US_IMPORTER SOURCEU;
                 VAR ENTERED_VALUE;
                 WEIGHT &USQTY;
                 OUTPUT OUT = ENTVAL_&INDATA (DROP = _:)
@@ -6253,8 +6165,8 @@ OPTIONS SYMBOLGEN;
             /*         results.                                     */
             /*------------------------------------------------------*/
 
-            PROC MEANS DATA = SUMMARG_&INDATA NOPRINT;
-                BY US_IMPORTER SOURCEU;
+            PROC MEANS NWAY DATA = SUMMARG_&INDATA NOPRINT;
+                CLASS US_IMPORTER SOURCEU;
                 WHERE EMARGIN GT 0;
                 VAR EMARGIN;
                 OUTPUT OUT = POSMARG_IMPORTER_&INDATA (DROP = _:)
@@ -6266,8 +6178,8 @@ OPTIONS SYMBOLGEN;
             /*          results.                                 */
             /*---------------------------------------------------*/
 
-            PROC MEANS DATA = SUMMARG_&INDATA NOPRINT;
-                BY US_IMPORTER SOURCEU;
+            PROC MEANS NWAY DATA = SUMMARG_&INDATA NOPRINT;
+                CLASS US_IMPORTER SOURCEU;
                 WHERE EMARGIN LT 0;
                 VAR EMARGIN;
                 OUTPUT OUT = NEGMARG_IMPORTER_&INDATA (DROP = _:)
@@ -6348,12 +6260,8 @@ OPTIONS SYMBOLGEN;
                SET ASSESS_IMPCSTN ASSESS_IMPCTRN;
             RUN;
 
-            PROC SORT DATA = ASSESS_MIXED_ALL OUT = ASSESS_MIXED_ALL;
-                BY US_IMPORTER SOURCEU;
-            RUN;
-
-            PROC MEANS DATA = ASSESS_MIXED_ALL NOPRINT;
-                BY US_IMPORTER SOURCEU;
+            PROC MEANS NWAY DATA = ASSESS_MIXED_ALL NOPRINT;
+                CLASS US_IMPORTER SOURCEU;
                 VAR SALES ITOTQTY ITENTVAL IPOSRESULTS INEGRESULTS 
                     ITOTRESULTS;
                 OUTPUT OUT = ASSESS_MIXED_SUM (DROP = _:) 

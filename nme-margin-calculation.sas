@@ -2,7 +2,7 @@
 /*                                                              */
 /*              NME MARGIN CALCULATION PROGRAM                  */
 /*                                                              */
-/*        GENERIC VERSION LAST UPDATED - DECEMBER 27, 2019      */
+/*         GENERIC VERSION LAST UPDATED - APRIL 2, 2020         */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */
@@ -171,14 +171,14 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* USSALEDATE will be used to capture all U.S. sales within the date */
 /* range specified by the macro variables BEGINDAY and ENDAY.        */
 /*                                                                   */
-/* DATEBEFORESALE and EARLIERDATE:                                   */
+/* USDATEBEFORESALE and USEARLIERDATE:                               */
 /*                                                                   */
 /* If there are reported dates before the sale date and you want     */
 /* the earlier dates to be assigned to sale date, define the macro   */
-/* variable DATEBEFORESALE to 'YES' and assign the variable with     */
-/* earlier dates to the macro variable EARLIERDATE (ex. SHIPDATE).   */
-/* Otherwise define the macro variable DATEBEFORESALE to 'NO' and    */
-/* ignore the macro variable EARLIERDATE.                            */
+/* variable USDATEBEFORESALE to 'YES' and assign the variable with   */
+/* earlier dates to the macro variable USEARLIERDATE (ex. SHIPDATE). */
+/* Otherwise define the macro variable USDATEBEFORESALE to 'NO' and  */
+/* ignore the macro variable USEARLIERDATE.                          */
 /*                                                                   */
 /* BEGINDAY and ENDDAY:                                              */
 /*                                                                   */
@@ -201,7 +201,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 
 %LET USSALEDATE = <        >;       /* (V) Variable representing the */
                                     /*     U.S. sale date.           */
-%LET DATEBEFORESALE = <YES/NO>;     /* (T) Adjust sale date based on */
+%LET USDATEBEFORESALE = <YES/NO>;   /* (T) Adjust sale date based on */
                                     /*     an earlier date variable? */
                                     /*     Type 'YES' (no quotes) to */
                                     /*     adjust the sale date, or  */
@@ -960,11 +960,12 @@ OPTIONS MINOPERATOR;                       /* MINOPERATOR IS REQUIRED WHEN USING
 DATA USSALES;
     SET COMPANY.&USDATA;
     USOBS = _N_;
+    &USSALEDATE = FLOOR(&USSALEDATE); /* Eliminates the time part of sale date when defined as a datetime variable. */
 
     /* Selectively adjust sale date based */
     /* on an earlier date variable.       */
 
-    %DEFINE_SALE_DATE (SALEDATE = &USSALEDATE);
+    %DEFINE_SALE_DATE (SALEDATE = &USSALEDATE, DATEBEFORESALE = &USDATEBEFORESALE, EARLIERDATE = &USEARLIERDATE); 
 
     /* <Insert changes here, if required.> */
 
@@ -1423,7 +1424,6 @@ RUN;
 /*----------------------------------------*/
 
 %MACRO ENTVALUE;
-
     %IF %UPCASE(&CASE_TYPE) = AR %THEN
     %DO;        
 
@@ -1470,8 +1470,8 @@ RUN;
             BY US_IMPORTER SALEU SOURCEDATA;
             VAR ENTERED_VALUE;
             WEIGHT &USQTY;
-            OUTPUT OUT = IMPDATA (DROP=_FREQ_ _TYPE_)
-                         N=SALES SUMWGT=TOTQTY SUM=TOTEVALU;
+            OUTPUT OUT = IMPDATA (DROP = _:)
+                   N = SALES SUMWGT = TOTQTY SUM = TOTEVALU;
         RUN;
 
         DATA SOURCECHK (KEEP = US_IMPORTER SOURCEU);
@@ -1479,57 +1479,55 @@ RUN;
             RETAIN SOURCEU;
             BY US_IMPORTER;
     
-            IF FIRST.US_IMPORTER
-            THEN SOURCEU = SOURCEDATA;
+            IF FIRST.US_IMPORTER THEN 
+                SOURCEU = SOURCEDATA;
     
-            IF SOURCEU NE SOURCEDATA
-            THEN SOURCEU = 'MIXED';
+            IF SOURCEU NE SOURCEDATA THEN
+                SOURCEU = 'MIXED';
 
-            IF LAST.US_IMPORTER
-            THEN OUTPUT SOURCECHK;
+            IF LAST.US_IMPORTER THEN
+                OUTPUT SOURCECHK;
         RUN;
 
-        PROC SORT DATA = SOURCECHK;
+        PROC SORT DATA = SOURCECHK OUT = SOURCECHK;
             BY US_IMPORTER;
         RUN;
 
         DATA IMPDATA;
-            MERGE IMPDATA (IN=A) SOURCECHK (IN=B);
+            MERGE IMPDATA (IN = A) SOURCECHK (IN = B);
             BY US_IMPORTER;
-            IF A & B
-            THEN OUTPUT IMPDATA;
+            IF A & B THEN
+                OUTPUT IMPDATA;
         RUN;
 
-        PROC PRINT DATA = IMPDATA (OBS = &PRINTOBS) SPLIT='*';
+        PROC PRINT DATA = IMPDATA (OBS = &PRINTOBS) SPLIT = '*';
             BY US_IMPORTER;
             ID US_IMPORTER;
             SUMBY US_IMPORTER;
             SUM SALES TOTQTY TOTEVALU;
             VAR SALEU SOURCEDATA SOURCEU SALES TOTQTY TOTEVALU;
             FORMAT SALES COMMA10. TOTQTY TOTEVALU COMMA16.2;
-            LABEL    US_IMPORTER   = 'U.S. IMPORTER(S)*================'
-                    SALEU          = 'TYPE OF *U.S. SALES*=========='
-                    SOURCEDATA = 'ORIGINAL *SOURCE DATA*==========='
-                    SOURCEU    = 'CUSTOMS VALUE*SOURCE DATA*============='
-                    SALES      = 'U.S. SALES*=========='
-                    TOTQTY     = 'U.S. QUANTITY*============='
-                    TOTEVALU   = 'CUSTOMS ENTERED VALUE*=====================';
-            TITLE3 'SOURCE OF CUSTOMS ENTERED VALUE DATA, BY IMPORTER';
+            LABEL US_IMPORTER = 'U.S. IMPORTER(S)*================'
+                  SALEU = 'TYPE OF *U.S. SALES*=========='
+                  SOURCEDATA = 'ORIGINAL *SOURCE DATA*==========='
+                  SOURCEU = 'CUSTOMS VALUE*SOURCE DATA*============='
+                  SALES = 'U.S. SALES*=========='
+                  TOTQTY = 'U.S. QUANTITY*============='
+                  TOTEVALU = 'CUSTOMS ENTERED VALUE*=====================';
+            TITLE3 "SOURCE OF CUSTOMS ENTERED VALUE DATA, BY IMPORTER";
         RUN; 
 
-        PROC SORT DATA = USPRICES;
+        PROC SORT DATA = USPRICES OUT = USPRICES;
             BY US_IMPORTER;
         RUN;
 
         DATA USPRICES;
-            MERGE USPRICES (IN=A) SOURCECHK (IN=B);
+            MERGE USPRICES (IN = A) SOURCECHK (IN = B);
             BY US_IMPORTER;
-            IF A & B
-            THEN OUTPUT USPRICES;
+            IF A AND B THEN
+                OUTPUT USPRICES;
         RUN;
-
     %END;
-
 %MEND ENTVALUE;
 
 %ENTVALUE
@@ -1747,7 +1745,7 @@ RUN;
         BY &USCONNUM;
         VAR DP_NETPRI;
         WEIGHT &USQTY;
-        OUTPUT OUT = DPCONNUM (DROP = _FREQ_ _TYPE_)
+        OUTPUT OUT = DPCONNUM (DROP = _:)
                N = TOTAL_CONNUM_OBS
                SUMWGT = TOTAL_CONNUM_QTY
                SUM = TOTAL_CONNUM_VALUE
@@ -1816,11 +1814,11 @@ RUN;
             BY &USCONNUM &DP_GROUP;
         RUN;
 
-        PROC MEANS DATA = DPSALES_TEST NOPRINT VARDEF = WEIGHT ;
+        PROC MEANS DATA = DPSALES_TEST NOPRINT VARDEF = WEIGHT;
             BY &USCONNUM &DP_GROUP;
             VAR DP_NETPRI;
             WEIGHT &USQTY;
-            OUTPUT OUT = &DP_GROUP (DROP = _FREQ_ _TYPE_)
+            OUTPUT OUT = &DP_GROUP (DROP = _:)
                    N = TEST_&DP_GROUP._OBS
                    SUMWGT = TEST_&DP_GROUP._QTY
                    SUM = TEST_&DP_GROUP._VALUE
@@ -1938,7 +1936,7 @@ RUN;
             CLASS &USCONNUM &DP_GROUP;
             WEIGHT &USQTY;
             VAR DP_NETPRI;
-            OUTPUT OUT = BASESTD (DROP = _FREQ_ _TYPE_) STD = BASE_STD;
+            OUTPUT OUT = BASESTD (DROP = _:) STD = BASE_STD;
         RUN;
 
         PROC PRINT DATA = BASESTD (OBS = &PRINTOBS) SPLIT = "*";
@@ -2107,14 +2105,14 @@ RUN;
     PROC MEANS NOPRINT DATA = DPSALES;
         VAR DP_NETPRI;
         WEIGHT &USQTY;
-        OUTPUT OUT = OVERALL (DROP = _FREQ_ _TYPE_) SUM = TOTAL_VALUE;
+        OUTPUT OUT = OVERALL (DROP = _:) SUM = TOTAL_VALUE;
     RUN;
 
     PROC MEANS NOPRINT DATA = DPSALES;
       WHERE COHENS_D_PASS = "Yes";
       VAR DP_NETPRI;
       WEIGHT &USQTY;
-      OUTPUT OUT = PASS (DROP = _FREQ_ _TYPE_) SUM = PASS_VALUE;
+      OUTPUT OUT = PASS (DROP = _:) SUM = PASS_VALUE;
     RUN;
 
     DATA OVERALL_DPRESULTS;
@@ -2175,18 +2173,18 @@ RUN;
 /* PART 12: WEIGHT AVERAGE U.S. SALES */
 /*------------------------------------*/
 
-/*---------------------------------------------------------------------------*/
-/*    Weight-average U.S. prices and adjustments and merge averaged data         */
-/*    back onto the single-transaction database. The averaged variables will     */
-/*    have the same names as the un-averaged ones, but with a suffix added.     */
-/*    For the Standard Methodology, the suffix will be "_MEAN." For the         */
+/*-----------------------------------------------------------------------------*/
+/*    Weight-average U.S. prices and adjustments and merge averaged data       */
+/*    back onto the single-transaction database. The averaged variables will   */
+/*    have the same names as the un-averaged ones, but with a suffix added.    */
+/*    For the Standard Methodology, the suffix will be "_MEAN." For the        */
 /*    Mixed Alternative Methodology, the suffix will be "_MIXED." For example, */
 /*    the averaged versions of USNETPRI will be USNETPRI_MEAN for the          */
-/*    Standard Methodology and USNETPRI_MIXED for the Mixed Alternative          */
+/*    Standard Methodology and USNETPRI_MIXED for the Mixed Alternative        */
 /*    Methodology. Both the single-transaction and weight-averaged values      */
-/*    will be in the data.  In the RESULTS macro below, the appropriate          */
+/*    will be in the data.  In the RESULTS macro below, the appropriate        */
 /*    selection of the weight-averaged v single-transaction values will occur. */
-/*---------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------*/
 
 /*----------------------------------------------*/
 /* WEIGHT AVERAGING OF U.S. SALES DATA          */
@@ -2287,9 +2285,9 @@ RUN;
         SELECT USPRICES;
     QUIT;
 
-    /*--------------------------------------------------------------*/
-    /*    Keep variables required for rest of calculations.            */
-    /*--------------------------------------------------------------*/
+    /*---------------------------------------------------*/
+    /* Keep variables required for rest of calculations. */
+    /*---------------------------------------------------*/
 
     PROC SORT DATA = USPRICES 
         (KEEP =  USOBS &USMON SALEU &USCONNUM &USQTY USNETPRI NV
@@ -2298,84 +2296,85 @@ RUN;
         BY SALEU &USCONNUM &AR_BY_VARS &COHENS_D_PASS;
     RUN;
 
-    /*------------------------------------------------------------------*/
-    /*    Weight-average U.S. prices and adjustments. The averaged         */
-    /*    variables for the Standard Method with have "_MEAN" added         */
-    /*    to the end of their original names as a suffix.                 */
-    /*                                                                    */
-    /*    When the Mixed Alternative Method is employed, an extra            */
-    /*    weight-averaging will be done that additionally includes the     */
-    /*    COHENS_D_PASS variable in the BY statement.  This will allow     */
-    /*    sales not passing the Cohen's d Test to be weight-averaged         */
-    /*    separately from those that did pass. Weight-averaged amounts     */
-    /*    will have "_MIXED" added to the end of their original names.    */
-    /*------------------------------------------------------------------*/
+    /*--------------------------------------------------------------*/
+    /* Weight-average U.S. prices and adjustments. The averaged     */
+    /* variables for the Standard Method with have "_MEAN" added    */
+    /* to the end of their original names as a suffix.              */
+    /*                                                              */
+    /* When the Mixed Alternative Method is employed, an extra      */
+    /* weight-averaging will be done that additionally includes the */
+    /* COHENS_D_PASS variable in the BY statement.  This will allow */
+    /* sales not passing the Cohen's d Test to be weight-averaged   */
+    /* separately from those that did pass. Weight-averaged amounts */
+    /* will have "_MIXED" added to the end of their original names. */
+    /*--------------------------------------------------------------*/
 
     %MACRO WEIGHT_AVERAGE(NAMES,DP_BYVAR);
-
         PROC MEANS NOPRINT DATA = USNETPR;
             BY SALEU &USCONNUM &AR_BY_VARS &DP_BYVAR;
             VAR USNETPRI;
             WEIGHT &USQTY;
-            OUTPUT OUT=USAVG (DROP=_FREQ_ _TYPE_) MEAN = &NAMES;
+            OUTPUT OUT = USAVG (DROP = _:) MEAN = &NAMES;
         RUN;
 
         DATA USNETPR;
-            MERGE USNETPR (IN=A) USAVG (IN=B);
+            MERGE USNETPR USAVG;
             BY SALEU &USCONNUM &AR_BY_VARS &DP_BYVAR;
         RUN;
-
     %MEND WEIGHT_AVERAGE;
 
-        /*------------------------------------------------------*/
-        /*    Execute WEIGHT_AVERAGE macro for Cash Deposit Rate    */
-        /*------------------------------------------------------*/
+    /*----------------------------------------------------*/
+    /* Execute WEIGHT_AVERAGE macro for Cash Deposit Rate */
+    /*----------------------------------------------------*/
 
-        %IF &CASH_DEPOSIT_DONE = NO  %THEN
+    %LET TITLE5 = "AVERAGED VARIABLES ENDING IN '_MEAN' TO BE USED WITH THE STANDARD METHOD";
+    %LET TITLE6 =;
+
+    %IF &CASH_DEPOSIT_DONE = NO  %THEN
+    %DO;
+        %LET TITLE5 =;
+        %LET TITLE6 =;
+        %WEIGHT_AVERAGE(/AUTONAME, )
+    
+        %IF &CALC_METHOD = MIXED %THEN
+        %DO;
+                %LET TITLE5 = "AVERAGED VARIABLES ENDING IN '_MEAN' TO BE USED WITH THE STANDARD METHOD"; 
+                %LET TITLE6 = "THOSE ENDING IN '_MIXED' WITH SALES NOT PASSING COHEN'S D WITH THE MIXED ALTERNATIVE METHOD.";
+                %WEIGHT_AVERAGE(USNETPRI_MIXED, COHENS_D_PASS)
+        %END;
+    %END;
+
+    /*---------------------------------------------*/
+    /* Execute WEIGHT_AVERAGE macro for Assessment */
+    /*---------------------------------------------*/
+
+    %IF &CASH_DEPOSIT_DONE = YES  %THEN
+    %DO;
+        /*-------------------------------------------------*/
+        /* Weight-average variables for assessments        */
+        /* using the Standard Method only if the Standard- */
+        /* Method Cash Deposit rate is above de minimis.   */
+        /*-------------------------------------------------*/
+
+        %IF &ABOVE_DEMINIMIS_STND = YES %THEN
         %DO;
             %LET TITLE5 =;
             %LET TITLE6 =;
             %WEIGHT_AVERAGE(/AUTONAME, )
-    
-            %IF &CALC_METHOD = MIXED %THEN
-            %DO;
-                    %LET TITLE5 = "AVERAGED VARIABLES ENDING IN '_MEAN' TO BE USED WITH THE STANDARD METHOD"; 
-                    %LET TITLE6 = "THOSE ENDING IN '_MIXED' WITH SALES NOT PASSING COHEN'S D WITH THE MIXED ALTERNATIVE METHOD.";
-                    %WEIGHT_AVERAGE(USNETPRI_MIXED,COHENS_D_PASS)
-            %END;
         %END;
 
-        /*------------------------------------------------------*/
-        /*    Execute WEIGHT_AVERAGE macro for Assessment            */
-        /*------------------------------------------------------*/
-
-        %IF &CASH_DEPOSIT_DONE = YES  %THEN
+        /*--------------------------------------------------*/
+        /* Weight-average variables for assessments         */
+        /* using the Mixed Alternative Method, if required. */
+        /*--------------------------------------------------*/
+    
+        %IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
         %DO;
-
-            /*----------------------------------------------------------*/
-            /*    Weight-average variables for assessments                  */
-            /*    using the Standard Method only if the Standard-             */
-            /*    Method Cash Deposit rate is above de minimis.            */
-            /*----------------------------------------------------------*/
-            %IF &ABOVE_DEMINIMIS_STND = YES %THEN
-            %DO;
-                %LET TITLE5 =;
-                %LET TITLE6 =;
-                %WEIGHT_AVERAGE(/AUTONAME, )
-            %END;
-
-            /*----------------------------------------------------------*/
-            /*    Weight-average variables for assessments                  */
-            /*    using the Mixed Alternative Method, if required.        */
-            /*----------------------------------------------------------*/
-    
-            %IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
-            %DO;
-                    %LET TITLE5 = "AVERAGED VARIABLES ENDING IN '_MEAN' TO BE USED WITH THE STANDARD METHOD"; 
-                    %LET TITLE6 = "THOSE ENDING IN '_MIXED' WITH SALES NOT PASSING COHEN'S D WITH THE MIXED ALTERNATIVE METHOD.";
-                    %WEIGHT_AVERAGE(USNETPRI_MIXED,COHENS_D_PASS)
-            %END;
+            %LET TITLE5 = "AVERAGED VARIABLES ENDING IN '_MEAN' TO BE USED WITH THE STANDARD METHOD"; 
+            %LET TITLE6 = "THOSE ENDING IN '_MIXED' WITH SALES NOT PASSING COHEN'S D WITH THE MIXED ALTERNATIVE METHOD.";
+            %WEIGHT_AVERAGE(USNETPRI_MIXED, COHENS_D_PASS)
         %END;
+    %END;
 
     PROC PRINT DATA = USNETPR (OBS=&PRINTOBS);
         TITLE3 'SAMPLE OF WEIGHT-AVERAGED VALUES MERGED WITH SINGLE-TRANSACTION U.S. DATA';
@@ -2383,21 +2382,19 @@ RUN;
         TITLE5 &TITLE5;
         TITLE6 &TITLE6;
     RUN;
-
 %MEND WT_AVG_DATA;
 
 %WT_AVG_DATA
 
 /*ep*/
 
-/***************************************************************************/
-/* DATA COUNT FOR LOG REPORTING PURPOSE                            */
-/***************************************************************************/
+/****************************************/
+/* DATA COUNT FOR LOG REPORTING PURPOSE */
+/****************************************/
 
-%CMAC2_COUNTER (DATASET = USPRICES, MVAR=USPRICES);
+%CMAC2_COUNTER (DATASET = USPRICES, MVAR = USPRICES);
 
 /*ep*/
-
 
 /*-----------------------------*/
 /* PART 13: COMPARISON RESULTS */
@@ -2547,108 +2544,104 @@ RUN;
             TITLE5 &TITLE5;
         RUN;
 
-    /*--------------------------------------------------------------*/
-    /*        Keep variables needed for remaining calculations and    */
-    /*        put them in the database SUMMARG_<OUTDATA>.    The         */
-    /*        SUMMARG_<OUTDATA> dataset does not contain any            */
-    /*        offsetting information.    <OUTDATA> will be as follows    */
-    /*                                                                */
-    /*        AVGMARG:  Cash Deposit, Standard Method                    */
-    /*        AVGMIXED: Cash Deposit, sales not passing Cohen's d for    */
-    /*                  Mixed Alternative Method                        */
-    /*        TRNMIXED: Cash Deposit, sales passing Cohen's d for        */    
-    /*                  Mixed Alternative Method                        */
-    /*        TRANMARG: Cash Deposit, A-to-T Alternative Method        */
-    /*                                                                */
-    /*        IMPSTND:  Assessment, Standard Method                    */
-    /*        IMPCSTN:  Assessment, sales not passing Cohen's d for    */
-    /*                  Mixed Alternative Method                        */    
-    /*        IMPCTRN:  Assessment, sales passing Cohen's d for Mixed    */    
-    /*                  Alternative Method                            */
-    /*        IMPTRAN:  Assessment, A-to-T Alternative Method            */
-    /*--------------------------------------------------------------*/
+       /*---------------------------------------------------------*/
+       /* Keep variables needed for remaining calculations and    */
+       /* put them in the database SUMMARG_<OUTDATA>.    The      */
+       /* SUMMARG_<OUTDATA> dataset does not contain any          */
+       /* offsetting information.    <OUTDATA> will be as follows */
+       /*                                                         */
+       /* AVGMARG:  Cash Deposit, Standard Method                 */
+       /* AVGMIXED: Cash Deposit, sales not passing Cohen's d for */
+       /*           Mixed Alternative Method                      */
+       /* TRNMIXED: Cash Deposit, sales passing Cohen's d for     */    
+       /*           Mixed Alternative Method                      */
+       /* TRANMARG: Cash Deposit, A-to-T Alternative Method       */
+       /*                                                         */
+       /* IMPSTND:  Assessment, Standard Method                   */
+       /* IMPCSTN:  Assessment, sales not passing Cohen's d for   */
+       /*           Mixed Alternative Method                      */    
+       /* IMPCTRN:  Assessment, sales passing Cohen's d for Mixed */    
+       /*           Alternative Method                            */
+       /* IMPTRAN:  Assessment, A-to-T Alternative Method         */
+       /*---------------------------------------------------------*/
 
         PROC SORT DATA = COMPANY.&RESPONDENT._&SEGMENT._&STAGE._&OUTDATA 
             OUT = SUMMARG_&OUTDATA 
-            (KEEP =    USOBS &USCONNUM &AR_BY_VARS NV
+            (KEEP = USOBS &USCONNUM &AR_BY_VARS NV
                     &USQTY USNETPRI&SUFFIX USVALUE PCTMARG  
                     EMARGIN UMARGIN SALEU &AR_VARS &COHENS_D_PASS);
             BY SALEU DESCENDING PCTMARG;
         RUN;
-
     %MEND CALC_RESULTS;
 
-    /*----------------------------------------------------------*/
-    /*    Execute the CALC_RESULTS macro for the appropriate        */
-    /*    scenario(s).                                            */
-    /*----------------------------------------------------------*/
+    /*----------------------------------------------------*/
+    /* Execute the CALC_RESULTS macro for the appropriate */
+    /* scenario(s).                                       */
+    /*----------------------------------------------------*/
 
-        /*--------------------------------------------------------------*/
-        /*    Cash deposit calculations.                                    */
-        /*                                                                */
-        /*    In all cases, the CALC_RESULTS macro will be executed using    */
-        /*    the Standard Method and the A-to-T Alternative                 */
-        /*    Method for the Cash Deposit Rate.  If there is a             */
-        /*    mixture of sales pass and not passing Cohen's d, then the     */
-        /*    CALC_RESULTS macro will be executed a third time using the     */
-        /*    Mixed Alternative Method.                                    */ 
-        /*                                                                */
-        /*    The ABOVE_DEMINIMIS_STND, ABOVE_DEMINIMIS_MIXED and         */
-        /*    ABOVE_DEMINIMIS_ALT macro variables were set to "NO" by        */
-        /*    default above in US13.  They remains "NO" through the         */
-        /*    calculation of the Cash Deposit rate(s). If a particular    */
-        /*    Cash Deposit rate is above de minimis, its attendant macro     */
-        /*    variable gets changed to "YES" to allow for its assessment  */
-        /*    calculation in reviews in Sect 15-E-ii below.                 */
-        /*                                                                */
-        /*    If the Mixed Alternative Method is not being                 */
-        /*    calculated because all sales either did or did not pass the */
-        /*    Cohen's d Test, then ABOVE_DEMINIMIS_MIXED is set to "NA".    */
-        /*--------------------------------------------------------------*/
+    /*----------------------------------------------------------------*/
+    /*    Cash deposit calculations.                                  */
+    /*                                                                */
+    /*    In all cases, the CALC_RESULTS macro will be executed using */
+    /*    the Standard Method and the A-to-T Alternative              */
+    /*    Method for the Cash Deposit Rate.  If there is a            */
+    /*    mixture of sales pass and not passing Cohen's d, then the   */
+    /*    CALC_RESULTS macro will be executed a third time using the  */
+    /*    Mixed Alternative Method.                                   */ 
+    /*                                                                */
+    /*    The ABOVE_DEMINIMIS_STND, ABOVE_DEMINIMIS_MIXED and         */
+    /*    ABOVE_DEMINIMIS_ALT macro variables were set to "NO" by     */
+    /*    default above in US13.  They remains "NO" through the       */
+    /*    calculation of the Cash Deposit rate(s). If a particular    */
+    /*    Cash Deposit rate is above de minimis, its attendant macro  */
+    /*    variable gets changed to "YES" to allow for its assessment  */
+    /*    calculation in reviews in Sect 15-E-ii below.               */
+    /*                                                                */
+    /*    If the Mixed Alternative Method is not being                */
+    /*    calculated because all sales either did or did not pass the */
+    /*    Cohen's d Test, then ABOVE_DEMINIMIS_MIXED is set to "NA".  */
+    /*----------------------------------------------------------------*/
 
-        %IF &CASH_DEPOSIT_DONE = NO %THEN
+    %IF &CASH_DEPOSIT_DONE = NO %THEN
+    %DO;
+        %LET ASSESS_TITLE = ;
+        %CALC_RESULTS(STANDARD,STANDARD, ,AVGMARG,_MEAN)
+        %CALC_RESULTS(ALTERNATIVE,ALTERNATIVE, ,TRANMARG, )
+        %IF &CALC_METHOD = MIXED %THEN
         %DO;
-            %LET ASSESS_TITLE = ;
-            %CALC_RESULTS(STANDARD,STANDARD, ,AVGMARG,_MEAN)
-            %CALC_RESULTS(ALTERNATIVE,ALTERNATIVE, ,TRANMARG, )
-            %IF &CALC_METHOD = MIXED %THEN
+            %CALC_RESULTS(STANDARD,MIXED, ,AVGMIXED,_MIXED)
+            %CALC_RESULTS(ALTERNATIVE,MIXED, ,TRNMIXED, )
+        %END;
+    %END;
+
+    /*-------------------------------------------------------*/
+    /* Assessment Calculations (Reviews Only).               */
+    /*                                                       */
+    /* For each Method for which its Cash Deposit rate is    */
+    /* above de minimis, calculate information for importer- */
+    /* specific assessment rates.                            */
+    /*-------------------------------------------------------*/
+
+    %IF %UPCASE(&CASE_TYPE) = AR %THEN
+    %DO;
+        %IF &CASH_DEPOSIT_DONE = YES %THEN
+        %DO;
+            %LET ASSESS_TITLE = "IMPORTER-SPECIFIC CALCULATIONS FOR ASSESSMENT PURPOSES";
+            %IF &ABOVE_DEMINIMIS_STND = YES %THEN
             %DO;
-                %CALC_RESULTS(STANDARD,MIXED, ,AVGMIXED,_MIXED)
-                %CALC_RESULTS(ALTERNATIVE,MIXED, ,TRNMIXED, )
+                %CALC_RESULTS(STANDARD,STANDARD,IMPORTER,IMPSTND,_MEAN)
+            %END;
+            %IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
+            %DO;
+                %CALC_RESULTS(STANDARD,MIXED,IMPORTER,IMPCSTN,_MIXED)
+                %CALC_RESULTS(ALTERNATIVE,MIXED,IMPORTER,IMPCTRN, )
+            %END;
+            %IF &ABOVE_DEMINIMIS_ALT = YES %THEN
+            %DO;
+                %CALC_RESULTS(ALTERNATIVE,ALTERNATIVE,IMPORTER,IMPTRAN, )
             %END;
         %END;
-
-        /*--------------------------------------------------------------*/
-        /*    Assessment Calculations (Reviews Only).                        */
-        /*                                                                */
-        /*    For each Method for which its Cash Deposit rate is             */
-        /*    above de minimis, calculate information for importer-        */
-        /*    specific assessment rates.                                     */
-        /*--------------------------------------------------------------*/
-
-        %IF %UPCASE(&CASE_TYPE)= AR %THEN
-        %DO;
-
-            %IF &CASH_DEPOSIT_DONE = YES %THEN
-            %DO;
-                %LET ASSESS_TITLE = "IMPORTER-SPECIFIC CALCULATIONS FOR ASSESSMENT PURPOSES";
-                %IF &ABOVE_DEMINIMIS_STND = YES %THEN
-                %DO;
-                    %CALC_RESULTS(STANDARD,STANDARD,IMPORTER,IMPSTND,_MEAN)
-                %END;
-                %IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
-                %DO;
-                    %CALC_RESULTS(STANDARD,MIXED,IMPORTER,IMPCSTN,_MIXED)
-                    %CALC_RESULTS(ALTERNATIVE,MIXED,IMPORTER,IMPCTRN, )
-                %END;
-                %IF &ABOVE_DEMINIMIS_ALT = YES %THEN
-                %DO;
-                    %CALC_RESULTS(ALTERNATIVE,ALTERNATIVE,IMPORTER,IMPTRAN, )
-                %END;
-            %END;
-
-        %END;
-
+    %END;
 %MEND RESULTS; 
 
 %RESULTS
@@ -2683,17 +2676,18 @@ RUN;
         TITLE4 "SAMPLE OF POSITIVE COMPARISON RESULTS COMPARED TO THE PETITION RATE";
         TITLE4 "USING THE &TITLE4 METHOD";
     RUN;
+
     PROC MEANS NOPRINT DATA = POSCORROB_&OUTDATA;
         ID PERCENT;
         BY FLAG;
         VAR USVALUE &USQTY;
-        OUTPUT OUT = CORROB_&OUTDATA (DROP = _FREQ_ _TYPE_)
+        OUTPUT OUT = CORROB_&OUTDATA (DROP = _:)
                SUM = TOTFLAGVAL TOTFLAGQTY N = TOTMODS;
     RUN;
 
     PROC MEANS NOPRINT DATA = POSCORROB_&OUTDATA;
         VAR USVALUE &USQTY;
-        OUTPUT OUT = CORROB1_&OUTDATA (DROP = _FREQ_ _TYPE_)
+        OUTPUT OUT = CORROB1_&OUTDATA (DROP = _:)
                SUM = SUMVAL SUMQTY N = SUMMODS;
     RUN;
 
@@ -2743,81 +2737,81 @@ RUN;
 %MACRO PRINT_HIGH_LOW;
     %MACRO HIGH_LOW(OUTDATA, SUFFIX, TITLE4);
 
-    /*----------------------------------------------*/
-    /* PRINT SAMPLES OF HIGHEST COMPARISON RESULTS. */
-    /*----------------------------------------------*/
+        /*----------------------------------------------*/
+        /* PRINT SAMPLES OF HIGHEST COMPARISON RESULTS. */
+        /*----------------------------------------------*/
 
-    PROC SORT DATA = SUMMARG_&OUTDATA OUT = SUMMARG_&OUTDATA;
-        BY SALEU DESCENDING PCTMARG;
-    RUN;
+        PROC SORT DATA = SUMMARG_&OUTDATA OUT = SUMMARG_&OUTDATA;
+            BY SALEU DESCENDING PCTMARG;
+        RUN;
 
-    DATA HIGHEST_SAMPLE_&OUTDATA;
-        SET SUMMARG_&OUTDATA;
-           BY SALEU;
-        RETAIN HIGHNUM;
-           DROP HIGHNUM;
+        DATA HIGHEST_SAMPLE_&OUTDATA;
+            SET SUMMARG_&OUTDATA;
+               BY SALEU;
+            RETAIN HIGHNUM;
+               DROP HIGHNUM;
         
-        IF FIRST.SALEU THEN
-            HIGHNUM = 1;
+            IF FIRST.SALEU THEN
+                HIGHNUM = 1;
 
-        IF (PCTMARG GT 0) AND (HIGHNUM LE &PRINTOBS) THEN
-        DO;
-               OUTPUT HIGHEST_SAMPLE_&OUTDATA;
-            HIGHNUM + 1;
-        END;
-    RUN;
+            IF (PCTMARG GT 0) AND (HIGHNUM LE &PRINTOBS) THEN
+            DO;
+                OUTPUT HIGHEST_SAMPLE_&OUTDATA;
+                HIGHNUM + 1;
+            END;
+        RUN;
 
-    PROC PRINT DATA = HIGHEST_SAMPLE_&OUTDATA;
-           BY SALEU;
-        VAR USOBS &USCONNUM &AR_BY_VARS NV 
+        PROC PRINT DATA = HIGHEST_SAMPLE_&OUTDATA;
+            BY SALEU;
+            VAR USOBS &USCONNUM &AR_BY_VARS NV 
 
-        %IF &OUTDATA = MIXED %THEN
-        %DO;
-            USNETPRI
-        %END;
+            %IF &OUTDATA = MIXED %THEN
+            %DO;
+                USNETPRI
+            %END;
 
-            USNETPRI&SUFFIX UMARGIN &USQTY EMARGIN USVALUE PCTMARG;
-           TITLE3 "SAMPLE OF HIGHEST COMPARISON RESULTS BY SALE TYPE";
-        TITLE4 "USING THE &TITLE4 METHOD";
-    RUN;
-    /*---------------------------------------------*/
-    /* PRINT SAMPLES OF LOWEST COMPARISON RESULTS. */
-    /*---------------------------------------------*/
+                USNETPRI&SUFFIX UMARGIN &USQTY EMARGIN USVALUE PCTMARG;
+            TITLE3 "SAMPLE OF HIGHEST COMPARISON RESULTS BY SALE TYPE";
+            TITLE4 "USING THE &TITLE4 METHOD";
+        RUN;
 
-    PROC SORT DATA = SUMMARG_&OUTDATA OUT = SUMMARG_&OUTDATA;
-           BY SALEU PCTMARG;
-    RUN;
+        /*---------------------------------------------*/
+        /* PRINT SAMPLES OF LOWEST COMPARISON RESULTS. */
+        /*---------------------------------------------*/
 
-    DATA LOWEST_SAMPLE_&OUTDATA;
-           SET SUMMARG_&OUTDATA;
-           BY SALEU;
-           RETAIN LOWNUM;
-           DROP LOWNUM;
+        PROC SORT DATA = SUMMARG_&OUTDATA OUT = SUMMARG_&OUTDATA;
+            BY SALEU PCTMARG;
+        RUN;
 
-        IF FIRST.SALEU THEN
-               LOWNUM = 1;
+        DATA LOWEST_SAMPLE_&OUTDATA;
+            SET SUMMARG_&OUTDATA;
+            BY SALEU;
+            RETAIN LOWNUM;
+            DROP LOWNUM;
 
-        IF LOWNUM LE &PRINTOBS THEN
-        DO;
-               OUTPUT LOWEST_SAMPLE_&OUTDATA;
-            LOWNUM + 1;
-           END;
-    RUN;
+            IF FIRST.SALEU THEN
+                LOWNUM = 1;
 
-    PROC PRINT DATA = LOWEST_SAMPLE_&OUTDATA;
-        VAR USOBS &USCONNUM &AR_BY_VARS NV 
+            IF LOWNUM LE &PRINTOBS THEN
+            DO;
+                OUTPUT LOWEST_SAMPLE_&OUTDATA;
+                LOWNUM + 1;
+            END;
+        RUN;
 
-        %IF &OUTDATA = MIXED %THEN
-        %DO;
-            USNETPRI
-        %END;
+        PROC PRINT DATA = LOWEST_SAMPLE_&OUTDATA;
+            BY SALEU;
+            VAR USOBS &USCONNUM &AR_BY_VARS NV 
 
-            USNETPRI&SUFFIX UMARGIN &USQTY EMARGIN USVALUE PCTMARG;
-           TITLE3 "SAMPLE OF LOWEST COMPARISON RESULTS BY SALE TYPE";
-        TITLE4 "USING THE &TITLE4 METHOD";
-           BY SALEU;
-    RUN;
+            %IF &OUTDATA = MIXED %THEN
+            %DO;
+                USNETPRI
+            %END;
 
+                USNETPRI&SUFFIX UMARGIN &USQTY EMARGIN USVALUE PCTMARG;
+            TITLE3 "SAMPLE OF LOWEST COMPARISON RESULTS BY SALE TYPE";
+            TITLE4 "USING THE &TITLE4 METHOD";
+        RUN;
     %MEND HIGH_LOW;
 
     %HIGH_LOW(AVGMARG, _MEAN, STANDARD)
@@ -2842,100 +2836,98 @@ RUN;
 /* PART 16: CASH DEPOSIT RATES */
 /*-----------------------------*/
 
-/*--------------------------------------------------------------------------*/
-/*    Calculate Cash Deposit Rates based upon the Standard, Mixed    Alternative    */
-/*    (when required) and A-2-T Alternative Methodologies.                    */
-/*                                                                            */
-/*    For the Standard Methodology, calculated amounts from the database        */
-/*    _AVGMARG will be used. Positive                                            */
-/*    comparison results will be offset by negatives on all sales.            */
-/*                                                                            */
-/*    The Mixed Alternative Methodology will be a combination calculation.     */
-/*    Sales that passed the Cohen's-d Test will be calculated using the        */
-/*    _TRNMIXED database.  No offsetting of                                    */
-/*    positive comparison results with negatives will be done on these sales.    */
-/*    Sales that did not pass the Test will be calculated using the             */
-/*    _AVGMIXED database in which these sales                                    */
-/*    were weight averaged separately from those that did pass the test.         */
-/*    Positive comparison results will be offset by negatives on these sales.    */
-/*                                                                            */
-/*    Cash Deposit Rate using the A-2-T Alternative Methodology for all sales    */
-/*    will be calculated using the _TRANMARG                                    */
-/*    database. No offsetting of positive comparison results with negatives.    */
-/*--------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------*/
+/* Calculate Cash Deposit Rates based upon the Standard, Mixed             */
+/* Alternative(when required), and A-2-T Alternative Methodologies.        */
+/*                                                                         */
+/* For the Standard Methodology, calculated amounts from the database      */
+/* _AVGMARG will be used. Positive comparison results will  be offset      */
+/* by negatives on all sales.                                              */
+/*                                                                         */
+/* The Mixed Alternative Methodology will be a combination calculation.    */
+/* Sales that passed the Cohen's-d Test will be calculated using the       */
+/* _TRNMIXED database. No offsetting of positive comparison results with   */
+/* Test negatives will be done on these sales. Sales that did not pass the */
+/* will be calculated using the _AVGMIXED database in which these sales    */
+/* were weight averaged separately from those that did pass the test.      */
+/* Positive comparison results will be offset by negatives on these sales. */
+/*                                                                         */
+/* Cash Deposit Rate using the A-2-T Alternative Methodology for all sales */
+/* will be calculated using the _TRANMARG database. No offsetting of       */
+/* positive comparison results with negatives.                             */
+/*-------------------------------------------------------------------------*/
 
-/*------------------------------------------------------------------*/
-/* CALCULATE CASH DEPOSIT RATE                                        */
-/*------------------------------------------------------------------*/
+/*-----------------------------*/
+/* CALCULATE CASH DEPOSIT RATE */
+/*-----------------------------*/
 
 %MACRO CALCULATE_CASH_DEPOSIT;
 
-    /*------------------------------------------------------------------*/
-    /*    The Standard Method will employed on all U.S. sales                */
-    /*    regardless of the results of the Cohen's d Test.  Also, the     */
-    /*    A-to-T Alternative Method will also be used on all sales to     */
-    /*    calculate a second Cash Deposit rate.                            */
-    /*                                                                    */
-    /*    When there are both sales that pass and do not pass Cohen's d,  */
-    /*    a Mixed Alternative Cash Deposit rate (in addition to the rates */
-    /*    based on the Standard and A-to-T Alternative Methods) will be    */
-    /*    calculated using a mixture of A-to-A (with offsets) and A-to-T     */
-    /*    (without offsets). To calculate the Mixed rate, the A-to-A         */
-    /*    Method will be employed on sales not passing the Cohen's d         */
-    /*    Test, the A-to-T Method on the rest and then then two results    */
-    /*    will be aggregated.                                                */
-    /*------------------------------------------------------------------*/
+    /*-----------------------------------------------------------------*/
+    /* The Standard Method will employed on all U.S. sales             */
+    /* regardless of the results of the Cohen's d Test. Also, the      */
+    /* A-to-T Alternative Method will also be used on all sales to     */
+    /* calculate a second Cash Deposit rate.                           */
+    /*                                                                 */
+    /* When there are both sales that pass and do not pass Cohen's d,  */
+    /* a Mixed Alternative Cash Deposit rate (in addition to the rates */
+    /* based on the Standard and A-to-T Alternative Methods) will be   */
+    /* calculated using a mixture of A-to-A (with offsets) and A-to-T  */
+    /* (without offsets). To calculate the Mixed rate, the A-to-A      */
+    /* Method will be employed on sales not passing the Cohen's d      */
+    /* Test, the A-to-T Method on the rest and then then two results   */
+    /* will be aggregated.                                             */
+    /*-----------------------------------------------------------------*/
 
     %MACRO CALC_CASH_DEPOSIT(TEMPDATA,SUFFIX,METHOD);
-
         PROC MEANS NOPRINT DATA = SUMMARG_&TEMPDATA;
             VAR USNETPRI&SUFFIX;
             WEIGHT &USQTY;
-            OUTPUT OUT = ALLVAL_&TEMPDATA (DROP=_FREQ_ _TYPE_)
-                   N=TOTSALES SUM = TOTVAL SUMWGT = TOTQTY;
+            OUTPUT OUT = ALLVAL_&TEMPDATA (DROP = _:)
+                   N = TOTSALES SUM = TOTVAL SUMWGT = TOTQTY;
         RUN;
 
-        /*----------------------------------------------------------*/
-        /* CALCULATE THE MINIMUM AND MAXIMUM COMPARISON RESULTS        */
-        /*----------------------------------------------------------*/
+        /*------------------------------------------------------*/
+        /* CALCULATE THE MINIMUM AND MAXIMUM COMPARISON RESULTS */
+        /*------------------------------------------------------*/
 
         PROC MEANS NOPRINT DATA = SUMMARG_&TEMPDATA;
             VAR PCTMARG;
-            OUTPUT OUT = MINMAX_&TEMPDATA (DROP=_FREQ_ _TYPE_)
+            OUTPUT OUT = MINMAX_&TEMPDATA (DROP = _:)
                    MIN = MINMARG MAX = MAXMARG;
         RUN;
 
-        /*--------------------------------------------------------------*/
-        /* CALCULATE THE TOTAL QUANTITY AND VALUE OF SALES WITH         */
-        /* POSITIVE COMPARISON RESULTS AND AMOUNT OF POSITIVE DUMPING    */
-        /*--------------------------------------------------------------*/
+        /*------------------------------------------------------------*/
+        /* CALCULATE THE TOTAL QUANTITY AND VALUE OF SALES WITH       */
+        /* POSITIVE COMPARISON RESULTS AND AMOUNT OF POSITIVE DUMPING */
+        /*------------------------------------------------------------*/
 
         PROC MEANS NOPRINT DATA = SUMMARG_&TEMPDATA;
             WHERE EMARGIN GT 0;
             VAR &USQTY USVALUE EMARGIN;
-            OUTPUT OUT = SUMMAR_&TEMPDATA (DROP=_FREQ_ _TYPE_)
+            OUTPUT OUT = SUMMAR_&TEMPDATA (DROP = _:)
                    SUM = MARGQTY MARGVAL POSDUMPING;   
         RUN;
 
-        /*--------------------------------------------------------------*/
-        /* CALCULATE THE TOTAL AMOUNT OF NEGATIVE COMPARISON RESULTS    */
-        /*--------------------------------------------------------------*/
+        /*-----------------------------------------------------------*/
+        /* CALCULATE THE TOTAL AMOUNT OF NEGATIVE COMPARISON RESULTS */
+        /*-----------------------------------------------------------*/
 
         PROC MEANS NOPRINT DATA = SUMMARG_&TEMPDATA;
             WHERE EMARGIN LT 0;
             VAR EMARGIN;
-            OUTPUT OUT = NEGMARG_&TEMPDATA (DROP = _FREQ_ _TYPE_)
+            OUTPUT OUT = NEGMARG_&TEMPDATA (DROP = _:)
                    SUM = NEGDUMPING;
         RUN;
 
-        /*--------------------------------------------------------------*/
-        /*  CALCULATE THE OVERALL MARGIN PERCENTAGES                    */
-        /*--------------------------------------------------------------*/
+        /*------------------------------------------*/
+        /* CALCULATE THE OVERALL MARGIN PERCENTAGES */
+        /*------------------------------------------*/
 
         DATA ANSWER_&TEMPDATA;
             LENGTH CALC_TYPE $11.;
             MERGE ALLVAL_&TEMPDATA SUMMAR_&TEMPDATA 
-                    MINMAX_&TEMPDATA NEGMARG_&TEMPDATA;
+                  MINMAX_&TEMPDATA NEGMARG_&TEMPDATA;
 
             %IF &TEMPDATA = _TRNMIXED %THEN 
             %DO;
@@ -2958,13 +2950,13 @@ RUN;
             IF POSDUMPING = . THEN POSDUMPING = 0;
             IF NEGDUMPING = . THEN NEGDUMPING = 0;
 
-            /*--------------------------------------------------------------*/
-            /*  If the sum of the positive comparison                         */
-            /*    results is greater than the absolute value of the sum of    */
-            /*  the negative comparison results, then offset the positive    */
-            /*    results with the negative to calculate total dumping.  If     */
-            /*    not, then set total dumping to zero.                        */
-            /*--------------------------------------------------------------*/
+            /*------------------------------------------------------------*/
+            /* If the sum of the positive comparison results is greater   */
+            /* than the absolute value of the sum of the negative         */
+            /* comparison results, then offset the positive results with  */
+            /* the negative to calculate total dumping. If not, then set  */
+            /* total dumping to zero.                                     */
+            /*------------------------------------------------------------*/
 
             %IF &METHOD = ALTERNATIVE  %THEN
             %DO;
@@ -2972,57 +2964,53 @@ RUN;
             %END;
             %ELSE
             %DO;
-
                 IF POSDUMPING GT ABS(NEGDUMPING) THEN
                     TOTDUMPING = POSDUMPING + NEGDUMPING;
                 ELSE 
                     TOTDUMPING = 0;
             %END;
-
         RUN;
-
     %MEND CALC_CASH_DEPOSIT;
 
-    /*------------------------------------------------------------------*/
-    /*  EXECUTE THE CALC_CASH_DEPOSIT MACRO FOR ALL SCENARIOS            */
-    /*------------------------------------------------------------------*/
+    /*-------------------------------------------------------*/
+    /* EXECUTE THE CALC_CASH_DEPOSIT MACRO FOR ALL SCENARIOS */
+    /*-------------------------------------------------------*/
 
-    %CALC_CASH_DEPOSIT(AVGMARG,_MEAN,STANDARD)
-    %CALC_CASH_DEPOSIT(TRANMARG, ,ALTERNATIVE)
+    %CALC_CASH_DEPOSIT(AVGMARG, _MEAN,STANDARD)
+    %CALC_CASH_DEPOSIT(TRANMARG, , ALTERNATIVE)
     %IF  &CALC_METHOD = MIXED %THEN
     %DO;
-        %CALC_CASH_DEPOSIT(AVGMIXED,_MIXED,STANDARD)
-        %CALC_CASH_DEPOSIT(TRNMIXED, ,ALTERNATIVE)
+        %CALC_CASH_DEPOSIT(AVGMIXED, _MIXED,STANDARD)
+        %CALC_CASH_DEPOSIT(TRNMIXED, , ALTERNATIVE)
     %END;
 
     %MACRO MIXED;
         %IF &CALC_METHOD = MIXED %THEN
         %DO;
-
             DATA MIXED;
                 SET ANSWER_AVGMIXED ANSWER_TRNMIXED;
             RUN;
 
             DATA ANSWER_MIXEDSPLIT;
                 SET ANSWER_AVGMIXED ANSWER_TRNMIXED;
-                PCTMARQ = (MARGQTY/TOTQTY)*100;
-                PCTMARV = (MARGVAL/TOTVAL)*100;
+                PCTMARQ = (MARGQTY / TOTQTY) * 100;
+                PCTMARV = (MARGVAL / TOTVAL) * 100;
             RUN;
 
             PROC MEANS NOPRINT DATA = MIXED;
                 VAR TOTSALES TOTQTY TOTVAL MARGQTY MARGVAL POSDUMPING NEGDUMPING TOTDUMPING;
-                OUTPUT OUT = MIXED_SUM (DROP = _FREQ_ _TYPE_) 
+                OUTPUT OUT = MIXED_SUM (DROP = _:) 
                 SUM = TOTSALES TOTQTY TOTVAL MARGQTY MARGVAL POSDUMPING NEGDUMPING TOTDUMPING;
             RUN;
 
             PROC MEANS NOPRINT DATA = MIXED;
                 VAR MINMARG;
-                OUTPUT OUT = MINMARG (DROP = _FREQ_ _TYPE_) MIN=MINMARG;
+                OUTPUT OUT = MINMARG (DROP = _:) MIN = MINMARG;
             RUN;
 
             PROC MEANS NOPRINT DATA = MIXED;
                 VAR MAXMARG;
-                OUTPUT OUT = MAXMARG(DROP = _FREQ_ _TYPE_) MAX=MAXMARG;
+                OUTPUT OUT = MAXMARG (DROP = _:) MAX = MAXMARG;
             RUN;
 
             DATA MIXED_SUM ANSWER_MIXEDMARG (DROP = CALC_TYPE);
@@ -3043,21 +3031,19 @@ RUN;
                 TITLE4 "COMBINE RESULTS FROM SALES NOT PASSING THE COHEN'S D TEST CALCULATED A-to-A WITH OFFSETS";
                 TITLE5 "WITH RESULTS FROM SALES PASSING THE COHEN'S D TEST CALCULATED A-to-T WITHOUT OFFSETS";
             RUN; 
-
         %END;
-
     %MEND MIXED;
+
     %MIXED
 
-    /*----------------------------------------------------------*/
-    /*  CREATE MACRO VARIABLES TO TRACK WHEN MARGIN                */
-    /*  PERCENTAGES ARE ABOVE DE MINIMIS. IF ANY CASH DEPOSIT   */
-    /*  RATE IN AN ADMINISTRATIVE REVIEW IS ABOVE DE MINIMIS,   */
-    /*  THE ASSESSMENT MACRO WILL RUN.                            */
-    /*----------------------------------------------------------*/
+    /*-------------------------------------------------------*/
+    /* CREATE MACRO VARIABLES TO TRACK WHEN MARGIN           */
+    /* PERCENTAGES ARE ABOVE DE MINIMIS. IF ANY CASH DEPOSIT */
+    /* RATE IN AN ADMINISTRATIVE REVIEW IS ABOVE DE MINIMIS, */
+    /* THE ASSESSMENT MACRO WILL RUN.                        */
+    /*-------------------------------------------------------*/
 
     %MACRO DE_MINIMIS(OUTDATA,TYPE,CALC);
-            
         DATA ANSWER_&OUTDATA;
             SET ANSWER_&OUTDATA;
 
@@ -3071,35 +3057,35 @@ RUN;
 
                 %IF &TYPE = STND %THEN
                 %DO;
-                    CALL SYMPUT('ABOVE_DEMINIMIS_STND',ABOVE_DEMIN_&TYPE);
+                    CALL SYMPUT('ABOVE_DEMINIMIS_STND', ABOVE_DEMIN_&TYPE);
                 %END;
                 %IF &TYPE = ALT %THEN
                 %DO;
-                    CALL SYMPUT('ABOVE_DEMINIMIS_ALT',ABOVE_DEMIN_ALT);
+                    CALL SYMPUT('ABOVE_DEMINIMIS_ALT', ABOVE_DEMIN_ALT);
                 %END;
                 %IF &TYPE = MIXED %THEN
                 %DO;
-                    CALL SYMPUT('ABOVE_DEMINIMIS_MIXED',ABOVE_DEMIN_&TYPE);
+                    CALL SYMPUT('ABOVE_DEMINIMIS_MIXED', ABOVE_DEMIN_&TYPE);
                 %END;
 
         RUN;
 
     %MEND DE_MINIMIS;
 
-    %DE_MINIMIS(AVGMARG,STND,YES)
-    %DE_MINIMIS(TRANMARG,ALT,YES)
+    %DE_MINIMIS(AVGMARG, STND, YES)
+    %DE_MINIMIS(TRANMARG, ALT, YES)
     %IF &CALC_METHOD = MIXED %THEN
     %DO;
-        %DE_MINIMIS(MIXEDMARG,MIXED,YES)
+        %DE_MINIMIS(MIXEDMARG, MIXED, YES)
     %END;
     %ELSE 
     %DO;
         %LET ABOVE_DEMINIMIS_MIXED = NA;
     %END;
 
-    /*--------------------------------------------------------------*/
-    /*  PRINT CASH DEPOSIT RATE CALCULATIONS FOR ALL SCENARIOS        */
-    /*--------------------------------------------------------------*/
+    /*--------------------------------------------------------*/
+    /* PRINT CASH DEPOSIT RATE CALCULATIONS FOR ALL SCENARIOS */
+    /*--------------------------------------------------------*/
 
     %MACRO PRINT_CASH_DEPOSIT(OUTDATA,METHOD);
 
@@ -3164,12 +3150,11 @@ RUN;
             FORMAT TOTSALES COMMA9. TOTVAL TOTQTY POSDUMPING NEGDUMPING TOTDUMPING MARGVAL MARGQTY MINMARG MAXMARG COMMA16.2 
             PCTMARV PCTMARQ 6.2;
         RUN;
-
     %MEND PRINT_CASH_DEPOSIT;
 
-    /*--------------------------------------------------------------*/
-    /*  EXECUTE PRINT_CASH_DEPOSIT MACRO FOR ALL SCENARIOS            */
-    /*--------------------------------------------------------------*/
+    /*----------------------------------------------------*/
+    /* EXECUTE PRINT_CASH_DEPOSIT MACRO FOR ALL SCENARIOS */
+    /*----------------------------------------------------*/
 
     %PRINT_CASH_DEPOSIT(AVGMARG,STANDARD)
     %PRINT_CASH_DEPOSIT(TRANMARG,ALTERNATIVE)
@@ -3178,9 +3163,9 @@ RUN;
         %PRINT_CASH_DEPOSIT(MIXEDSPLIT,MIXED)
     %END;
     
-    /*--------------------------------------------------------------*/
-    /*  PRINT CASH DEPOSIT RATES FOR ALL SCENARIOS                    */
-    /*--------------------------------------------------------------*/
+    /*--------------------------------------------*/
+    /* PRINT CASH DEPOSIT RATES FOR ALL SCENARIOS */
+    /*--------------------------------------------*/
 
         %IF &CALC_METHOD = STANDARD %THEN
         %DO;
@@ -3541,31 +3526,31 @@ RUN;
                 BY US_IMPORTER SOURCEU;
                 VAR ENTERED_VALUE;
                 WEIGHT &USQTY;
-                OUTPUT OUT = ENTVAL_&INDATA (DROP=_FREQ_ _TYPE_)
-                       N=SALES SUMWGT=ITOTQTY SUM=ITENTVAL;
+                OUTPUT OUT = ENTVAL_&INDATA (DROP = _:)
+                       N = SALES SUMWGT = ITOTQTY SUM = ITENTVAL;
             RUN;
 
-            /*----------------------------------------------------------*/
-            /*  CALCULATE THE SUM OF POSITIVE COMPARISON RESULTS        */
-            /*----------------------------------------------------------*/
+            /*--------------------------------------------------*/
+            /* CALCULATE THE SUM OF POSITIVE COMPARISON RESULTS */
+            /*--------------------------------------------------*/
 
             PROC MEANS NOPRINT DATA = SUMMARG_&INDATA;
                 BY US_IMPORTER SOURCEU;
                 WHERE EMARGIN GT 0;
                 VAR EMARGIN;
-                OUTPUT OUT = POSMARG_IMPORTER_&INDATA  (DROP=_FREQ_ _TYPE_)
+                OUTPUT OUT = POSMARG_IMPORTER_&INDATA (DROP = _:)
                        SUM = IPOSRESULTS;
             RUN;
 
-            /*----------------------------------------------------------*/
-            /*  CALCULATE THE SUM OF NEGATIVE COMPARISON RESULTS        */
-            /*----------------------------------------------------------*/
+            /*--------------------------------------------------*/
+            /* CALCULATE THE SUM OF NEGATIVE COMPARISON RESULTS */
+            /*--------------------------------------------------*/
 
             PROC MEANS NOPRINT DATA = SUMMARG_&INDATA;
                 BY US_IMPORTER SOURCEU;
                 WHERE EMARGIN LT 0;
                 VAR EMARGIN;
-                OUTPUT OUT = NEGMARG_IMPORTER_&INDATA (DROP=_FREQ_ _TYPE_)
+                OUTPUT OUT = NEGMARG_IMPORTER_&INDATA (DROP = _:)
                        SUM = INEGRESULTS;
             RUN;
 
@@ -3642,7 +3627,7 @@ RUN;
             PROC MEANS NOPRINT DATA = ASSESS_MIXED_ALL;
                 BY US_IMPORTER SOURCEU;
                 VAR SALES ITOTQTY ITENTVAL IPOSRESULTS INEGRESULTS ITOTRESULTS;
-                OUTPUT OUT = ASSESS_MIXED_SUM (DROP = _FREQ_ _TYPE_) 
+                OUTPUT OUT = ASSESS_MIXED_SUM (DROP = _:) 
                 SUM = SALES ITOTQTY ITENTVAL IPOSRESULTS INEGRESULTS ITOTRESULTS;
             RUN;
 

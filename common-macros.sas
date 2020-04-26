@@ -2,7 +2,7 @@
 /*                    COMMON UTILITY MACROS PROGRAM                    */
 /*                     FOR USE FOR BOTH ME AND NME                     */
 /*                                                                     */
-/*                LAST PROGRAM UPDATE DECEMBER 30, 2019                */
+/*                  LAST PROGRAM UPDATE APRIL 2, 2020                  */
 /*                                                                     */
 /* PART 1: MACRO TO WRITE LOG TO A PERMANENT FILE                      */ 
 /* PART 2: MACRO TO GET COUNTS OF THE DATASETS                         */ 
@@ -348,9 +348,11 @@ RUN;
 /* PART 5: SELECTIVELY ADJUST SALE DATE BASED ON AN EARLIER DATE VARIABLE. */
 /*-------------------------------------------------------------------------*/
 
-%MACRO DEFINE_SALE_DATE (SALEDATE =);
+%MACRO DEFINE_SALE_DATE (SALEDATE =, DATEBEFORESALE =, EARLIERDATE =);
     %IF &DATEBEFORESALE = YES %THEN
     %DO;
+        &EARLIERDATE = FLOOR(&EARLIERDATE); /* Eliminates the time part of sale date */
+                                            /* when defined as a datetime variable.  */
         IF &EARLIERDATE < &SALEDATE THEN
             &SALEDATE = &EARLIERDATE;
     %END;
