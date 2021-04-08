@@ -10,7 +10,7 @@ files = %w{
 }
 
 files.each do |web_file|
-  open("#{base}#{web_file}") do |file|
+  URI.open("#{base}#{web_file}") do |file|
     output_file = File.basename(web_file, '-sas.txt') + ".sas"
     File.write(output_file, file.read)
   end
