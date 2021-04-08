@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                      ANALYSIS OF HOME MARKET SALES                      */
 /*                                                                         */
-/*                    LAST PROGRAM UPDATE APRIL 2, 2020                    */
+/*                    LAST PROGRAM UPDATE JULY 28, 2020                    */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring in Home Market Sales, Convert Date Variable, If          */
@@ -340,9 +340,17 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                               /*    You may also type "NA" if HM & US    */
                               /*    both have only 1 LOT & those LOTs    */
                               /*    are the same.                        */
+
+/* Note: Specify a HM manufacturer variable if there is also a           */
+/*       manufacturer variable reported in the U.S. sales.               */
+
 %LET HMMANUF = <NA>;          /*(V) Manufacturer code. If not            */
                               /*    applicable, type "NA" (without       */
                               /*    quotes).                             */
+
+/* Note: Specify a HM prime variable if there is also a prime            */
+/*       variable reported in the U.S. sales.                            */
+
 %LET HMPRIME  = <NA>;         /*(V) Prime/seconds code. If not           */
                               /*    applicable, type "NA" (without       */
                               /*    quotes).                             */
@@ -377,9 +385,30 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET COST_MATCH = <  >;   /*(V) The variable (usually CONNUM)       */
                           /*    linking cost data to sales data.    */
 %LET COST_QTY = <  >;     /*(V) Production quantity                 */
+
+/* Note: Specify a Cost manufacturer variable if there is also a    */
+/*       manufacturer variable reported in the HM and U.S. sales.   */
+
 %LET COST_MANUF = <NA>;   /*(V) Manufacturer code. If not           */
                           /*    applicable, type "NA" (without      */
                           /*    quotes).                            */
+
+/* Note: Specify a Cost prime variable if there is also a prime     */
+/*       variable reported in the HM and U.S. sales.                */
+
+%LET COST_PRIME = <NA>;   /*(V) Prime code. If not applicable,      */
+                          /*    type "NA" (without quotes).         */
+
+%LET USE_COST_DUTY_DRAWBACK = <YES/NO>;     /*(T) Make Cost duty drawback      */
+                                            /*    available for use in         */
+                                            /*    calculating the net U.S.     */
+                                            /*    price? Type "YES" or "NO"    */
+                                            /*    (without quotes). If "YES,"  */
+                                            /*    then also define the macro   */
+                                            /*    variable COST_DUTY_DRAWBACK  */
+                                            /*    below.                       */
+%LET      COST_DUTY_DRAWBACK =  <  >;       /*(V) Variable in Cost data        */
+                                            /*    representing duty drawback.  */
 
 /********************************************************************/
 /* If there are time-specific costs (Section 1-E-iii-a.) and/or the */
@@ -396,58 +425,8 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET      USBARCODE = <  >; /*(T) Bar code number(s) of US sales      */
                             /*    dataset(s) used in this program.    */
 
-/*--------------------------------------------------*/
-/* 1-E-iii-a. TIME-SPECIFIC COSTS                   */
-/*                                                  */
-/* If you type COMPARE_BY_TIME = YES on the first   */
-/* line, also complete the rest of this section.    */
-/*--------------------------------------------------*/
-
-%LET COMPARE_BY_TIME = <YES/NO>;     /*(T) Calculate costs by time      */
-                                     /*    periods? Type "YES" or "NO"  */
-                                     /*    (without quotes).            */
-
-/* Note: The cost time period variable needs to be defined as a two     */
-/* digit character variable. The cost time period variable values need  */
-/* to be all numeric and left justified.                                */
-
-%LET      COST_TIME_PERIOD = <  >;   /*(V) Variable in cost data for    */
-                                     /*    time periods.                */
-%LET      TIME_INSIDE_POR  = <  >;   /*(T) List of values of            */
-                                     /*    &COST_TIME_PERIOD variable   */
-                                     /*    for periods during the POR,  */
-                                     /*    separated by commas and      */
-                                     /*    surrounded by quotes. Values */
-                                     /*    in the variables must be     */
-                                     /*    numbers, i.e. '-1', '0',     */
-                                     /*    '1', '2', '3', etc.          */
-%LET      DIRMAT_VARS = <  >;        /*(V) List the direct materials    */
-                                     /*    variables in the cost        */
-                                     /*    dataset that will need to    */
-                                     /*    have average purchase        */
-                                     /*    cost(s). I.e. COIL ZINC      */
-                                     /*    SCRAPS. List the variables   */
-                                     /*    separately. Do not put them  */
-                                     /*    in quotes or separate them   */
-                                     /*    using commas.                */
-%LET      TOTCOM = <  >;             /*(V) Reported total cost of       */
-                                     /*    manufacturing. Usually       */
-                                     /*    TOTCOM.                      */
-%LET USSALEDATE = <        >;        /* (V) Variable representing the   */
-                                     /*     U.S. sale date.             */
-%LET USDATEBEFORESALE = <YES/NO>;    /* (T) Adjust sale date based on   */
-                                     /*     an earlier date variable?   */
-                                     /*     Type 'YES' (no quotes) to   */
-                                     /*     adjust the sale date, or    */
-                                     /*     'NO' to skip this part.     */
-                                     /*     If you typed 'YES' then     */
-                                     /*     also complete the macro     */
-                                     /*     variable USEARLIERDATE.     */
-%LET     USEARLIERDATE = <        >; /* (V) Variable representing the   */
-                                     /*     earlier date variable.      */
-
 /*----------------------------------------------------*/
-/* 1-E-iii-b. SURROGATE COSTS FOR NON-PRODUCTION      */
+/* 1-E-iii-a. SURROGATE COSTS FOR NON-PRODUCTION      */
 /*                                                    */
 /* If you have products that were sold but not        */
 /* produced during the period and that do not already */
@@ -500,24 +479,88 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET    USMANF = <  >;    /*(V) US manufacturer code. If not applicable,   */
                           /*    type "NA" (without quotes).                */
 
+/*--------------------------------------------------*/
+/* 1-E-iii-b. TIME-SPECIFIC COSTS                   */
+/*                                                  */
+/* If you type COMPARE_BY_TIME = YES on the first   */
+/* line, also complete the rest of this section.    */
+/*--------------------------------------------------*/
+
+%LET COMPARE_BY_TIME = <YES/NO>;     /*(T) Calculate costs by time      */
+                                     /*    periods? Type "YES" or "NO"  */
+                                     /*    (without quotes).            */
+
+/* Note: The cost time period variable needs to be defined as a two     */
+/* digit character variable. The cost time period variable values need  */
+/* to be all numeric and left justified.                                */
+
+%LET      COST_TIME_PERIOD = <  >;   /*(V) Variable in cost data for    */
+                                     /*    time periods.                */
+%LET      TIME_INSIDE_POR  = <  >;   /*(T) List of values of            */
+                                     /*    &COST_TIME_PERIOD variable   */
+                                     /*    for periods during the POR,  */
+                                     /*    separated by commas and      */
+                                     /*    surrounded by quotes. Values */
+                                     /*    in the variables must be     */
+                                     /*    numbers, i.e. '-1', '0',     */
+                                     /*    '1', '2', '3', etc.          */
+%LET      DIRMAT_VARS = <  >;        /*(V) List the direct materials    */
+                                     /*    variables in the cost        */
+                                     /*    dataset that will need to    */
+                                     /*    have average purchase        */
+                                     /*    cost(s). I.e. COIL ZINC      */
+                                     /*    SCRAPS. List the variables   */
+                                     /*    separately. Do not put them  */
+                                     /*    in quotes or separate them   */
+                                     /*    using commas.                */
+%LET      TOTCOM = <  >;             /*(V) Reported total cost of       */
+                                     /*    manufacturing. Usually       */
+                                     /*    TOTCOM.                      */
+%LET USSALEDATE = <        >;        /* (V) Variable representing the   */
+                                     /*     U.S. sale date.             */
+%LET USDATEBEFORESALE = <YES/NO>;    /* (T) Adjust sale date based on   */
+                                     /*     an earlier date variable?   */
+                                     /*     Type 'YES' (no quotes) to   */
+                                     /*     adjust the sale date, or    */
+                                     /*     'NO' to skip this part.     */
+                                     /*     If you typed 'YES' then     */
+                                     /*     also complete the macro     */
+                                     /*     variable USEARLIERDATE.     */
+%LET     USEARLIERDATE = <        >; /* (V) Variable representing the   */
+                                     /*     earlier date variable.      */
+
+/*--------------------------------------------------*/
+/* 1-E-iii-c. HYPERINFLATION COSTS                  */
+/*                                                  */
+/* If you type COMPARE_BY_TIME = YES on the first   */
+/* line, also complete the rest of this section.    */
+/*--------------------------------------------------*/
+
+%LET COMPARE_BY_HYPERINFLATION = <YES/NO>; /*(T) Calculate hyperinflation?     */
+                                           /*    Type "YES" or "NO"            */
+                                           /*    (without quotes).             */
+%LET      COST_YEAR_MONTH = <  >;          /*(V) Variable in Cost data         */
+                                           /*    representing year and month.  */
+%LET      LAST_YEAR_MONTH = <yyyymm>;      /*(T) Last year and month of in the */
+                                           /*    form YYYYMM.                  */
+
 /*----------------------------------------------------------------------*/
 /* 1-F: CONDITIONAL PROGRAMMING OPTIONS:                                */
 /*                                                                      */
-/*      For each conditional programming macro below, select            */
-/*          either YES (to run) or NO (not to run). The conditional     */
-/*      programming macros all begin with %LET RUN_ and indicate        */
-/*          that YES or NO answers are expected. Answer all YES/NO      */
-/*          questions.                                                  */
+/*      For each conditional programming macro below, select either     */
+/*      YES (to run) or NO (not to run). The conditional programming    */
+/*      macros all begin with %LET RUN_ and indicate that YES or NO     */
+/*      answers are expected. Answer all YES/NO questions.              */
 /*                                                                      */
-/*          If you select YES for THE RUN_ARMSLENGTH or RUN_HMLOTADJ    */
-/*          macro variables, also complete the ones immediately         */
-/*          following and indented.                                     */
+/*      If you select YES for THE RUN_ARMSLENGTH or RUN_DOWNSTREAM      */
+/*      macro variables, also complete the indented macro variables     */
+/*      that immediately follow THE RUN_ARMSLENGTH or RUN_DOWNSTREAM.   */
 /*                                                                      */
-/*            Note: Results of the HMLOTADJ calculation are meaningless */
-/*          unless the following criteria are met:                      */
+/*      Note: Results of the HMLOTADJ calculation are meaningless       */
+/*            unless the following criteria are met:                    */
 /*               1. There are two or more levels of trade in HM data    */
 /*               2. At least one of those two HM levels of trade also   */
-/*                   exist in the U.S. data.                            */
+/*                  exist in the U.S. data.                             */
 /*----------------------------------------------------------------------*/
 
 %LET RUN_ARMSLENGTH = <YES/NO>; /*(T) Run the Arm's-Length test? Type      */
@@ -527,12 +570,17 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET     NAFVALUE  = < 1 >;     /*(T) Value in data indicating             */
                                 /*    unaffiliated sales. Default is       */
                                 /*    numeric value of 1.                  */
+%LET RUN_DOWNSTREAM = <YES/NO>; /*(T) Include a downstream sales dataset?  */
+                                /*    You must run the Arm’s-Length test   */
+                                /*    to use downstream sales. Type "YES"  */
+                                /*    or "NO" (without quotes).            */
+%LET     DOWNSTREAMDATA = <  >; /*(D) Downstream sales dataset filename.   */
 %LET RUN_HMCEPTOT = <YES/NO>;   /*(T) Calculate HM revenue and expenses    */
                                 /*    for CEP profit? Type "YES" or "NO"   */
                                 /*    (without quotes). If you type "YES," */
                                 /*    you must have a cost database.       */
 %LET RUN_HMLOTADJ = <YES/NO>;   /*(T) Run LOT price pattern calculation?   */
-                                /* Type "YES" or "NO" (without quotes).    */
+                                /*    Type "YES" or "NO" (without quotes). */
 
 /*------------------------------------------------------------------*/
 /* 1-G: FORMAT, PROGRAM AND PRINT OPTIONS                           */
@@ -965,12 +1013,13 @@ RUN;
 /*ep*/
 
 /*---------------------------------------------------------------*/
-/* 3-B-iii: Input the period raw material average purchase cost. */
+/* 3-B-iii: Time-Specific Cost Situations                        */
+/*                                                               */
+/* Input the period raw material average purchase cost.          */
 /* There must be a separate average purchase cost table for each */
 /* of the direct materials that are subject to quarterly         */
-/* costs. I.E. there should be a separate  table for each        */
-/* variable listed in the %LET DIRMAT_VARS in section 1-E-iii-a  */
-/* above.                                                        */
+/* costs. There should be a separate table for each variable     */
+/* listed in the %LET DIRMAT_VARS in section 1-E-iii-a above.    */
 /*---------------------------------------------------------------*/
 
 PROC FORMAT;
@@ -1023,7 +1072,34 @@ PROC FORMAT;
 /*        '6' = <average purchase cost for the period>  */
 /*        '7' = <average purchase cost for the period>; */
 RUN;
-        
+    
+/*ep*/
+
+/*-------------------------------------------------------------------*/
+/* 3-B-iv: Hyperinflation Situations                                 */
+/*                                                                   */
+/* Create monthly inflation indexes for hyperinflation adjustments.  */
+/* Indexes are based in the HM country producer price index (PPI).   */
+/*-------------------------------------------------------------------*/
+
+PROC FORMAT;
+/*    VALUE PRICE_INDEX*/
+/*        <yyyymm> = <PPI for yyyymm>  */
+/*        <yyyymm> = <PPI for yyyymm>  */
+/*        <yyyymm> = <PPI for yyyymm>  */
+/*        <yyyymm> = <PPI for yyyymm>  */
+/*        <yyyymm> = <PPI for yyyymm>  */
+/*        <yyyymm> = <PPI for yyyymm>  */
+/*        <yyyymm> = <PPI for yyyymm>  */
+/*        <yyyymm> = <PPI for yyyymm>  */
+/*        <yyyymm> = <PPI for yyyymm>  */
+/*        <yyyymm> = <PPI for yyyymm>  */
+/*        <yyyymm> = <PPI for yyyymm>  */
+/*        <yyyymm> = <PPI for yyyymm>; */
+RUN;
+
+/*ep*/
+ 
 %G10_TIME_PROD_LIST
 
 %G11_CREATE_TIME_COST_DB
@@ -1365,14 +1441,19 @@ RUN;
 /***************************************************************************/
 
 %MACRO DOWNSTREAM;
-    %LET DOWNSTREAMDATA = <  >;   /* (D) Downstream sales dataset filename.*/
-    %LET SALESDB = DOWNSTREAM;    /*     Do not edit. Allows certain macros*/
-                                  /*     (G5_DATE_CONVERT,HM2_MIXEDCURR)   */
-                                  /*     to work on downstream sales.      */                                      
+%IF %UPCASE(&RUN_DOWNSTREAM) = YES %THEN
+%DO;
+    %LET SALESDB = DOWNSTREAM;    /* Do not edit. Allows certain macros */
+                                  /* (G5_DATE_CONVERT, HM2_MIXEDCURR)   */
+                                  /* to work on downstream sales.       */                                      
     DATA DOWNSTREAM;
         SET COMPANY.&DOWNSTREAMDATA;
-        &HMSALEDATE = FLOOR(&HMSALEDATE); /* Eliminates the time part of sale date when defined as a datetime variable. */
+        &HMSALEDATE = FLOOR(&HMSALEDATE); /* Eliminates the time part of sale date */
+                                          /* when defined as a datetime variable.  */
 
+    /* Selectively adjust sale date based on an earlier date variable. */
+
+    %DEFINE_SALE_DATE (SALEDATE = &HMSALEDATE, DATEBEFORESALE = &HMDATEBEFORESALE, EARLIERDATE = &HMEARLIERDATE);
 
 /*-------------------------------------------------------------------------*/
 /*     6-A-i: ALIGN VARIABLES IN HM AND DOWNSTREAM DATABASES               */
@@ -1415,6 +1496,15 @@ RUN;
     /*  existing variable here, when required.>               */
 
         %G4_LOT(&HMLOT,HMLOT) 
+
+    %CREATE_QUARTERS(&HMSALEDATE, HM)   /* Assigns quarters to HM sales based on */
+                                        /* the date of sale variable and the     */
+                                        /* first day of the POR/POI. The         */
+                                        /* values will be '-1', '0', '1', etc.   */
+    %CREATE_YEAR_MONTH(&HMSALEDATE, HM) /* In hyperinflation cases Creates the   */
+                                        /* variable YEARMONTHH representing the  */
+                                        /* year and month of sale date.          */
+
     RUN;
 
 /*---------------------------------------------------------------------*/
@@ -1590,9 +1680,10 @@ RUN;
     DATA HMSALES;
         SET HMSALES DOWNSTREAM;
     RUN;
+%END;
 %MEND DOWNSTREAM;
 
-/* %DOWNSTREAM */
+%DOWNSTREAM
 
 /*ep*/
 
@@ -1677,9 +1768,8 @@ RUN;
 %MACRO WTAVGVARS;
     %GLOBAL WGTAVGVARS;
 
-    %IF %UPCASE(&HM_MULTI_CUR) = YES %THEN
-    %DO;
     %IF %UPCASE(&HM_MULTI_CUR) = YES OR %UPCASE(&MIXEDCURR) = YES %THEN
+    %DO;
         %LET WGTAVGVARS = <HMGUP HMGUPADJ HMDISREB HMMOVE
                            HMCRED HMDSELL HMCOMM HMICC HMISELL
                            HMINDCOM HMPACK>;
@@ -1690,7 +1780,7 @@ RUN;
 /*                                                                         */
 /*     If amounts in the HM database were reported entirely in one         */
 /*     currency, and use of an exchange rate was not required, aggregate   */
-/*     amounts will be automatically weight-averaged.                      */
+/*     amounts will be automatically weight averaged.                      */
 /*-------------------------------------------------------------------------*/
 
     %ELSE

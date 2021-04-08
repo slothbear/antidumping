@@ -2,7 +2,7 @@
 /*                    COMMON UTILITY MACROS PROGRAM                    */
 /*                     FOR USE FOR BOTH ME AND NME                     */
 /*                                                                     */
-/*                  LAST PROGRAM UPDATE APRIL 2, 2020                  */
+/*                  LAST PROGRAM UPDATE JULY 28, 2020                  */
 /*                                                                     */
 /* PART 1: MACRO TO WRITE LOG TO A PERMANENT FILE                      */ 
 /* PART 2: MACRO TO GET COUNTS OF THE DATASETS                         */ 
@@ -297,7 +297,14 @@ RUN;
         %PUT # OF US SALES WITH INVALID PURCHASER VALUES (WORK.NO_DP_PURCHASER_TEST)       = %CMPRES(&COUNT_NO_DP_PURCHASER_TEST);
         %PUT # OF US SALES WITH INVALID TIME VALUES (WORK.NO_DP_PERIOD_TEST)               = %CMPRES(&COUNT_NO_DP_PERIOD_TEST);
         %DF;
-        %PUT # OF TOTAL US SALES (COMPANY.&USDATA)                                         = %CMPRES(&COUNT_ORIG_USSALES);
+        %IF &COST_TYPE = CV %THEN
+        %DO;
+            %PUT # OF TOTAL COST OBS GOING IN (COMPANY.&COST_DATA)                         = %CMPRES(&COUNT_ORIG_COST);
+            %PUT # OF COST OBS TO BE WEIGHT AVERAGED (WORK.COST)                           = %CMPRES(&COUNT_PRE_AVGCOST);
+            %PUT # OF WEIGHT AVERAGED COST MODELS (WORK.AVGCOST)                           = %CMPRES(&COUNT_AVGCOST);
+        %END; 
+        %PUT # OF TOTAL US SALES1 (COMPANY.&USDATA1)                                       = %CMPRES(&COUNT_ORIG_USSALES);
+        %PUT # OF TOTAL US SALES2 (COMPANY.&USDATA2)                                       = %CMPRES(&COUNT_ORIG_USSALES2);
         %PUT # OF USSALES WITH IDENTICAL MODEL MATCHES (DERIVED FROM WORK.USNETPR)         = %CMPRES(&NVMATCH_VALUE1);
         %PUT # OF USSALES WITH SIMILAR MODEL MATCHES (DERIVED FROM WORK.USNETPR)           = %CMPRES(&NVMATCH_VALUE2);
         %PUT # OF USSALES WITH CONSTRUCTED VALUE MODEL MATCHES (DERIVED FROM WORK.USNETPR) = %CMPRES(&NVMATCH_VALUE3);

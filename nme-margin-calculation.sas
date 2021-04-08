@@ -2,7 +2,7 @@
 /*                                                              */
 /*              NME MARGIN CALCULATION PROGRAM                  */
 /*                                                              */
-/*         GENERIC VERSION LAST UPDATED - APRIL 2, 2020         */
+/*         GENERIC VERSION LAST UPDATED - JULY 28, 2020         */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */
@@ -1151,11 +1151,16 @@ DATA USSALES NEGDATA OUTDATES;
 RUN;
 
 PROC PRINT DATA = NEGDATA (OBS = &PRINTOBS);
-    TITLE3 "U.S. SALES WITH ZERO OR NEGATIVE QUANTITY OR GROSS UNIT PRICE";
+    TITLE3 "SAMPLE OF U.S. SALES WITH GROSS PRICE (&USGUP) OR QUANTITY (&USQTY) LESS THAN OR EQUAL TO ZERO";
+    TITLE5 "NOTE:  Default programming removes these sales from the calculations.";
+    TITLE6 "Should this not be appropriate, adjust accordingly.";
 RUN;
 
 PROC PRINT DATA = OUTDATES (OBS = &PRINTOBS);
-    TITLE3 "U.S. SALES OUTSIDE THE ANALYSIS PERIOD";
+    TITLE3 "SAMPLE OF U.S. SALES OUTSIDE THE PERIOD OF ANALYSIS";
+    TITLE4 "BASED ON THE VALUE OF &USSALEDATE BEING OUTSIDE THE DATE RANGE &BEGINDAY AND &ENDDAY";
+    TITLE6 "NOTE:  Default programming removes these sales from the calculations.";
+    TITLE7 "Should this not be appropriate, adjust accordingly.";
 RUN;
 
 /*ep*/

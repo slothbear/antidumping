@@ -1,6 +1,6 @@
 require "open-uri"
 
-base = "http://enforcement.trade.gov/sas/programs/diffpriceprograms/"
+base = "https://enforcement.trade.gov/sas/programs/diffpriceprograms/"
 files = %w{
   me-home-market-sas.txt
   me-margin-calculation-sas.txt
