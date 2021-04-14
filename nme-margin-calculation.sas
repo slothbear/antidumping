@@ -2,7 +2,7 @@
 /*                                                              */
 /*              NME MARGIN CALCULATION PROGRAM                  */
 /*                                                              */
-/*         GENERIC VERSION LAST UPDATED - JULY 28, 2020         */
+/*      GENERIC VERSION LAST UPDATED FEBRUARY 11, 2021          */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */
@@ -70,16 +70,16 @@
 /*            Macro Program and its file name.                  */
 /*--------------------------------------------------------------*/
 
-LIBNAME COMPANY '<E:\....>';                   /* (T) Location of company and   */
-                                               /* exchange rate data sets.      */
-FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    */
-                                               /* Common Macros Program         */
-%INCLUDE C_MACS;                               /* Use the Common Macros         */
-                                               /* Program.                      */
-%LET LOG_SUMMARY = YES;                        /* Default value is "YES" (no    */
-                                               /* quotes). Use "NO" (no quotes) */
-                                               /* to run program in parts for   */
-                                               /* troubleshooting.              */
+LIBNAME COMPANY '<E:\....>';                   /*(T) Location of company and       */
+                                               /*    exchange rate data sets.      */
+FILENAME C_MACS '<E:\...\Common Macros.sas>';  /*(T) Location & Name of the        */
+                                               /*    Common Macros Program         */
+%INCLUDE C_MACS;                               /*    Use the Common Macros         */
+                                               /*    Program.                      */
+%LET LOG_SUMMARY = YES;                        /*(T) Default value is "YES" (no    */
+                                               /*    quotes). Use "NO" (no quotes) */
+                                               /*    to run program in parts for   */
+                                               /*    troubleshooting.              */
 
 /*--------------------------------------------*/
 /* GET PROGRAM PATH/NAME AND CREATE THE SAME  */
@@ -99,8 +99,8 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* TYPE IN EITHER THE WORD 'AR' (NOT 1ST REVIEW) */
 /* OR THE WORD 'INV'. DO NOT TYPE THE QUOTES.    */
 
-%LET CASE_TYPE = <INV/AR>;     /* (T) For an investigation, type 'INV' (without quotes)        */
-                               /*     For an administrative review, type 'AR' (without quotes) */
+%LET CASE_TYPE = <INV/AR>;     /*(T) For an investigation, type 'INV' (without quotes)        */
+                               /*    For an administrative review, type 'AR' (without quotes) */
 
 /*------------------------------------------*/
 /* TYPE IN THE CASE NUMBER (EX. A-357-812). */
@@ -122,8 +122,8 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* EXTENSION. (EX. USSALES, *NOT* USSALES.SAS7BDAT.)            */
 /*--------------------------------------------------------------*/
 
-%LET USDATA  = <        >; /* (D) NAME OF U.S. DATASET */
-%LET FOPDATA = <        >; /* (D) NAME OF FOP DATASET  */
+%LET USDATA  = <        >; /*(D) NAME OF U.S. DATASET */
+%LET FOPDATA = <        >; /*(D) NAME OF FOP DATASET  */
 
 /*------------------------------------------------------------*/
 /* THE FOLLOWING FOUR MACRO VARIABLES ARE USED TO CONVERT THE */
@@ -145,20 +145,20 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /*   E:\Operations\Peoples Republic Of China\HEDP\2015 INV\SV.xls  */
 /*-----------------------------------------------------------------*/
 
-%LET SV_PATH        = <       >; /* (T) WINDOWS EXPLORER LOCATION AND FILE     */
-                                 /*     NAME (INCLUDING THE FILE EXTENSION).   */
-%LET SV_NAME_RANGE  = <       >; /* (T) WORKSHEET NAME AND COLUMN RANGE        */
-                                 /*     SEPARATED BY DOLLAR SIGN ($).          */
-                                 /*     COLUMN RANGE REPRESENTS SURROGATE      */
-                                 /*     VALUE VARIABLE NAMES. USE THE SYNTAX:  */
-                                 /*     NAMEOFTHESHEET$COLUMNRANGE.            */
-                                 /*     EXAMPLE: SummaryofSVs$O6:O34           */
-%LET SV_VALUE_RANGE = <       >; /* (T) WORKSHEET NAME AND COLUMN RANGE        */
-                                 /*     SEPARATED BY DOLLAR SIGN ($).          */
-                                 /*     COLUMN RANGE REPRESENTS SURROGATE      */
-                                 /*     VALUE VARIABLE VALUES. USE THE SYNTAX: */
-                                 /*     NAMEOFTHESHEET$COLUMNRANGE.            */
-                                 /*     EXAMPLE: SummaryofSVs$P6:P34           */
+%LET SV_PATH        = <       >; /*(T) WINDOWS EXPLORER LOCATION AND FILE     */
+                                 /*    NAME (INCLUDING THE FILE EXTENSION).   */
+%LET SV_NAME_RANGE  = <       >; /*(T) WORKSHEET NAME AND COLUMN RANGE        */
+                                 /*    SEPARATED BY DOLLAR SIGN ($).          */
+                                 /*    COLUMN RANGE REPRESENTS SURROGATE      */
+                                 /*    VALUE VARIABLE NAMES. USE THE SYNTAX:  */
+                                 /*    NAMEOFTHESHEET$COLUMNRANGE.            */
+                                 /*    EXAMPLE: SummaryofSVs$O6:O34           */
+%LET SV_VALUE_RANGE = <       >; /*(T) WORKSHEET NAME AND COLUMN RANGE        */
+                                 /*    SEPARATED BY DOLLAR SIGN ($).          */
+                                 /*    COLUMN RANGE REPRESENTS SURROGATE      */
+                                 /*    VALUE VARIABLE VALUES. USE THE SYNTAX: */
+                                 /*    NAMEOFTHESHEET$COLUMNRANGE.            */
+                                 /*    EXAMPLE: SummaryofSVs$P6:P34           */
 
 /*-------------------------------------------------------------------*/
 /* DATE INFORMATION                                                  */
@@ -199,26 +199,26 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* titling. BEGINPERIOD is also used in the Cohen’s d Test.          */
 /*-------------------------------------------------------------------*/
 
-%LET USSALEDATE = <        >;       /* (V) Variable representing the */
-                                    /*     U.S. sale date.           */
-%LET USDATEBEFORESALE = <YES/NO>;   /* (T) Adjust sale date based on */
-                                    /*     an earlier date variable? */
-                                    /*     Type 'YES' (no quotes) to */
-                                    /*     adjust the sale date, or  */
-                                    /*     'NO' to skip this part.   */
-                                    /*     If you typed 'YES' then   */
-                                    /*     also complete the macro   */
-                                    /*     variable EARLIERDATE.     */
-%LET      EARLIERDATE = <        >; /* (V) Variable representing the */
-                                    /*     earlier date variable.    */
-%LET BEGINDAY = <DDMONYYYY>;        /* (T) First day of first month  */
-                                    /*     of U.S. sales.            */
-%LET ENDDAY   = <DDMONYYYY>;        /* (T) Last day of last month of */
-                                    /*     U.S. sales.               */
-%LET BEGINPERIOD = <DDMONYYYY>;     /* (T) Day 1 of first month of   */
-                                    /*     official POI/POR.         */
-%LET ENDPERIOD   = <DDMONYYYY>;     /* (T) Last day last month of    */
-                                    /*     official POI/POR.         */
+%LET USSALEDATE = <        >;       /*(V) Variable representing the */
+                                    /*    U.S. sale date.           */
+%LET USDATEBEFORESALE = <YES/NO>;   /*(T) Adjust sale date based on */
+                                    /*    an earlier date variable? */
+                                    /*    Type 'YES' (no quotes) to */
+                                    /*    adjust the sale date, or  */
+                                    /*    'NO' to skip this part.   */
+                                    /*    If you typed 'YES' then   */
+                                    /*    also complete the macro   */
+                                    /*    variable EARLIERDATE.     */
+%LET      EARLIERDATE = <        >; /*(V) Variable representing the */
+                                    /*    earlier date variable.    */
+%LET BEGINDAY = <DDMONYYYY>;        /*(T) First day of first month  */
+                                    /*    of U.S. sales.            */
+%LET ENDDAY   = <DDMONYYYY>;        /*(T) Last day of last month of */
+                                    /*    U.S. sales.               */
+%LET BEGINPERIOD = <DDMONYYYY>;     /*(T) Day 1 of first month of   */
+                                    /*    official POI/POR.         */
+%LET ENDPERIOD   = <DDMONYYYY>;     /*(T) Last day last month of    */
+                                    /*    official POI/POR.         */
     
 /*----------------------------------------------------------------*/
 /* ADDITIONAL FILTERING OF U.S. SALES, IF REQUIRED                */
@@ -235,19 +235,19 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /*    the variable for date of entry under EP_DATE_VAR.           */
 /*----------------------------------------------------------------*/
 
-%LET FILTER_CEP = <YES/NO>;             /* (T) Additionally filter CEP sales?  Type "YES" (no quotes) to filter,  */
-                                        /*     "NO" to skip this part. If you typed "YES," then also complete     */
-                                        /*     the three subsequent indented macro variables re: CEP.             */
-    %LET CEP_DATE_VAR = <        >;     /* (V) The date variable to be used to filter CEP sales.                  */
-    %LET BEGINDAY_CEP = <DDMONYYYY>;    /* (T) Day 1 of 1st month of CEP U.S. sales to be kept.                   */
-    %LET ENDDAY_CEP   = <DDMONYYYY>;    /* (T) Last day of last month of CEP U.S. sales to be kept.               */
+%LET FILTER_CEP = <YES/NO>;             /*(T) Additionally filter CEP sales?  Type "YES" (no quotes) to filter,  */
+                                        /*    "NO" to skip this part. If you typed "YES," then also complete     */
+                                        /*    the three subsequent indented macro variables re: CEP.             */
+    %LET CEP_DATE_VAR = <        >;     /*(V) The date variable to be used to filter CEP sales.                  */
+    %LET BEGINDAY_CEP = <DDMONYYYY>;    /*(T) Day 1 of 1st month of CEP U.S. sales to be kept.                   */
+    %LET ENDDAY_CEP   = <DDMONYYYY>;    /*(T) Last day of last month of CEP U.S. sales to be kept.               */
 
-%LET FILTER_EP     = <YES/NO>;          /* (T) Additionally filter EP sales?  Type "YES" (no quotes) to filter,   */
-                                        /*     "NO" to skip this part. If you typed "YES," then also complete     */
-                                        /*     the three subsequent indented macro variables re: EP.              */
-    %LET EP_DATE_VAR  = <  >;           /* (V) The date variable to be used to filter EP sales, e.g., entry date. */
-    %LET BEGINDAY_EP  = <DDMONYYYY>;    /* (T) Day 1 of 1st month of EP U.S. sales to be kept.                    */
-    %LET ENDDAY_EP    = <DDMONYYYY>;    /* (T) Last day of last month of EP U.S. sales to be kept.                */
+%LET FILTER_EP     = <YES/NO>;          /*(T) Additionally filter EP sales?  Type "YES" (no quotes) to filter,   */
+                                        /*    "NO" to skip this part. If you typed "YES," then also complete     */
+                                        /*    the three subsequent indented macro variables re: EP.              */
+    %LET EP_DATE_VAR  = <  >;           /*(V) The date variable to be used to filter EP sales, e.g., entry date. */
+    %LET BEGINDAY_EP  = <DDMONYYYY>;    /*(T) Day 1 of 1st month of EP U.S. sales to be kept.                    */
+    %LET ENDDAY_EP    = <DDMONYYYY>;    /*(T) Last day of last month of EP U.S. sales to be kept.                */
 
 /*----------------------------------------------------------------------------------------------------------------------*/
 /* TITLES, FOOTNOTES AND AUTOMATIC NAMES FOR OUTPUT DATASETS                                                            */
@@ -273,14 +273,25 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* All output datasets will be placed in the COMPANY directory.                                                         */
 /*----------------------------------------------------------------------------------------------------------------------*/
 
-%LET PRODUCT    = %NRBQUOTE(<Product under Investigation or Review>);    /* (T) Product */
-%LET COUNTRY    = %NRBQUOTE(<Country under Investigation or Review>);    /* (T) Country */
+%LET PRODUCT    = %NRBQUOTE(<Product under Investigation or Review>);    /*(T) Product */
+%LET COUNTRY    = %NRBQUOTE(<Country under Investigation or Review>);    /*(T) Country */
 
-/* Between the RESPONDENT, SEGMENT and STAGE macro variables below, there should be a maximum of 21 digits. */
+/*------------------------------------------------------------------------*/
+/* Between the RESPONDENT, SEGMENT and STAGE macro variables below, there */
+/* should be a maximum of 21 digits.                                      */
+/*------------------------------------------------------------------------*/
 
-%LET RESPONDENT = <  >;    /* (T) Respondent identifier.  Use only letters, numbers and underscores.                                */
-%LET SEGMENT    = <  >;    /* (T) Segment of the proceeding, e.g., Invest, AR1, Remand.  Use only letters, numbers and underscores. */
-%LET STAGE      = <  >;    /* (T) Stage of proceeding, e.g., Prelim, Final, Remand.  Use only letters, numbers and underscores.     */
+%LET RESPONDENT = <  >;  /*(T) Respondent identifier. Use only letters, numbers  */
+                         /*    and underscores. No punctuation marks, blank      */
+                         /*    spaces or special characters should be used.      */
+%LET SEGMENT    = <  >;  /*(T) Segment of the proceeding, e.g., Invest, AR1,     */
+                         /*    Remand. Use only letters, numbers and underscores */
+                         /*    No punctuation marks, blank spaces or special     */
+                         /*    characters should be used.                        */
+%LET STAGE      = <  >;  /*(T) Stage of proceeding, e.g., Prelim, Final, Remand. */
+                         /*    Use only letters, numbers and underscores. No     */
+                         /*    punctuation marks, blank spaces or special        */
+                         /*    characters should be used.                        */
 
 /*---------------------------------------------------------*/
 /* HAVE CONTROL NUMBERS (I.E. CONNUMU) BEEN REPORTED FOR   */
@@ -291,8 +302,8 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* DO NOT TYPE IN THE QUOTES.                              */
 /*---------------------------------------------------------*/
 
-%LET CONNUMS = <YES/NO>; /* (T) TYPE IN 'YES' OR 'NO'.  */
-                         /*     DO NOT TYPE THE QUOTES. */
+%LET CONNUMS = <YES/NO>; /*(T) TYPE IN 'YES' OR 'NO'.  */
+                         /*    DO NOT TYPE THE QUOTES. */
 
 /*-----------------------------------------------------------------*/
 /* IF THERE ARE REPORTED CONTROL NUMBERS, TYPE IN THE U.S. AND FOP */
@@ -300,13 +311,13 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* THIS CASE, DO NOT FILL IN THE FOLLOWING TWO MACRO VARIABLE.     */
 /*-----------------------------------------------------------------*/
 
-%LET USCONNUM  = <     >; /* (V) TYPE IN THE U.S. CONTROL VARIABLE */
-                          /*     NAME (EX. CONNUMU) IF CONTROL     */
-                          /*     NUMBERS HAVE BEEN REPORTED.       */
+%LET USCONNUM  = <     >; /*(V) TYPE IN THE U.S. CONTROL VARIABLE */
+                          /*    NAME (EX. CONNUMU) IF CONTROL     */
+                          /*    NUMBERS HAVE BEEN REPORTED.       */
 
-%LET FOPCONNUM = <     >; /* (V) TYPE IN THE FOP CONTROL VARIABLE  */
-                          /*     NAME (EX. CONNUM) IF CONTROL      */
-                          /*     NUMBERS HAVE BEEN REPORTED.       */
+%LET FOPCONNUM = <     >; /*(V) TYPE IN THE FOP CONTROL VARIABLE  */
+                          /*    NAME (EX. CONNUM) IF CONTROL      */
+                          /*    NUMBERS HAVE BEEN REPORTED.       */
 
 /*------------------------------------------------------------*/
 /* IF THERE ARE REPORTED CONTROL NUMBERS (I.E. CONNUMU), LIST */
@@ -328,22 +339,22 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* DO NOT TYPE IN THE QUOTES.                                */
 /*-----------------------------------------------------------*/
 
-%LET FOPCHARS = <YES/NO>; /* (T) TYPE IN 'YES' OR 'NO'.  */
-                          /*     DO NOT TYPE THE QUOTES. */
+%LET FOPCHARS = <YES/NO>; /*(T) TYPE IN 'YES' OR 'NO'.  */
+                          /*    DO NOT TYPE THE QUOTES. */
 
 /*----------------------------------------------------------------*/
 /* TYPE IN THE U.S. GROSS UNIT PRICE VARIABLE NAME (EX. GRSUPRU). */
 /*----------------------------------------------------------------*/
 
-%LET USGUP = <     >;     /* (V) TYPE IN THE GROSS UNIT PRICE */
-                          /*     VARIABLE NAME (EX. GRSUPRU). */
+%LET USGUP = <     >;     /*(V) TYPE IN THE GROSS UNIT PRICE */
+                          /*    VARIABLE NAME (EX. GRSUPRU). */
 
 /*-----------------------------------------------------*/
 /* TYPE IN THE U.S. QUANTITY VARIABLE NAME (EX. QTYU). */
 /*-----------------------------------------------------*/
 
-%LET USQTY = <     >;     /* (V) TYPE IN THE U.S. QUANTITY */
-                          /*     VARIABLE NAME (EX. QTYU). */
+%LET USQTY = <     >;     /*(V) TYPE IN THE U.S. QUANTITY */
+                          /*    VARIABLE NAME (EX. QTYU). */
 
 /*-------------------------------------------------------------*/
 /* TYPE IN 'EP' IF SALES ARE ONLY EXPORT PRICE SALES, 'CEP' IF */
@@ -353,8 +364,8 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* DO NOT TYPE IN THE QUOTES.                                  */
 /*-------------------------------------------------------------*/
 
-%LET SALETYPE = <EP/CEP/BOTH>;  /* (T) TYPE IN 'EP', 'CEP', OR 'BOTH'. */
-                                /*     DO NOT TYPE THE QUOTES.         */
+%LET SALETYPE = <EP/CEP/BOTH>;  /*(T) TYPE IN 'EP', 'CEP', OR 'BOTH'. */
+                                /*    DO NOT TYPE THE QUOTES.         */
 
 /*-------------------------------------------------------------------*/
 /* CASES INITIATED AFTER JUNE 19, 2012 MAY HAVE IRRECOVERABLE INPUT  */
@@ -364,11 +375,11 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* IS REPORTED AS A UNIT AMOUNT, AS A PERCENTAGE, OR NOT REPORTED.   */
 /*-------------------------------------------------------------------*/
 
-%LET VAT_TAX_TYPE = <AMOUNT/PERCENTAGE/NONE>; /* (T) TYPE IN 'AMOUNT' IF VATTAXU IS REPORTED */
-                                              /*     AS A UNIT AMOUNT. TYPE IN 'PERCENTAGE'  */
-                                              /*     IF VATTAXU IS REPORTED AS A PERCENTAGE. */
-                                              /*     TYPE IN 'NONE' IF THERE IS NO VATTAXU.  */
-                                              /*     DO NOT TYPE THE QUOTES.                 */
+%LET VAT_TAX_TYPE = <AMOUNT/PERCENTAGE/NONE>; /*(T) TYPE IN 'AMOUNT' IF VATTAXU IS REPORTED */
+                                              /*    AS A UNIT AMOUNT. TYPE IN 'PERCENTAGE'  */
+                                              /*    IF VATTAXU IS REPORTED AS A PERCENTAGE. */
+                                              /*    TYPE IN 'NONE' IF THERE IS NO VATTAXU.  */
+                                              /*    DO NOT TYPE THE QUOTES.                 */
 
 /*--------------------------------------------------------------------*/
 /* CASES INITIATED AFTER JUNE 19, 2012 MAY HAVE EXPORT OR OTHER TAXES */
@@ -379,11 +390,11 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /*--------------------------------------------------------------------*/
 
 
-%LET EXPORT_TAX_TYPE = <AMOUNT/PERCENTAGE/NONE>; /* (T) TYPE IN 'AMOUNT' IF EXTAXU IS REPORTED */
-                                                 /*     AS A UNIT AMOUNT. TYPE IN 'PERCENTAGE' */
-                                                 /*     IF EXTAXU IS REPORTED AS A PERCENTAGE. */
-                                                 /*     TYPE 'NONE' IF THERE IS NO EXTAXU.     */
-                                                 /*     DO NOT TYPE THE QUOTES.                */
+%LET EXPORT_TAX_TYPE = <AMOUNT/PERCENTAGE/NONE>; /*(T) TYPE IN 'AMOUNT' IF EXTAXU IS REPORTED */
+                                                 /*    AS A UNIT AMOUNT. TYPE IN 'PERCENTAGE' */
+                                                 /*    IF EXTAXU IS REPORTED AS A PERCENTAGE. */
+                                                 /*    TYPE 'NONE' IF THERE IS NO EXTAXU.     */
+                                                 /*    DO NOT TYPE THE QUOTES.                */
 
 /*-------------------------------------------------------*/
 /* TO CORROBORATE THE PETITION RATE, INITIATION RATE, OR */
@@ -391,10 +402,10 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* (EX. 93.13, WHICH STANDS FOR A RATE OF 93.13%).       */
 /*-------------------------------------------------------*/
 
-%LET PERCENT = <    >; /* (T) TYPE IN THE PETITION RATE, INITIATION RATE, */
-                       /*     OR HIGHEST RATE. TYPE IN THE PERCENTAGE AS  */
-                       /*     A FRACTIONAL VALUE  (EX. 93.13 WHICH STANDS */
-                       /*     FOR 93.13%).                                */
+%LET PERCENT = <    >; /*(T) TYPE IN THE PETITION RATE, INITIATION RATE, */
+                       /*    OR HIGHEST RATE. TYPE IN THE PERCENTAGE AS  */
+                       /*    A FRACTIONAL VALUE  (EX. 93.13 WHICH STANDS */
+                       /*    FOR 93.13%).                                */
 
 /*----------------------------------------------------------*/
 /* DISPLAY THE ANTIDUMPING DUTY MARGIN AS A PER-UNIT AMOUNT */
@@ -407,8 +418,8 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* DO NOT TYPE IN THE QUOTES.                               */
 /*----------------------------------------------------------*/
 
-%LET PER_UNIT_RATE = <YES/NO>; /* (T) TYPE IN 'YES' OR 'NO'.  */
-                               /*     DO NOT TYPE THE QUOTES. */
+%LET PER_UNIT_RATE = <YES/NO>; /*(T) TYPE IN 'YES' OR 'NO'.  */
+                               /*    DO NOT TYPE THE QUOTES. */
 
 /*------------------------------------------------------*/
 /* FOR REVIEWS, TYPE IN THE 'IMPORTER' IF IMPORTER IS   */
@@ -421,12 +432,12 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* DO NOT TYPE IN THE QUOTES.                           */
 /*------------------------------------------------------*/
 
-%LET IMPORTER = <IMPORTER/CUSCODU>; /* (V) TYPE IN 'IMPORTER' OR   */
-                                    /*     'CUSCODU'. DO NOT TYPE  */
-                                    /*     THE QUOTES.             */
+%LET IMPORTER = <IMPORTER/CUSCODU>; /*(V) TYPE IN 'IMPORTER' OR   */
+                                    /*    'CUSCODU'. DO NOT TYPE  */
+                                    /*    THE QUOTES.             */
 
-%LET ENTERED_VALUE = <YES/NO>;      /* (V) TYPE IN 'YES' OR 'NO'.  */
-                                    /*     DO NOT TYPE THE QUOTES. */
+%LET ENTERED_VALUE = <YES/NO>;      /*(V) TYPE IN 'YES' OR 'NO'.  */
+                                    /*    DO NOT TYPE THE QUOTES. */
 
 /*------------------------------------------------------------*/
 /* DISPLAY THE IMPORTER-SPECIFIC MARGINS AS A PER-UNIT AMOUNT */
@@ -439,8 +450,8 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* DO NOT TYPE IN THE QUOTES.                                 */
 /*------------------------------------------------------------*/
 
-%LET FORCEPERUNITASSESS = <YES/NO>; /* (T) TYPE IN 'YES' OR 'NO'.  */
-                                    /*     DO NOT TYPE THE QUOTES. */
+%LET FORCEPERUNITASSESS = <YES/NO>; /*(T) TYPE IN 'YES' OR 'NO'.  */
+                                    /*    DO NOT TYPE THE QUOTES. */
 
 /*----------------------------------------------------------------------------------*/
 /* IF THERE ARE ANY ADJUSTMENTS THAT NEED TO BE CONVERTED INTO U.S. DOLLARS, MAKE   */
@@ -458,24 +469,24 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* OTHERWISE FILL OUT ONLY THE FIRST MACRO VARIABLE USE_EXRATES1.             */
 /*----------------------------------------------------------------------------*/
 
-%LET USE_EXRATES1 = <YES/NO>;   /* (T) Use exchange rate #1? Type "YES" or "NO"  */
-                                /*     (without quotes).                         */
-%LET EXDATA1 = <  >;            /* (D) Exchange rate #1 dataset name.            */
-%LET VARS_TO_USD1 = <      >;   /* (V) Type in the list of variables to convert  */
-                                /*     into U.S. dollars using exchange rate #1. */
-                                /*     Separate the variables with spaces.       */
+%LET USE_EXRATES1 = <YES/NO>;   /*(T) Use exchange rate #1? Type "YES" or "NO"  */
+                                /*    (without quotes).                         */
+%LET EXDATA1 = <  >;            /*(D) Exchange rate #1 dataset name.            */
+%LET VARS_TO_USD1 = <      >;   /*(V) Type in the list of variables to convert  */
+                                /*    into U.S. dollars using exchange rate #1. */
+                                /*    Separate the variables with spaces.       */
 
 /*-----------------------------------------------------------------------------*/
 /* FILL OUT THE FOLLOWING THREE MACRO VARIABLES IF THERE ARE ADJUSTMENTS       */
 /* THAT NEED TO BE CONVERTED INTO U.S. DOLLARS FROM A SECOND FOREIGN CURRENCY. */
 /* OTHERWISE FILL OUT ONLY THE FIRST MACRO VARIABLE USE_EXRATES2.              */
 /*-----------------------------------------------------------------------------*/
-%LET USE_EXRATES2 = <YES/NO>;   /* (T) Use exchange rate #2? Type "YES" or "NO"  */
-                                /*     (without quotes).                         */
-%LET EXDATA2 = <  >;            /* (D) Exchange rate #2 dataset name.            */
-%LET VARS_TO_USD2 = <      >;   /* (V) Type in the list of variables to convert  */
-                                /*     into U.S. dollars using exchange rate #2. */
-                                /*     Separate the variables with spaces.       */
+%LET USE_EXRATES2 = <YES/NO>;   /*(T) Use exchange rate #2? Type "YES" or "NO"  */
+                                /*    (without quotes).                         */
+%LET EXDATA2 = <  >;            /*(D) Exchange rate #2 dataset name.            */
+%LET VARS_TO_USD2 = <      >;   /*(V) Type in the list of variables to convert  */
+                                /*    into U.S. dollars using exchange rate #2. */
+                                /*    Separate the variables with spaces.       */
 
 /*-------------------------------------------------*/
 /* THE FOLLOWING FIVE MACRO VARIABLES WILL BE USED */
@@ -519,22 +530,22 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /*    variable containing the time periods in DP_TIME=???.        */
 /*----------------------------------------------------------------*/
 
-%LET DP_PURCHASER   = <        >; /* (V) Variable indicating customer for purposes of the  */
-                                  /*     Cohen's-d test.                                   */
-%LET DP_REGION_DATA = <        >; /* (T) Type either "REGION," "STATE" or "ZIP" (without   */
-                                  /*     quotes) to indicate the type of data being used   */
-                                  /*     to assign Census regions. Then complete the       */
-                                  /*     DP_REGION macro variable immediately following.   */
-%LET     DP_REGION  = <        >; /* (V) Variable indicating the DP region if you typed    */
-                                  /*     "REGION" for DP_REGION_DATA, or the variable      */
-                                  /*     indicating the 2-digit postal state designation   */
-                                  /*     if you typed "STATE," or the variable indicating  */
-                                  /*     the 5-digit zip code if you typed "ZIP."          */
-%LET DP_TIME_CALC   = <YES/NO>;   /* (T) Type "YES" (without quotes) to assign quarters    */
-                                  /*     using the beginning of the period.                */
-%LET     DP_TIME    = <        >; /* (V) If you typed "NO" for DP_TIME_CALC because you    */
-                                  /*     already have a variable for the DP time period,   */
-                                  /*     indicate that variable here.                      */
+%LET DP_PURCHASER   = <        >; /*(V) Variable indicating customer for purposes of the  */
+                                  /*    Cohen's-d test.                                   */
+%LET DP_REGION_DATA = <        >; /*(T) Type either "REGION", "STATE", or "ZIP" (without  */
+                                  /*    quotes) to indicate the type of data being used   */
+                                  /*    to assign Census regions. Then complete the       */
+                                  /*    DP_REGION macro variable immediately following.   */
+%LET     DP_REGION  = <        >; /*(V) Variable indicating the DP region if you typed    */
+                                  /*    "REGION" for DP_REGION_DATA, or the variable      */
+                                  /*    indicating the 2-digit postal state designation   */
+                                  /*    if you typed "STATE," or the variable indicating  */
+                                  /*    the 5-digit zip code if you typed "ZIP."          */
+%LET DP_TIME_CALC   = <YES/NO>;   /*(T) Type "YES" (without quotes) to assign quarters    */
+                                  /*    using the beginning of the period.                */
+%LET     DP_TIME    = <        >; /*(V) If you typed "NO" for DP_TIME_CALC because you    */
+                                  /*    already have a variable for the DP time period,   */
+                                  /*    indicate that variable here.                      */
 
 /*-----------------------------------------------------------------*/
 /* THE FOLLOWING MACRO WILL BE USED IN PART 7 TO CALCULATE INPUTS. */
@@ -965,7 +976,7 @@ DATA USSALES;
     /* Selectively adjust sale date based */
     /* on an earlier date variable.       */
 
-    %DEFINE_SALE_DATE (SALEDATE = &USSALEDATE, DATEBEFORESALE = &USDATEBEFORESALE, EARLIERDATE = &USEARLIERDATE); 
+    %DEFINE_SALE_DATE (SALEDATE = &USSALEDATE, DATEBEFORESALE = &USDATEBEFORESALE, EARLIERDATE = &EARLIERDATE); 
 
     /* <Insert changes here, if required.> */
 
@@ -3162,12 +3173,14 @@ RUN;
     /*----------------------------------------------------*/
 
     %PRINT_CASH_DEPOSIT(AVGMARG,STANDARD)
-    %PRINT_CASH_DEPOSIT(TRANMARG,ALTERNATIVE)
+
     %IF &ABOVE_DEMINIMIS_MIXED NE NA %THEN
     %DO;
         %PRINT_CASH_DEPOSIT(MIXEDSPLIT,MIXED)
     %END;
     
+    %PRINT_CASH_DEPOSIT(TRANMARG,ALTERNATIVE)
+
     /*--------------------------------------------*/
     /* PRINT CASH DEPOSIT RATES FOR ALL SCENARIOS */
     /*--------------------------------------------*/
@@ -3280,6 +3293,8 @@ RUN;
                 RENAME WTAVGPCT_ALT = WTAVGPCT;
         RUN;
 
+        %GLOBAL MA_METHOD AT_METHOD;
+
         DATA MEANINGFUL_DIFF_TEST;
             LENGTH RESULT $ 36 MEANINGFUL_DIFF $ 3;
             SET TRANMARG &ADD_SET;
@@ -3312,6 +3327,12 @@ RUN;
                     END;
                 END;
             END;
+
+            IF METHOD = "MIXED ALTERNATIVE" THEN
+                CALL SYMPUT('MA_METHOD', MEANINGFUL_DIFF);
+            ELSE
+            IF METHOD = "A-to-T ALTERNATIVE" THEN
+                CALL SYMPUT('AT_METHOD', MEANINGFUL_DIFF);
         RUN;
 
         PROC FORMAT;
@@ -3330,7 +3351,7 @@ RUN;
             FORMAT WTAVGPCT WTAVGPCT_STND RELATIVE_CHANGE RELCHNG.;
             TITLE3 "RESULTS OF THE MEANINGFUL DIFFERENCE TEST";
             TITLE5 "CASE ANALYST:  Please notify management of results so that the proper method can be selected.";
-            TITLE7 "PERCENT OF SALES PASSING THE COHEN'S D TEST = &PERCENT_VALUE_PASSING";
+            TITLE7 "PERCENT OF SALES PASSING THE COHEN'S D TEST = %SYSFUNC(STRIP(&PERCENT_VALUE_PASSING))";
             FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
             FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
         RUN;
@@ -3780,6 +3801,10 @@ RUN;
 
     PROC PRINT DATA = ANSWER NOOBS SPLIT = '*';
         TITLE3 "SUMMARY OF CASH DEPOSIT RATES";
+        TITLE5 "PERCENT OF SALES PASSING THE COHEN'S D TEST: %SYSFUNC(STRIP(&PERCENT_VALUE_PASSING))";   
+        TITLE6 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE MIXED-ALTERNATIVE METHOD: %SYSFUNC(STRIP(&MA_METHOD))";
+        TITLE7 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE A-to-T ALTERNATIVE METHOD: %SYSFUNC(STRIP(&AT_METHOD))";
+        TITLE8 " ";
         VAR &PREFIX._STND &PREFIX._MIXED &PREFIX._ALT;
         LABEL &PREFIX._STND = &LABEL_STND
               &PREFIX._MIXED = &LABEL_MIXED

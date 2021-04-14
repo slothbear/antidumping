@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET-ECONOMY                       */
 /*                      ANALYSIS OF HOME MARKET SALES                      */
 /*                                                                         */
-/*                    LAST PROGRAM UPDATE JULY 28, 2020                    */
+/*             GENERIC VERSION LAST UPDATED FEBRUARY 11, 2021              */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring in Home Market Sales, Convert Date Variable, If          */
@@ -13,7 +13,7 @@
 /* Part 6:  Add the Downstream Sales for Affiliated Parties That Failed    */
 /*          the Arm's-Length Test and Resold Merchandise                   */
 /* Part 7:  HM Values for CEP Profit Calculations                          */
-/* Part 8:  Cost Test                                                      */
+/* Part 8:  Cost Test                                                      */ 
 /* Part 9:  Weight-Averaged Home Market Values for Price-To-Price          */
 /*          Comparisons with U.S. Sales                                    */
 /* Part 10: Calculate Selling Expense and Profit Ratios for                */
@@ -236,22 +236,25 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*          All output datasets will be placed in the COMPANY directory.   */
 /*-------------------------------------------------------------------------*/
 
-%LET PRODUCT      = <  >;     /*(T) Product */
-%LET COUNTRY      = <  >;     /*(T) Country */
+%LET PRODUCT    = %NRBQUOTE(<Product under Investigation or Review>);    /*(T) Product */
+%LET COUNTRY    = %NRBQUOTE(<Country under Investigation or Review>);    /*(T) Country */
 
 /*------------------------------------------------------------------------*/
 /* Between the RESPONDENT, SEGMENT and STAGE macro variables below, there */
 /* should be a maximum of 21 digits.                                      */
 /*------------------------------------------------------------------------*/
 
-%LET RESPONDENT = <  >;  /*(T) Respondent identifier. Use only letters,   */
-                         /*    numbers and underscores.                   */
-%LET SEGMENT    = <  >;  /*(T) Segment of the proceeding, e.g., Invest,   */
-                         /*    AR1, Remand. Use only letters, numbers     */
-                         /*    and underscores.                           */
-%LET STAGE      = <  >;  /*(T) Stage of proceeding, e.g., Prelim, Final,  */
-                         /*    Remand. Use only letters, numbers and      */
-                         /*    underscores.                               */
+%LET RESPONDENT = <  >;  /*(T) Respondent identifier. Use only letters, numbers  */
+                         /*    and underscores. No punctuation marks, blank      */
+                         /*    spaces or special characters should be used.      */
+%LET SEGMENT    = <  >;  /*(T) Segment of the proceeding, e.g., Invest, AR1,     */
+                         /*    Remand. Use only letters, numbers and underscores */
+                         /*    No punctuation marks, blank spaces or special     */
+                         /*    characters should be used.                        */
+%LET STAGE      = <  >;  /*(T) Stage of proceeding, e.g., Prelim, Final, Remand. */
+                         /*    Use only letters, numbers and underscores. No     */
+                         /*    punctuation marks, blank spaces or special        */
+                         /*    characters should be used.                        */
 
 /*-------------------------------------------------------------------*/
 /* 1-E: DATABASE INFORMATION FOR HM SALES, COSTS & EXCHANGE RATES    */
@@ -399,6 +402,16 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET COST_PRIME = <NA>;   /*(V) Prime code. If not applicable,      */
                           /*    type "NA" (without quotes).         */
 
+/***********************************************************/
+/* If you want to use the Cost based duty drawback in the  */
+/* calculation USNETPRI in the ME Margin Program, fill out */
+/* the following two macro variables.                      */
+/*                                                         */
+/* NOTE: The duty drawback variable will need to be        */
+/* manually converted to USD in PART 4: CALCULATE THE NET  */
+/* U.S. PRICE of the Margin Calculation Program.           */
+/***********************************************************/
+
 %LET USE_COST_DUTY_DRAWBACK = <YES/NO>;     /*(T) Make Cost duty drawback      */
                                             /*    available for use in         */
                                             /*    calculating the net U.S.     */
@@ -417,13 +430,13 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /* macro variable USDATA. Otherwise leave it blank.                 */
 /********************************************************************/
 
-%LET      USDATA = <  >;    /*(D) U.S. sales dataset filename, needed */
-                            /*    if there are time-specific costs    */
-                            /*    and/or the need to find surrogate   */
-                            /*    there are no product matching       */
-                            /*    characteristics in cost data.       */
-%LET      USBARCODE = <  >; /*(T) Bar code number(s) of US sales      */
-                            /*    dataset(s) used in this program.    */
+%LET      USDATA = <  >;    /*(D) U.S. sales dataset filename, needed   */
+                            /*    if there are time-specific costs      */
+                            /*    and/or the need to find surrogate     */
+                            /*    costs and there are no product        */
+                            /*    matching characteristics in cost data.*/
+%LET      USBARCODE = <  >; /*(T) Bar code number(s) of US sales        */
+                            /*    dataset(s) used in this program.      */
 
 /*----------------------------------------------------*/
 /* 1-E-iii-a. SURROGATE COSTS FOR NON-PRODUCTION      */
@@ -476,8 +489,10 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                           /*    cost data. NOTE:  If period cost is being  */
                           /*    run, matching characteristics must be      */
                           /*    included.                                  */
-%LET    USMANF = <  >;    /*(V) US manufacturer code. If not applicable,   */
+%LET    USMANF = <NA>;    /*(V) U.S. manufacturer code. If not applicable, */
                           /*    type "NA" (without quotes).                */
+%LET    USPRIME = <NA>;   /*(V) U.S. Prime/seconds code. If not            */
+                          /*    applicable, type "NA" (without quotes).    */
 
 /*--------------------------------------------------*/
 /* 1-E-iii-b. TIME-SPECIFIC COSTS                   */
@@ -541,8 +556,8 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                            /*    (without quotes).             */
 %LET      COST_YEAR_MONTH = <  >;          /*(V) Variable in Cost data         */
                                            /*    representing year and month.  */
-%LET      LAST_YEAR_MONTH = <yyyymm>;      /*(T) Last year and month of in the */
-                                           /*    form YYYYMM.                  */
+%LET      LAST_YEAR_MONTH = <yyyymm>;      /*(T) Last year and month of the    */
+                                           /*    period in the form YYYYMM.    */
 
 /*----------------------------------------------------------------------*/
 /* 1-F: CONDITIONAL PROGRAMMING OPTIONS:                                */
@@ -754,6 +769,9 @@ DATA HMSALES;
                                         /* the date of sale variable and the     */
                                         /* first day of the POR/POI. The         */
                                         /* values will be '-1', '0', '1', etc.   */
+    %CREATE_YEAR_MONTH(&HMSALEDATE, HM) /* In hyperinflation cases Creates the   */
+                                        /* variable YEARMONTHH representing the  */
+                                        /* year and month of sale date.          */
 RUN;
 
 /*ep*/
@@ -1083,7 +1101,7 @@ RUN;
 /*-------------------------------------------------------------------*/
 
 PROC FORMAT;
-/*    VALUE PRICE_INDEX*/
+/*    VALUE $PRICE_INDEX*/
 /*        <yyyymm> = <PPI for yyyymm>  */
 /*        <yyyymm> = <PPI for yyyymm>  */
 /*        <yyyymm> = <PPI for yyyymm>  */
@@ -1134,8 +1152,14 @@ RUN;
 
 /*ep*/
 
+/*----------------------------------------------------------*/
+/* 3-D: ADJUST COST DATA FOR HYPERINFLATION, WHEN REQUIRED. */
+/*----------------------------------------------------------*/
+
+%G14_HYPERINFLATION
+
 /*-----------------------------------------------*/
-/* 3-D: WEIGHT-AVERAGE COST DATA, WHEN REQUIRED. */
+/* 3-E: WEIGHT-AVERAGE COST DATA, WHEN REQUIRED. */
 /*-----------------------------------------------*/
 
 %G15_CHOOSE_COSTS
@@ -1143,7 +1167,7 @@ RUN;
 /*ep*/
 
 /*-------------------------------------------------------------------------*/
-/* 3-E: FIND SURROGATE COSTS FOR PRODUCTS NOT PRODUCED DURING POR          */
+/* 3-F: FIND SURROGATE COSTS FOR PRODUCTS NOT PRODUCED DURING POR          */
 /*-------------------------------------------------------------------------*/
 
 %G16_MATCH_NOPRODUCTION
@@ -1151,7 +1175,7 @@ RUN;
 /*ep*/
 
 /*-------------------------------------------------------------------------*/
-/* 3-F: MERGE COSTS WITH HMSALES AND OUTPUT A COST DATABASE FOR USE WITH   */
+/* 3-G: MERGE COSTS WITH HMSALES AND OUTPUT A COST DATABASE FOR USE WITH   */
 /*      U.S. SALES DATA                                                    */
 /*                                                                         */
 /* The output database will be named using the standardized naming         */
@@ -1162,7 +1186,7 @@ RUN;
 /*-------------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------*/
-/* 3-F-ii: GET COST COUNT FOR LOG REPORTING                     */
+/* 3-G-ii: GET COST COUNT FOR LOG REPORTING                     */
 /*--------------------------------------------------------------*/
 
 %CMAC2_COUNTER (DATASET = COST, MVAR = PRE_AVGCOST);
@@ -1174,7 +1198,7 @@ RUN;
 /*ep*/
 
 /*--------------------------------------------------------------*/
-/* 3-F-iiI: GET COST COUNT FOR LOG REPORTING                    */
+/* 3-G-iii: GET COST COUNT FOR LOG REPORTING                    */
 /*--------------------------------------------------------------*/
 
 %CMAC2_COUNTER (DATASET = AVGCOST, MVAR = AVGCOST);
@@ -1343,7 +1367,6 @@ DATA HMSALES;
         HMDSELL   = <0>;   /* Direct selling expenses, excluding HMCRED  */
         HMICC     = <0>;   /* Imputed inventory carrying expenses        */
         HMISELL   = <0>;   /* Indirect selling expenses, excluding HMICC */
-                           /*                                            */
         HMCOMM    = <0>;   /* Commissions                                */
         HMPACK    = <0>;   /* Packing                                    */
 
@@ -1387,8 +1410,8 @@ DATA HMSALES;
         /* Net price for price comparisons. Deduct imputed credit expenses. */
         /* Must be in the same currency as the cost data.                   */
 
-        HMNETPRI  = HMGUP + HMGUPADJ - HMDISREB - HMMOVE
-                  - HMDSELL - HMCRED - HMCOMM - HMPACK;
+        HMNETPRI = HMGUP + HMGUPADJ - HMDISREB - HMMOVE
+                 - HMDSELL - HMCRED - HMCOMM - HMPACK;
 
         /* Net price for the cost test. Do NOT deduct imputed expenses. */
         /* Must be in the same currency as the cost data.               */
@@ -1495,13 +1518,13 @@ RUN;
     /* <Create a LOT variable for downstream sales or edit an */
     /*  existing variable here, when required.>               */
 
-        %G4_LOT(&HMLOT,HMLOT) 
+    %G4_LOT(&HMLOT,HMLOT) 
 
     %CREATE_QUARTERS(&HMSALEDATE, HM)   /* Assigns quarters to HM sales based on */
                                         /* the date of sale variable and the     */
                                         /* first day of the POR/POI. The         */
                                         /* values will be '-1', '0', '1', etc.   */
-    %CREATE_YEAR_MONTH(&HMSALEDATE, HM) /* In hyperinflation cases Creates the   */
+    %CREATE_YEAR_MONTH(&HMSALEDATE, HM) /* In hyperinflation cases creates the   */
                                         /* variable YEARMONTHH representing the  */
                                         /* year and month of sale date.          */
 
@@ -1724,14 +1747,12 @@ RUN;
 /*     HMPRIME, VCOMHM and TCOMHM.                                         */
 /***************************************************************************/
 
-/*-------------------------------------------------------------------------*/
-/* 9-A: SELECT HM DATA TO WEIGHT AVERAGE                                   */
-/*                                                                         */
-/*     If there is a Cost Test, then above-cost sales will be used in the  */
-/*     calculation of weighted-average HM sales. If there was no Cost      */
-/*     then all HM sales, after the Arms-Length Test and inclusion of      */
-/*     downstream sales, if required, will be used.                        */
-/*-------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/* 9-A: SELECT HM DATA TO WEIGHT AVERAGE                                     */
+/*                                                                           */
+/*      Weight-average HM sales passing the Cost Test and optionally passing */
+/*      Arms-Length Test along with any added downstream sales, if required. */
+/*---------------------------------------------------------------------------*/
 
      %HM6_DATA_4_WTAVG
 

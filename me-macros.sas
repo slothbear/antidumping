@@ -4,13 +4,12 @@ OPTIONS SYMBOLGEN MPRINT;
 /*                     ANTIDUMPING MARKET-ECONOMY                   */
 /*                           MACROS PROGRAM                         */
 /*                                                                  */
-/*                  LAST PROGRAM UPDATE JULY 28, 2020               */
+/*           GENERIC VERSION LAST UPDATED FEBRUARY 11, 2021         */
 /*                                                                  */
 /********************************************************************/
 /*                              GENERAL MACROS                      */
 /*------------------------------------------------------------------*/
 /*     G1_RUNTIME_SETUP                                             */
-/*                                                                  */
 /*     G2_TITLE_SETUP                                               */
 /*     G3_COST_TIME_MVARS                                           */
 /*     G4_LOT                                                       */
@@ -1294,6 +1293,40 @@ RUN;
 /* Pull closest quarter into need quarter for the direct material variables. */
 /*****************************************************************************/
 
+         /*********************************************************************************************/
+         /* CREATE THE INDEXING CALCULATIONS                                                          */
+         /*     NO_PROD_DIRMAT = INPUT(PUT(NEED_TIME, $DIRMAT_INPUT.), 8.);                           */
+         /*     CLOSEST_PROD_DIRMAT= INPUT(PUT(&COST_TIME_PERIOD, $DIRMAT_INPUT.), 8.);               */
+         /*     PERCENT_CHANGE_DIRMAT = (NO_PROD_DIRMAT - CLOSEST_PROD_DIRMAT) / CLOSEST_PROD_DIRMAT; */
+         /*     RDIRMAT = DIRMAT * (1 + PERCENT_CHANGE_DIRMAT);                                       */
+         /*********************************************************************************************/
+
+        DATA DIRMAT_VARS_CHANGE (DROP = I);
+            DO I = 1 TO COUNTW("&DIRMAT_VARS");
+                DMT_VRS = STRIP(SCAN("&DIRMAT_VARS", I));
+                R_DRMT_VRS = STRIP(CATS("R",SCAN("&DIRMAT_VARS", I))); 
+                RNMAME_RDRIMATS = STRIP(CATS(SCAN("&DIRMAT_VARS", I), "=", R_DRMT_VRS,";")); 
+                NOPRDDMT = CATS("NO_PROD_",DMT_VRS, " = INPUT(PUT(NEED_TIME, $", DMT_VRS, "_INPUT.), 8.)");    
+                CLSTPRDDMT = CATS("CLOSEST_PROD_",DMT_VRS," = INPUT(PUT(&COST_TIME_PERIOD, $",DMT_VRS, "_INPUT.), 8.)");
+                PCTCHADMT = CATS("PERCENT_CHANGE_",DMT_VRS, " = (NO_PROD_", DMT_VRS, " - CLOSEST_PROD_", DMT_VRS, ") / CLOSEST_PROD_", DMT_VRS);
+                RDMT = CATS("R", DMT_VRS, " = ", DMT_VRS," * (1 + PERCENT_CHANGE_", DMT_VRS, ")");
+                OUTPUT;
+            END; 
+        RUN;
+
+        PROC SQL NOPRINT;
+            SELECT DMT_VRS, RNMAME_RDRIMATS, NOPRDDMT, CLSTPRDDMT, PCTCHADMT, RDMT
+                INTO :SUM_DIRMAT_VARS SEPARATED BY ",", 
+                     :REPLACE_INDEXED_DIRMATS SEPARATED BY " ",
+                     :NOPRDDMT SEPARATED BY "; ",
+                     :CLSTPRDDMT SEPARATED BY "; ",
+                     :PCTCHADMT SEPARATED BY "; ",
+                     :RDMT SEPARATED BY "; "
+                FROM DIRMAT_VARS_CHANGE ;
+        QUIT;
+
+        /* Pull closest quarter into needed quarter for DIRMAT variables */
+
         %IF &NEEDTIMELST NE ( ) %THEN
         %DO;
             DATA NEED_TIMES_COST;
@@ -1789,6 +1822,10 @@ RUN;
         %END;
     %END;
 
+    PROC PRINT DATA = COST (OBS = &PRINTOBS);
+        TITLE3 "SAMPLE OF COST CALCULATIONS BEFORE HYPERINFLATION ADJUSTMENTS";
+    RUN;
+
     /***************************************************************************************/
     /* G-14-A: Find costs for CONNUMs/Months sold and produced in the same CONNUMs/Months. */
     /***************************************************************************************/
@@ -1976,7 +2013,7 @@ RUN;
               VCOMCOP = 'DEFLATED<VCOMCOP'
               GNACOP= 'DEFLATED<GNACOP'
               INTEXCOP = 'DEFLATED<INTEXCOP'
-              TOTALCOP = 'EXTENDED<TOTALCOP'
+              TOTALCOP = 'DEFLATED<TOTALCOP'
               COST_TYPE = 'COST<TYPE';
         TITLE3 "COSTS FOR PRODUCED CONNUMS/MONTHS SOLD BUT NOT PRODUCED IN THE SAME CONNUMS/MONTHS";
         TITLE4 "WITH PERIOD-WIDE WEIGHT AVERAGED COSTS (I.E. EXTENDED) RESTATED (I.E. DEFLATED) IN MONTH CURRENCY VALUES";
@@ -2042,10 +2079,10 @@ RUN;
     /* G-14-D-i: Create the macro variables DIF_CHAR and NOPROD_CHAR                          */
     /*           that contain lists of Cost physical characteristics with the added suffixes  */
     /*           _DIF and _NOPROD respectively. Create the macro variable RENAME_NOPROD_CHAR  */
-    /*           contains a list of Cost physical characteristics equal to the same  physical */
-    /*           characteristics with suffix _NOPROD. RENAME_NOPROD_CHAR_BACK contains a list */
-    /*           of Cost physical characteristics with suffix _NOPROD equal to the same       */
-    /*           physical characteristics.                                                    */
+    /*           that contains a list of Cost physical characteristics equal to the same      */
+    /*           physical characteristics with suffix _NOPROD. RENAME_NOPROD_CHAR_BACK        */
+    /*           contains a list of Cost physical characteristics with suffix _NOPROD equal   */
+    /*           to the same physical characteristics.                                        */
     /******************************************************************************************/
 
     DATA CHAR_COMPARE (DROP = I);
@@ -2219,7 +2256,7 @@ RUN;
               VCOMCOP = 'DEFLATED*VCOMCOP'
               GNACOP = 'DEFLATED*GNACOP'
               INTEXCOP = 'DEFLATED*INTEXCOP'
-              TOTALCOP = 'EXTENDED*TOTALCOP'
+              TOTALCOP = 'DEFLATED<TOTALCOP'
               COST_TYPE = 'COST*TYPE';
         TITLE3 "SURROGATE COST MATCHES FOR CONNUMS NOT PRODUCED DURING THE COST ACCOUNTING PERIOD";
         TITLE4 "PERIOD-WIDE WEIGHT AVERAGED COSTS (I.E. EXTENDED) RESTATED (I.E. DEFLATED) IN MONTH CURRENCY VALUES";
@@ -2346,7 +2383,7 @@ RUN;
                 %DO;
                     %LET PRODCHAR = &COST_CHAR; 
                     %MACRO IDCHARS;
-                        ID &COST_CHAR;
+                        ID &COST_CHAR COST_TIME_TYPE;
                     %MEND IDCHARS;
                 %END;
                 %ELSE
@@ -2354,7 +2391,7 @@ RUN;
                 %DO;
                     %LET PRODCHAR = &PRODCHARS; 
                      %MACRO IDCHARS;
-                         ID &COST_CHAR;
+                         ID &COST_CHAR COST_TIME_TYPE;
                      %MEND IDCHARS;
                 %END;
             %END;
@@ -2688,7 +2725,7 @@ RUN;
                &COST_YEAR_MONTH &COST_TIME_PERIOD;
         RUN;
 
-        DATA &SALES NOCOST;
+        DATA &SALES NOCOST_&SALES;
         MERGE &SALES (IN = A)
               AVGCOST (IN = B RENAME = (&COST_MANF &EQUAL_COST_MANF &SALES_COST_MANF 
                                         &COST_PRIM &EQUAL_COST_PRIME &SALES_COST_PRIME
@@ -2700,11 +2737,11 @@ RUN;
                 OUTPUT &SALES;
             ELSE
             IF A & NOT B THEN
-                OUTPUT NOCOST;
+                OUTPUT NOCOST_&SALES;
         RUN;
 
-        PROC PRINT DATA = NOCOST (OBS = &PRINTOBS);
-            TITLE3 "SAMPLE OF &SALES_DB SALES WITH NO COSTS";
+        PROC PRINT DATA = NOCOST_&SALES (OBS = &PRINTOBS);
+            TITLE3 "SAMPLE OF &SALES SALES WITH NO COSTS";
         RUN;
     %MEND MERGE_COST;
     
@@ -3876,7 +3913,7 @@ RUN;
             RENAME &HMPRIM = HMPRIME;
         %MEND PRIME_RENAME;
     %END;
-        
+ 
     PROC MEANS NWAY DATA = HM NOPRINT;
         CLASS &HMMANF &HMPRIM HMLOT &MONTH &HMCONNUM &HM_TIME_PERIOD; 
         ID &HMCHAR AVGVCOM;
@@ -3931,7 +3968,7 @@ RUN;
     RUN;
 
     PROC PRINT DATA = COMPANY.&RESPONDENT._&SEGMENT._&STAGE._CVSELL (OBS = &PRINTOBS);
-        TITLE3 "COMPARISON-MARKET SELLING EXPENSE RATIOS AND PROFIT RATES FOR CV";
+        TITLE3 "HOME MARKET SELLING EXPENSE RATIOS AND PROFIT RATES FOR CV";
     RUN;
 %MEND HM8_CVSELL;
 
@@ -3942,7 +3979,7 @@ RUN;
 %MACRO HM9_LOTADJ;
     %IF %UPCASE(&RUN_HMLOTADJ) = YES %THEN
     %DO;
-        PROC MEANS NWAY DATA = HM RENAME = (&HMCONNUM = HMCONNUM) NOPRINT;
+        PROC MEANS NWAY DATA = HM (RENAME = &HMCONNUM = HMCONNUM) NOPRINT;
             CLASS HMLOT HMCONNUM &HM_TIME_PERIOD;
             VAR HMNETPRI;
             WEIGHT &HMQTY;
@@ -4172,25 +4209,43 @@ RUN;
     /* 1-F CREATE MACROS WHEN COST PRIME IS REPORTED */
     /*-----------------------------------------------*/
 
-    %IF %UPCASE(&COP_PRIME) EQ YES OR %UPCASE(&COST_PRIME) NE NA %THEN  /* Create values when Cost prime is relevant. */
+    %IF &SALESDB = HMSALES %THEN                 /* When running the Home Market Program. */
     %DO;
-        %LET AND_COST_PRIME = AND;
-        %LET COST_PRIM = COST_PRIME;
-        %LET EQUAL_COST_PRIME = = ;
-        %LET NO_PROD_COST_PRIME = NO_PRODUCTION_&COST_PRIME;
-        %LET SALES_COST_PRIME = &USPRIME;
+        %IF %UPCASE(&COST_PRIME) NE NA %THEN /* Create values when Cost prime is relevant. */
+        %DO;
+            %LET AND_COST_PRIME = AND;
+            %LET COST_PRIM = COST_PRIME;
+            %LET EQUAL_COST_PRIME = = ;
+            %LET NO_PROD_COST_PRIME = NO_PRODUCTION_&COST_PRIME;
+            %LET SALES_COST_PRIME = &USPRIME;
+        %END;
+    %END;
+    %ELSE
+    %IF &SALESDB = USSALES %THEN                      /* When running the Margin Program. */
+    %DO;
+        %IF %UPCASE(&COP_PRIME) EQ YES %THEN  /* Create values when Cost prime is relevant. */
+        %DO;
+            %LET AND_COST_PRIME = AND;
+            %LET COST_PRIM = COST_PRIME;
+            %LET EQUAL_COST_PRIME = = ;
+            %LET NO_PROD_COST_PRIME = NO_PRODUCTION_&COST_PRIME;
+            %LET SALES_COST_PRIME = &USPRIME;
+        %END;
     %END;
 
     /*--------------------------------------------------------------------------------*/
     /*  1-G CREATE PRIME MACROS WHEN THERE ARE DIRECT COMPARISONS OF U.S. SALES TO CV */
     /*--------------------------------------------------------------------------------*/
 
-    %IF %UPCASE(&COST_TYPE) EQ CV AND %UPCASE(&COST_PRIME) NE NA %THEN  /* Create values when Cost prime is relevant. */
+    %IF &SALESDB = USSALES %THEN                                                      /* When running the Margin Program. */
     %DO;
+        %IF %UPCASE(&COST_TYPE) EQ CV AND %UPCASE(&COST_PRIME) NE NA %THEN  /* Create values when Cost prime is relevant. */
+        %DO;
             %LET AND_COST_PRIME = AND;
             %LET COST_PRIM = &COST_PRIME;
             %LET EQUAL_COST_PRIME = = ;
             %LET SALES_COST_PRIME = &USPRIME;
+        %END;
     %END;
 
     /*--------------------------------------------------------------------------------*/
@@ -5226,80 +5281,140 @@ OPTIONS SYMBOLGEN;
 
     /**************************************************/
     /* US-13-A. Create macros needed re: manufacturer */
-    /* and prime for price comparisons                */
+    /* and prime for price comparisons.               */
     /**************************************************/
 
-        %IF %UPCASE(&NV_TYPE) = CV %THEN
-        %DO;
-            %LET HMMANUF= NO;
-            %LET HMPRIME= NO;
-        %END;
+    %IF %UPCASE(&NV_TYPE) = CV %THEN
+    %DO;
+        %LET HMMANUF = NO;
+        %LET HMPRIME = NO;
+    %END;
 
-        %IF %UPCASE(&USMANUF) EQ NA OR %UPCASE(&HMMANUF)= NO %THEN
-        %DO;
-            %MACRO DPMANF_RENAME;
-            %MEND DPMANF_RENAME;
-            %MACRO DPMANF_CONDITION;
-            %MEND DPMANF_CONDITION;
-        %END;
+    /***********************************************************************/
+    /* Set up null testing code when there is no HM and U.S. manufacturer. */
+    /***********************************************************************/
 
-        %IF %UPCASE(&USMANUF) EQ NA OR %UPCASE(&HMMANUF)= NO %THEN
-        %DO;
-            %MACRO DPMANF_RENAME;
-            %MEND DPMANF_RENAME;
-            %MACRO DPMANF_CONDITION;
-            %MEND DPMANF_CONDITION;
-        %END;
+    %IF %UPCASE(&USMANUF) EQ NA OR %UPCASE(&HMMANUF)= NO %THEN
+    %DO;
+        %MACRO DPMANF_RENAME;
+        %MEND DPMANF_RENAME;
+        %MACRO DPMANF_CONDITION;
+        %MEND DPMANF_CONDITION;
+        %MACRO DPMANF_SELECT_BASE;
+        %MEND DPMANF_SELECT_BASE;
+        %MACRO DPMANF_SELECT_TEST;
+        %MEND DPMANF_SELECT_TEST;
+        %MACRO DPMANF_WHERE;
+        %MEND DPMANF_WHERE;
+    %END;
 
-        %ELSE %IF %UPCASE(&USMANUF) NE NA AND %UPCASE(&HMMANUF)=YES %THEN
-        %DO;
-            %MACRO DPMANF_RENAME;
-                &USMANF =BASE_MANUF 
-            %MEND DPMANF_RENAME;
-            %MACRO DPMANF_CONDITION;
-                &USMANF  =BASE_MANUF AND 
-            %MEND DPMANF_CONDITION;
-        %END;
+    /***************************************************************/
+    /* Set up testing code when there is HM and U.S. manufacturer. */
+    /***************************************************************/
 
-        %IF %UPCASE(&USPRIME) EQ NA OR %UPCASE(&HMPRIME) = NO %THEN
-        %DO;
-            %MACRO DPPRIME_RENAME;
-            %MEND DPPRIME_RENAME;
-            %MACRO DPPRIME_CONDITION;
-            %MEND DPPRIME_CONDITION;
-        %END;
+    %ELSE
+    %IF %UPCASE(&USMANUF) NE NA AND %UPCASE(&HMMANUF) EQ YES %THEN
+    %DO;
+        %MACRO DPMANF_RENAME;
+            &USMANF = BASE_&USMANF 
+        %MEND DPMANF_RENAME;
+        %MACRO DPMANF_CONDITION;
+            &USMANF  = BASE_&USMANF AND 
+        %MEND DPMANF_CONDITION;
+        %MACRO DPMANF_SELECT_BASE;
+            BP.BASE_&USMANF,
+        %MEND DPMANF_SELECT_BASE;
+        %MACRO DPMANF_SELECT_TEST;
+             DP.&USMANF,
+        %MEND DPMANF_SELECT_TEST;
+        %MACRO DPMANF_WHERE;
+            BP.BASE_&USMANF EQ DP.&USMANF AND
+        %MEND DPMANF_WHERE;
+    %END;
 
-        %ELSE %IF %UPCASE(&USPRIME) NE NA AND %UPCASE(&HMPRIME) = YES %THEN
-        %DO;
-            %MACRO DPPRIME_RENAME;
-                &USPRIM = BASE_PRIME
-            %MEND DPPRIME_RENAME;
-            %MACRO DPPRIME_CONDITION;
-                &USPRIM  = BASE_PRIME AND
-            %MEND DPPRIME_CONDITION;
-        %END;
-        %IF %UPCASE(&DP_REGION_DATA) = REGION %THEN
-        %DO;
-            %MACRO DPREGION_PRINT_LABEL ;
-            %MEND DPREGION_PRINT_LABEL;
-        %END;
-        %ELSE 
-        %DO;
-            %MACRO DPREGION_PRINT_LABEL;
-                &DP_REGION = "SOURCE FOR*DP REGION*(&DP_REGION)"
-            %MEND DPREGION_PRINT_LABEL;
-        %END;
-        %IF %UPCASE(&DP_TIME_CALC) = YES %THEN
-        %DO;
-            %MACRO DPPERIOD_PRINT_LABEL;
-                &USSALEDATE = "U.S. DATE*OF SALE*(&USSALEDATE)"
-            %MEND DPPERIOD_PRINT_LABEL;
-        %END;        
-        %IF %UPCASE(&DP_TIME_CALC) = NO %THEN
-        %DO;
-            %MACRO DPPERIOD_PRINT_LABEL;
-            %MEND DPPERIOD_PRINT_LABEL;
-        %END;        
+    /****************************************************************/
+    /* Set up null testing code when there is no HM and U.S. prime. */
+    /****************************************************************/
+
+    %IF %UPCASE(&USPRIME) EQ NA OR %UPCASE(&HMPRIME) = NO %THEN
+    %DO;
+        %MACRO DPPRIME_RENAME;
+        %MEND DPPRIME_RENAME;
+        %MACRO DPPRIME_CONDITION;
+        %MEND DPPRIME_CONDITION;
+        %MACRO DPPRIME_SELECT_BASE;
+        %MEND DPPRIME_SELECT_BASE;
+        %MACRO DPPRIME_SELECT_TEST;
+        %MEND DPPRIME_SELECT_TEST;
+        %MACRO DPPRIME_WHERE;
+        %MEND DPPRIME_WHERE;
+    %END;
+
+    /********************************************************/
+    /* Set up testing code when there is HM and U.S. prime. */
+    /********************************************************/
+
+    %ELSE
+    %IF %UPCASE(&USPRIME) NE NA AND %UPCASE(&HMPRIME) = YES %THEN
+    %DO;
+        %MACRO DPPRIME_RENAME;
+            &USPRIM = BASE_&USPRIM
+        %MEND DPPRIME_RENAME;
+        %MACRO DPPRIME_CONDITION;
+            &USPRIM  = BASE_&USPRIM AND
+        %MEND DPPRIME_CONDITION;
+        %MACRO DPPRIME_SELECT_BASE;
+            BP.BASE_&USPRIM,
+        %MEND DPPRIME_SELECT_BASE;
+        %MACRO DPPRIME_SELECT_TEST;
+            DP.&USPRIM,
+        %MEND DPPRIME_SELECT_TEST;
+        %MACRO DPPRIME_WHERE;
+            BP.BASE_&USPRIM EQ DP.&USPRIM AND
+        %MEND DPPRIME_WHERE;
+    %END;
+
+    /**********************************************/
+    /* Set up null code when basis is not REGION. */
+    /**********************************************/
+
+    %IF %UPCASE(&DP_REGION_DATA) = REGION %THEN
+    %DO;
+        %MACRO DPREGION_PRINT_LABEL ;
+        %MEND DPREGION_PRINT_LABEL;
+    %END;
+
+    /**************************************/
+    /* Set up code when basis not REGION. */
+    /**************************************/
+
+    %ELSE 
+    %DO;
+        %MACRO DPREGION_PRINT_LABEL;
+            &DP_REGION = "SOURCE FOR*DP REGION*(&DP_REGION)"
+        %MEND DPREGION_PRINT_LABEL;
+    %END;
+
+    /************************************/
+    /* Set up code when basis not TIME. */
+    /************************************/
+
+    %IF %UPCASE(&DP_TIME_CALC) = YES %THEN
+    %DO;
+        %MACRO DPPERIOD_PRINT_LABEL;
+            &USSALEDATE = "U.S. DATE*OF SALE*(&USSALEDATE)"
+        %MEND DPPERIOD_PRINT_LABEL;
+    %END;  
+
+    /********************************************/
+    /* Set up null code when basis is not TIME. */
+    /********************************************/
+ 
+    %IF %UPCASE(&DP_TIME_CALC) = NO %THEN
+    %DO;
+        %MACRO DPPERIOD_PRINT_LABEL;
+        %MEND DPPERIOD_PRINT_LABEL;
+    %END;        
 
     /*****************************************************************/
     /*  US-13-B Calculate net price for Cohens-d Analysis and set up */
@@ -5605,31 +5720,46 @@ OPTIONS SYMBOLGEN;
             /******************************************************************/
 
             DATA BASE_PRICES;
-                SET DPSALES (KEEP=&USMANF &USPRIM USLOT &USCONNUM &DP_GROUP DP_NETPRI &USQTY);
-                    RENAME     %DPMANF_RENAME
-                            USLOT = BASELOT
-                            %DPPRIME_RENAME
-                            &USCONNUM = BASE_CONNUM
-                            &DP_GROUP = BASE_GROUP;
+                SET DPSALES (KEEP = &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP DP_NETPRI &USQTY);
+                RENAME %DPMANF_RENAME
+                       %DPPRIME_RENAME
+                       USLOT = BASE_LOT
+                       &USCONNUM = BASE_CONNUM
+                       &DP_GROUP = BASE_GROUP;
             RUN;
-                            
-            DATA BASECALC;
-                SET DPGROUP;
-                DO J=1 TO LAST;
-                SET BASE_PRICES POINT=J NOBS=LAST;
-                    IF     %DPMANF_CONDITION
-                        USLOT = BASELOT AND
-                        %DPPRIME_CONDITION
-                        &USCONNUM = BASE_CONNUM AND
-                        &DP_GROUP NE BASE_GROUP THEN 
-                    DO;
-                        OUTPUT BASECALC;
-                    END;
-                END;
-            RUN; 
+
+            PROC SORT DATA = DPGROUP (KEEP = &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP
+                                             TEST_&DP_GROUP._OBS TEST_AVG_&DP_GROUP._PRICE
+                                             TEST_&DP_GROUP._STD BASE_&DP_GROUP._OBS
+                                             BASE_AVG_&DP_GROUP._PRICE &DP_GROUP._QTY_RATIO)
+                      OUT = DPGROUP_VAR_SUBSET;
+                BY &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP;
+            RUN;
+
+            PROC SQL NOPRINT;
+                CREATE TABLE BASECALC AS
+                SELECT %DPMANF_SELECT_BASE
+                       %DPPRIME_SELECT_BASE
+                       BP.BASE_LOT,
+                       BP.BASE_CONNUM, BP.BASE_GROUP, BP.&USQTY, BP.DP_NETPRI,
+                       %DPMANF_SELECT_TEST
+                       %DPPRIME_SELECT_TEST
+                       DP.USLOT,
+                       DP.&USCONNUM, DP.&DP_GROUP, DP.BASE_&DP_GROUP._OBS,
+                       DP.TEST_&DP_GROUP._OBS, DP.&DP_GROUP._QTY_RATIO 
+                 FROM BASE_PRICES AS BP, DPGROUP_VAR_SUBSET AS DP
+                 WHERE %DPMANF_WHERE
+                       %DPPRIME_WHERE
+                       BP.BASE_LOT EQ DP.USLOT AND
+                       BP.BASE_CONNUM EQ DP.&USCONNUM AND
+                       BP.BASE_GROUP NE DP.&DP_GROUP AND
+                       DP.BASE_&DP_GROUP._OBS GE 2 AND
+                       DP.TEST_&DP_GROUP._OBS GE 2 AND
+                       DP.&DP_GROUP._QTY_RATIO GE 0.05;
+            QUIT;
 
             /**************************************************************/
-            /* US-13-D-ii-e. Calculate the base group standard deviation. */ 
+            /* US-13-D-ii-e. Calculate the base group standard deviation. */
             /**************************************************************/
 
             PROC MEANS NWAY DATA = BASECALC VARDEF = WEIGHT NOPRINT;
@@ -5648,10 +5778,6 @@ OPTIONS SYMBOLGEN;
                       BASE_STD = "STANDARD DEVIATION*IN PRICE*OF BASE GROUP";
                 TITLE5 "CALCULATION OF BASE GROUP STANDARD DEVIATIONS BY &DP_GROUP";
             RUN; 
-
-            PROC SORT DATA = DPGROUP OUT = DPGROUP;
-                BY &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP;
-            RUN;
 
             DATA &DP_GROUP._RESULTS;
                 MERGE DPGROUP (IN = A) BASESTD (IN = B);
@@ -6616,101 +6742,108 @@ OPTIONS SYMBOLGEN;
     /*----------------------------------------------------------*/
 
     %PRINT_CASH_DEPOSIT(AVGMARG, STANDARD)
-    %PRINT_CASH_DEPOSIT(TRANMARG, ALTERNATIVE)
 
     %IF &ABOVE_DEMINIMIS_MIXED NE NA %THEN
     %DO;
         %PRINT_CASH_DEPOSIT(MIXEDSPLIT,MIXED)
     %END;
+
+    %PRINT_CASH_DEPOSIT(TRANMARG, ALTERNATIVE)
     
     /*--------------------------------------------------*/
     /* 16-J. PRINT CASH DEPOSIT RATES FOR ALL SCENARIOS */
     /*--------------------------------------------------*/
 
-        %IF &CALC_METHOD = STANDARD %THEN
+    %IF &CALC_METHOD = STANDARD %THEN
+    %DO;
+        %LET FOOTNOTE1 = "Because all sales did not pass Cohens-D Test, the Mixed Alternative Cash Deposit Rate is the same as the Cash";
+        %LET FOOTNOTE2 = "Deposit Rate for the Standard Method.  Accordingly, the Mixed Alternative Method will not be used";
+        %LET FOOTNOTE3 = "separately in the Meaningful Difference Test nor in the calculation of assessments in Administrative Reviews.";
+        %LET ANSWER_MIXEDMARG = ; /* macro variable for mixed database nulled out */
+    %END;
+
+    %IF &CALC_METHOD = MIXED %THEN
+    %DO;
+        %LET FOOTNOTE1 = " ";
+        %LET FOOTNOTE2 = " ";
+        %LET FOOTNOTE3 = " ";
+        %LET ANSWER_MIXEDMARG = ANSWER_MIXEDMARG (KEEP=WTAVGPCT_MIXED PER_UNIT_RATE_MIXED);
+    %END;
+
+    %IF &CALC_METHOD = ALTERNATIVE %THEN
+    %DO;
+        %LET FOOTNOTE1 = "Because all sales passed the Cohens-D Test, the Mixed Alternative Cash Deposit Rate is the same as the Cash Deposit";
+        %LET FOOTNOTE2 = "Rate for the A-to-T Alternative Method.  Accordingly, the Mixed Alternative Method will not be separately";
+        %LET FOOTNOTE3 = "used in the Meaningful Difference Test nor in the calculation of assessments in Administrative Reviews.";
+        %LET ANSWER_MIXEDMARG = ;
+    %END;
+
+    PROC FORMAT;
+        VALUE PCT_MARGIN 
+            . = "N/A"
+            OTHER = [COMMA9.2];
+        VALUE UNIT_MARGIN
+            . = "N/A"
+            OTHER = [DOLLAR10.2];
+    RUN;
+
+    DATA ANSWER;
+        MERGE ANSWER_AVGMARG (KEEP = WTAVGPCT_STND PER_UNIT_RATE_STND)
+              &ANSWER_MIXEDMARG  
+              ANSWER_TRANMARG (KEEP = WTAVGPCT_ALT PER_UNIT_RATE_ALT);
+        %IF &CALC_METHOD NE MIXED %THEN
         %DO;
-            %LET FOOTNOTE1 = "Because all sales did not pass Cohens-D Test, the Mixed Alternative Cash Deposit Rate is the same as the Cash";
-            %LET FOOTNOTE2 = "Deposit Rate for the Standard Method.  Accordingly, the Mixed Alternative Method will not be used";
-            %LET FOOTNOTE3 = "separately in the Meaningful Difference Test nor in the calculation of assessments in Administrative Reviews.";
-            %LET ANSWER_MIXEDMARG = ; /* macro variable for mixed database nulled out */
+            WTAVGPCT_MIXED = .;
+            PER_UNIT_RATE_MIXED = .;
+        %END;
+    RUN;
+
+    PROC PRINT DATA = ANSWER NOOBS SPLIT = '*';
+        %IF %UPCASE(&PER_UNIT_RATE) = NO %THEN
+        %DO;
+            VAR WTAVGPCT_STND WTAVGPCT_MIXED WTAVGPCT_ALT;
+            LABEL WTAVGPCT_STND = "STANDARD METHOD*AD VALOREM*WEIGHT AVERAGE MARGIN*(E/A x 100)*(percent)* *================="
+                  WTAVGPCT_MIXED = "MIXED ALTERNATIVE*METHOD*AD VALOREM*WEIGHT AVERAGE MARGIN*(percent)* *================="
+                  WTAVGPCT_ALT = "A-to-T ALTERNATIVE*METHOD*AD VALOREM*WEIGHT AVERAGE MARGIN*(E/A x 100)*(percent)* *==================";
+            FORMAT WTAVGPCT_STND WTAVGPCT_MIXED WTAVGPCT_ALT PCT_MARGIN.;
+        %END;
+        %IF %UPCASE(&PER_UNIT_RATE) = YES %THEN
+        %DO;
+            VAR PER_UNIT_RATE_STND PER_UNIT_RATE_MIXED PER_UNIT_RATE_ALT;
+            LABEL PER_UNIT_RATE_STND = "STANDARD METHOD*PER-UNIT*WEIGHT AVERAGE MARGIN*( E/B )* *================="    
+                  PER_UNIT_RATE_MIXED = "MIXED ALTERNATIVE*METHOD*PER-UNIT*WEIGHT AVERAGE MARGIN*(percent)* *=================" 
+                  PER_UNIT_RATE_ALT = "A-to-T ALTERNATIVE*METHOD*PER-UNIT*WEIGHT AVERAGE MARGIN*(E/A x 100)*(percent)* *==================";
+            FORMAT PER_UNIT_RATE_STND PER_UNIT_RATE_MIXED PER_UNIT_RATE_ALT UNIT_MARGIN.;
         %END;
 
-        %IF &CALC_METHOD = MIXED %THEN
-        %DO;
-            %LET FOOTNOTE1 = " ";
-            %LET FOOTNOTE2 = " ";
-            %LET FOOTNOTE3 = " ";
-            %LET ANSWER_MIXEDMARG = ANSWER_MIXEDMARG (KEEP=WTAVGPCT_MIXED PER_UNIT_RATE_MIXED);
-        %END;
+        TITLE3 "WEIGHT AVERAGE MARGINS";
+        FOOTNOTE1 &FOOTNOTE1;
+        FOOTNOTE2 &FOOTNOTE2;
+        FOOTNOTE3 &FOOTNOTE3;
+        FOOTNOTE6 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
+        FOOTNOTE7 "&BDAY, &BWDATE - &BTIME";
+    RUN;
 
-        %IF &CALC_METHOD = ALTERNATIVE %THEN
-        %DO;
-            %LET FOOTNOTE1 = "Because all sales passed the Cohens-D Test, the Mixed Alternative Cash Deposit Rate is the same as the Cash Deposit";
-            %LET FOOTNOTE2 = "Rate for the A-to-T Alternative Method.  Accordingly, the Mixed Alternative Method will not be separately";
-            %LET FOOTNOTE3 = "used in the Meaningful Difference Test nor in the calculation of assessments in Administrative Reviews.";
-            %LET ANSWER_MIXEDMARG = ;
-        %END;
-
-        PROC FORMAT;
-            VALUE PCT_MARGIN 
-                . = "N/A"
-                OTHER = [COMMA9.2];
-            VALUE UNIT_MARGIN
-                . = "N/A"
-                OTHER = [DOLLAR10.2];
-        RUN;
-
-        DATA ANSWER;
-            MERGE ANSWER_AVGMARG (KEEP = WTAVGPCT_STND PER_UNIT_RATE_STND)
-                  &ANSWER_MIXEDMARG  
-                  ANSWER_TRANMARG (KEEP = WTAVGPCT_ALT PER_UNIT_RATE_ALT);
-            %IF &CALC_METHOD NE MIXED %THEN
-            %DO;
-                WTAVGPCT_MIXED = .;
-                PER_UNIT_RATE_MIXED = .;
-            %END;
-        RUN;
-
-        PROC PRINT DATA = ANSWER NOOBS SPLIT = '*';
-            %IF %UPCASE(&PER_UNIT_RATE) = NO %THEN
-            %DO;
-                VAR WTAVGPCT_STND WTAVGPCT_MIXED WTAVGPCT_ALT;
-                LABEL WTAVGPCT_STND = "STANDARD METHOD*AD VALOREM*WEIGHT AVERAGE MARGIN*(E/A x 100)*(percent)* *================="
-                      WTAVGPCT_MIXED = "MIXED ALTERNATIVE*METHOD*AD VALOREM*WEIGHT AVERAGE MARGIN*(percent)* *================="
-                      WTAVGPCT_ALT = "A-to-T ALTERNATIVE*METHOD*AD VALOREM*WEIGHT AVERAGE MARGIN*(E/A x 100)*(percent)* *==================";
-                FORMAT WTAVGPCT_STND WTAVGPCT_MIXED WTAVGPCT_ALT PCT_MARGIN.;
-            %END;
-            %IF %UPCASE(&PER_UNIT_RATE) = YES %THEN
-            %DO;
-                VAR PER_UNIT_RATE_STND PER_UNIT_RATE_MIXED PER_UNIT_RATE_ALT;
-                LABEL PER_UNIT_RATE_STND = "STANDARD METHOD*PER-UNIT*WEIGHT AVERAGE MARGIN*( E/B )* *================="    
-                      PER_UNIT_RATE_MIXED = "MIXED ALTERNATIVE*METHOD*PER-UNIT*WEIGHT AVERAGE MARGIN*(percent)* *=================" 
-                      PER_UNIT_RATE_ALT = "A-to-T ALTERNATIVE*METHOD*PER-UNIT*WEIGHT AVERAGE MARGIN*(E/A x 100)*(percent)* *==================";
-                FORMAT PER_UNIT_RATE_STND PER_UNIT_RATE_MIXED PER_UNIT_RATE_ALT UNIT_MARGIN.;
-            %END;
-
-            TITLE3 "WEIGHT AVERAGE MARGINS";
-            FOOTNOTE1 &FOOTNOTE1;
-            FOOTNOTE2 &FOOTNOTE2;
-            FOOTNOTE3 &FOOTNOTE3;
-            FOOTNOTE6 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
-            FOOTNOTE7 "&BDAY, &BWDATE - &BTIME";
-        RUN;
+    FOOTNOTE6 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
+    FOOTNOTE7 "&BDAY, &BWDATE - &BTIME";
 
     %LET CASH_DEPOSIT_DONE = YES;
 %MEND US16_CALC_CASH_DEPOSIT;
+
 
 /*************************************/
 /* US-17: MEANINGFUL DIFFERENCE TEST */
 /*************************************/
 
 %MACRO US17_MEANINGFUL_DIFF_TEST;
+    %GLOBAL MA_METHOD AT_METHOD;
+    %LET MA_METHOD = N/A;
+    %LET AT_METHOD = N/A;
+
     %IF &CALC_METHOD NE STANDARD %THEN
     %DO;
-
         %IF &CALC_METHOD EQ MIXED %THEN
         %DO;
-
             %LET ADD_SET = MIXEDMARG;
 
             DATA MIXEDMARG;
@@ -6719,7 +6852,6 @@ OPTIONS SYMBOLGEN;
                     METHOD = "MIXED ALTERNATIVE";
                     RENAME WTAVGPCT_MIXED = WTAVGPCT;
             RUN;
-
         %END;
         %ELSE
         %DO;
@@ -6767,6 +6899,12 @@ OPTIONS SYMBOLGEN;
                     END;
                 END;
             END;
+
+            IF METHOD = "MIXED ALTERNATIVE" THEN
+                CALL SYMPUT('MA_METHOD', MEANINGFUL_DIFF);
+            ELSE
+            IF METHOD = "A-to-T ALTERNATIVE" THEN
+                CALL SYMPUT('AT_METHOD', MEANINGFUL_DIFF);
         RUN;
 
         PROC FORMAT;
@@ -6785,11 +6923,10 @@ OPTIONS SYMBOLGEN;
             FORMAT WTAVGPCT WTAVGPCT_STND RELATIVE_CHANGE RELCHNG.;
             TITLE3 "RESULTS OF THE MEANINGFUL DIFFERENCE TEST";
             TITLE5 "CASE ANALYST:  Please notify management of results so that the proper method can be selected.";
-            TITLE7 "PERCENT OF SALES PASSING THE COHEN'S D TEST = &PERCENT_VALUE_PASSING";        
+            TITLE7 "PERCENT OF SALES PASSING THE COHEN'S D TEST = %CMPRES(&PERCENT_VALUE_PASSING)";        
             FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
             FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
         RUN;
-
     %END;
 %MEND US17_MEANINGFUL_DIFF_TEST;
 
@@ -7261,6 +7398,10 @@ OPTIONS SYMBOLGEN;
 
     PROC PRINT DATA = ANSWER NOOBS SPLIT = '*';
         TITLE3 "SUMMARY OF CASH DEPOSIT RATES";
+        TITLE5 "PERCENT OF SALES PASSING THE COHEN'S D TEST: %CMPRES(&PERCENT_VALUE_PASSING)";   
+        TITLE6 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE MIXED-ALTERNATIVE METHOD: %CMPRES(&MA_METHOD)";
+        TITLE7 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE A-to-T ALTERNATIVE METHOD: %CMPRES(&AT_METHOD)";
+        TITLE8 " ";
         VAR &PREFIX._STND &PREFIX._MIXED &PREFIX._ALT;
         LABEL &PREFIX._STND = &LABEL_STND
               &PREFIX._MIXED = &LABEL_MIXED

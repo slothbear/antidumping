@@ -2,7 +2,7 @@
 /*                         ANTIDUMPING MARKET-ECONOMY                      */
 /*                             MARGIN CALCULATION                          */
 /*                                                                         */
-/*                     LAST PROGRAM UPDATE JULY 28, 2020                   */
+/*                   LAST PROGRAM UPDATED FEBRUARY 11, 2021                */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
@@ -301,22 +301,25 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*          All output datasets will be placed in the COMPANY directory.   */
 /*-------------------------------------------------------------------------*/
 
-%LET PRODUCT      = <  >;     /*(T) Product */
-%LET COUNTRY      = <  >;     /*(T) Country */
+%LET PRODUCT    = %NRBQUOTE(<Product under Investigation or Review>);    /*(T) Product */
+%LET COUNTRY    = %NRBQUOTE(<Country under Investigation or Review>);    /*(T) Country */
 
 /*------------------------------------------------------------------------*/
 /* Between the RESPONDENT, SEGMENT and STAGE macro variables below, there */
 /* should be a maximum of 21 digits.                                      */
 /*------------------------------------------------------------------------*/
 
-%LET RESPONDENT = <  >;  /*(T) Respondent identifier. Use only letters,   */
-                         /*    numbers and underscores.                   */
-%LET SEGMENT    = <  >;  /*(T) Segment of the proceeding, e.g., Invest,   */
-                         /*    AR1, Remand. Use only letters, numbers     */
-                         /*    and underscores.                           */
-%LET STAGE      = <  >;  /*(T) Stage of proceeding, e.g., Prelim, Final,  */
-                         /*    Remand. Use only letters, numbers and      */
-                         /*    underscores.                               */
+%LET RESPONDENT = <  >;  /*(T) Respondent identifier. Use only letters, numbers  */
+                         /*    and underscores. No punctuation marks, blank      */
+                         /*    spaces or special characters should be used.      */
+%LET SEGMENT    = <  >;  /*(T) Segment of the proceeding, e.g., Invest, AR1,     */
+                         /*    Remand. Use only letters, numbers and underscores */
+                         /*    No punctuation marks, blank spaces or special     */
+                         /*    characters should be used.                        */
+%LET STAGE      = <  >;  /*(T) Stage of proceeding, e.g., Prelim, Final, Remand. */
+                         /*    Use only letters, numbers and underscores. No     */
+                         /*    punctuation marks, blank spaces or special        */
+                         /*    characters should be used.                        */
 
 /*-------------------------------------------------------------------*/
 /* 1-E: DATABASE INFORMATION FOR U.S. AND HM SALES, COSTS AND        */
@@ -355,11 +358,10 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*          (See section 4-A below.)                            */
 /*--------------------------------------------------------------*/
 
-
 %LET USE_EXRATES1 = <YES/NO>;  /*(T) Use exchange rate #1? Type "YES" or */
                                /*    "NO" (without quotes).              */
-%LET     EXDATA1   = <  >;     /*(D) Exchange rate dataset name.         */
-
+%LET     EXDATA1   = <  >;     /*(D) Exchange rate dataset name. Use the */
+                               /*    currency Cost data is reported in.  */
 %LET USE_EXRATES2 = <YES/NO>;  /*(T) Use exchange rate #2? Type "YES" or */
                                /*  "NO" (without quotes).                */
 %LET     EXDATA2   = <  >;     /*(D) Exchange rate dataset name.         */
@@ -377,7 +379,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 
 /* Note: For model matching to work, physical characteristic variables   */
 /* need to be defined as all character or all numeric. Physical          */
-/* characteristic variable values need to be all numeric.                */
+/* characteristic variable values need to be all numeric.                */ 
 
 %LET     USCHAR   = <  >;  /*(V) Product matching characteristics. List  */
                            /*    them from left to right importance,     */
@@ -470,45 +472,45 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*     variable containing the time periods in DP_TIME=???.        */
 /*-----------------------------------------------------------------*/
 
-%LET DP_PURCHASER = <  >;                 /*(V) Variable indicating       */
-                                          /*    customer for purposes of  */
-                                          /*    the DP analysis.          */
-%LET DP_REGION_DATA = <REGION/STATE/ZIP>; /*(T) Type either "REGION,"     */
-                                          /*    "STATE" or "ZIP" (without */
-                                          /*    quotes) to indicate the   */
-                                          /*    type of data being used   */
-                                          /*    to assign Census regions. */
-                                          /*    Then complete the         */
-                                          /*    DP_REGION macro           */
-                                          /*    variable immediately      */
-                                          /*    following.                */
-%LET      DP_REGION = <  >;               /*(V) Variable indicating the   */
-                                          /*    DP region if you typed    */
-                                          /*    "REGION" for              */
-                                          /*    DP_REGION_DATA, or the    */
-                                          /*    variable indicating the   */
-                                          /*    2-digit postal state      */
-                                          /*    designation if you typed  */
-                                          /*    "STATE," or the variable  */
-                                          /*    indicating the 5-digit zip*/
-                                          /*    code if you typed "ZIP."  */
-%LET DP_TIME_CALC = <YES/NO>;             /*(T) Type "YES" (without       */
-                                          /*    quotes)to assign quarters */
-                                          /*    using the beginning of    */
-                                          /*    the period.               */
-%LET      DP_TIME = <  >;                 /*(V) If you typed "NO" for     */
-                                          /*    DP_TIME_CALC because you  */
-                                          /*    already have a variable   */
-                                          /*    for the DP time period,   */
-                                          /*    indicate that variable    */
-                                          /*    here.                     */
+%LET DP_PURCHASER = <  >;                 /*(V) Variable indicating        */
+                                          /*    customer for purposes of   */
+                                          /*    the DP analysis.           */
+%LET DP_REGION_DATA = <REGION/STATE/ZIP>; /*(T) Type either "REGION",      */
+                                          /*    "STATE", or "ZIP" (without */
+                                          /*    quotes) to indicate the    */
+                                          /*    type of data being used    */
+                                          /*    to assign Census regions.  */
+                                          /*    Then complete the          */
+                                          /*    DP_REGION macro            */
+                                          /*    variable immediately       */
+                                          /*    following.                 */
+%LET      DP_REGION = <  >;               /*(V) Variable indicating the    */
+                                          /*    DP region if you typed     */
+                                          /*    "REGION" for               */
+                                          /*    DP_REGION_DATA, or the     */
+                                          /*    variable indicating the    */
+                                          /*    2-digit postal state       */
+                                          /*    designation if you typed   */
+                                          /*    "STATE," or the variable   */
+                                          /*    indicating the 5-digit zip */
+                                          /*    code if you typed "ZIP."   */
+%LET DP_TIME_CALC = <YES/NO>;             /*(T) Type "YES" (without        */
+                                          /*    quotes)to assign quarters  */
+                                          /*    using the beginning of     */
+                                          /*    the period.                */
+%LET      DP_TIME = <  >;                 /*(V) If you typed "NO" for      */
+                                          /*    DP_TIME_CALC because you   */
+                                          /*    already have a variable    */
+                                          /*    for the DP time period,    */
+                                          /*    indicate that variable     */
+                                          /*    here.                      */
 
 /*-----------------------------------------------------------------------*/
 /* 1-E-iii. NORMAL VALUE PREFERENCE AND CONSTRUCTED VALUE DATA SELECTION */
 /*                                                                       */
 /*      Set the macro variable NV_TYPE to "P2P" if at least one HM sale  */
-/*      survives the HM Program. The Margin Program program will try to  */
-/*      make Price-to-Price comparisons or all U.S. sales and make       */
+/*      survives the HM Program. The Margin Program will try to make     */
+/*      Price-to-Price comparisons or all U.S. sales and make            */
 /*      Price-to-CV comparisons for any U.S. sales the program cannot    */
 /*      find a model match for.                                          */
 /*                                                                       */
@@ -590,7 +592,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                /*    in both the sales and the cost   */
                                /*    datasets? Type "YES" or "NO"     */
                                /*    (without quotes).                */
-
 %LET COP_PRIME = <YES/NO>;     /*(T) Are there prime variables in     */
                                /*    both the sales and the cost      */
                                /*    datasets? Type "YES" or "NO"     */
@@ -702,7 +703,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 
 %LET COST_PRIME = <NA>;   /*(V) Prime code. If not applicable,      */
                           /*    type "NA" (without quotes).         */
-
 
 %LET USE_COST_DUTY_DRAWBACK = <YES/NO>;     /*(T) Make Cost duty drawback      */
                                             /*    available for use in         */
@@ -925,7 +925,7 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 /*                                                                      */
 /*          Leave the data step open through the RUN statement          */
 /*          following the execution of the US2_SALETYPE macro in        */
-/*          Sect. 2-D.                                                  */
+/*          Sect. 2-E.                                                  */
 /*----------------------------------------------------------------------*/
 
 DATA USSALES;
@@ -983,7 +983,7 @@ DATA USSALES;
                                             /* the date of sale variable and the     */
                                             /* first day of the POR/POI. The         */
                                             /* values will be '-1', '0', '1', etc.   */
-    %CREATE_YEAR_MONTH(&USSALEDATE, US)     /* In hyperinflation cases creatss the   */
+    %CREATE_YEAR_MONTH(&USSALEDATE, US)     /* In hyperinflation cases creates the   */
                                             /* variable YEARMONTHH representing the  */
                                             /* year and month of sale date.          */
 RUN;
@@ -1204,11 +1204,10 @@ RUN;
         /*---------------------------------------------------------------*/
 
         PROC FORMAT;
-
-            /***********************************************/
-            /* Example 1: Average purchase cost of HR COIL */
-            /*            per-unit by period.              */
-            /***********************************************/
+            /************************************************/
+            /* Example 1: Average per-unit purchase cost of */
+            /*            HR COIL by period.                */
+            /************************************************/
 
             /*    VALUE $COIL_INPUT                                 */
             /*        '-1' = <average purchase cost for the period> */
@@ -1221,10 +1220,10 @@ RUN;
             /*        '6' = <average purchase cost for the period>  */
             /*        '7' = <average purchase cost for the period>; */
 
-            /********************************************/
-            /* Example 2: Average purchase cost of ZINC */
-            /*            per-unit by period.           */
-            /********************************************/
+            /************************************************/
+            /* Example 2: Average per-unit purchase cost of */
+            /*            ZINC by period.                   */
+            /************************************************/
 
             /*    VALUE $ZINC_INPUT                                 */
             /*        '-1' = <average purchase cost for the period> */
@@ -1237,10 +1236,10 @@ RUN;
             /*        '6' = <average purchase cost for the period>  */
             /*        '7' = <average purchase cost for the period>; */
 
-            /**********************************************/
-            /* Example 3: Average purchase cost of SCRAPS */
-            /*            per-unit by period.             */
-            /**********************************************/
+            /************************************************/
+            /* Example 3: Average per-unit purchase cost of */
+            /*            SCRAP by period.                  */
+            /************************************************/
 
             /*    VALUE $SCRAPS_INPUT                               */
             /*        '-1' = <average purchase cost for the period> */
@@ -1320,6 +1319,20 @@ RUN;
         /*--------------------------------------------------------------------*/
 
         %G16_MATCH_NOPRODUCTION
+
+        /*ep*/
+
+        /*--------------------------------------------------------------------*/
+        /* 3-H: GET COST COUNT FOR LOG REPORTING                              */
+        /*--------------------------------------------------------------------*/
+
+        %CMAC2_COUNTER (DATASET = COST, MVAR = PRE_AVGCOST);
+
+        /*--------------------------------------------------------------------*/
+        /* 3-J: GET COST COUNT FOR LOG REPORTING                              */
+        /*--------------------------------------------------------------------*/
+
+        %CMAC2_COUNTER (DATASET = AVGCOST, MVAR = AVGCOST);
     %END;
 %MEND SETUP_COST;
 
@@ -1328,26 +1341,14 @@ RUN;
 /*ep*/
 
 /*--------------------------------------------------------------------*/
-/* 3-H: GET COST COUNT FOR LOG REPORTING                              */
-/*--------------------------------------------------------------------*/
-
-%CMAC2_COUNTER (DATASET = COST, MVAR = PRE_AVGCOST);
-
-/*ep*/
-
-/*--------------------------------------------------------------------*/
 /* 3-I: MERGE COSTS WITH U.S. SALES DATA                              */
 /*--------------------------------------------------------------------*/
 
+/**/ %LET COST_PRIM = ;
+/**/ %LET SALES_COST_PRIME = ;
+/**/ %LET EQUAL_COST_PRIME = ;
+
 %G17_FINALIZE_COSTDATA 
-
-/*ep*/
-
-/*--------------------------------------------------------------------*/
-/* 3-J: GET COST COUNT FOR LOG REPORTING                              */
-/*--------------------------------------------------------------------*/
-
-%CMAC2_COUNTER (DATASET = AVGCOST, MVAR = AVGCOST);
 
 /*ep*/
 
@@ -1355,18 +1356,22 @@ RUN;
 /* PART 4: CALCULATE THE NET U.S. PRICE                                    */
 /***************************************************************************/
 
-/*-------------------------------------------------------------------------*/
-/* 4-A: CALCULATION OF AGGREGATE PRICE ADJUSTMENT VARIABLES                */
-/*                                                                         */
-/*     All aggregate variables should be in U.S. dollars after any         */
-/*     adjustments. If you have any variables originally in non-USD        */
-/*     currency that you listed in Sect. I-E-ii under EX1_VARS=??? Or      */
-/*     EX2_VARS= ???, these variables are now converted into U.S. dollars  */
-/*     and have new names. Use the new names below. The new names consist  */
-/*     of the old names with the suffix "_USD" added. For example, if you  */
-/*     typed "%LET EX1_VARS=TRUCKING" in Sect. I-E-ii, the new variable    */
-/*     TRUCKING_USD has been created and set equal to TRUCKING*&EXRATE1.   */
-/*-------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/* 4-A: CALCULATION OF AGGREGATE PRICE ADJUSTMENT VARIABLES                  */
+/*                                                                           */
+/* All aggregate variables should be in U.S. dollars after any adjustments.  */
+/* If you have any variables originally in non-USD currency that you listed  */
+/* in Sect. I-E-ii under EX1_VARS = ??? or EX2_VARS = ???, these variables   */
+/* are now converted into U.S. dollars and have new names. Use the new       */
+/* names below. The new names consist of the old names with the suffix       */
+/* "_USD" added. For example, if you typed "%LET EX1_VARS = TRUCKING" in     */
+/* Sect. I-E-ii, the new variable TRUCKING_USD has been created and set      */
+/* equal to TRUCKING * &EXRATE1.                                             */
+/*                                                                           */
+/* If you want to use the Cost based duty drawback in the calculation        */
+/* USNETPRI, the duty drawback variable will need to be converted to USD by  */
+/* multiplying the variable by an exchange rate variable such as &EXRATE1.   */
+/*---------------------------------------------------------------------------*/
 
 DATA USSALES;
     SET USSALES;
@@ -1375,7 +1380,11 @@ DATA USSALES;
                          /* variable selected for the &USGUP macro in      */
                          /* Section 1-E-ii above                           */
     USGUPADJ = <0>;      /* Price adjustments to be added to USGUP,        */
-                         /* including duty drawback, CVD export subsidies  */
+                         /* including duty drawback, CVD export subsidies. */
+                         /* If using Cost based duty drawback in the       */
+                         /* variable will need to be converted to USD by   */
+                         /* multiplying the variable by an exchange rate   */
+                         /* variable such as &EXRATE1.                     */
     USDISREB = <0>;      /* Discounts, rebates and other price adjust-     */
                          /* ments to be subtracted from USGUP              */
     USDOMMOVE = <0>;     /* Domestic U.S. movement expenses up to delivery */
