@@ -1,19 +1,19 @@
 /***************************************************************************/
-/*                         ANTIDUMPING MARKET-ECONOMY                      */
-/*                             MARGIN CALCULATION                          */
+/*                        ANTIDUMPING MARKET ECONOMY                       */
+/*                        MARGIN CALCULATION PROGRAM                       */
 /*                                                                         */
-/*                   LAST PROGRAM UPDATED FEBRUARY 11, 2021                */
+/*                GENERIC VERSION LAST UPDATED MARCH 1, 2022               */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
 /*          Merge Exchange Rates into Sales, If Required                   */
 /* Part 3:  Cost Information                                               */
 /* Part 4:  Calculate the Net U.S. Price                                   */
-/* Part 5:  Convert Home Market Net Prices and Adjustments into HM         */
+/* Part 5:  Convert Comparison Market Net Prices and Adjustments into CM   */
 /*          Currency, If Required                                          */
 /* Part 6:  Create Concordance of Price-To-Price Matching Instructions     */
 /* Part 7:  Level of Trade Adjustment, If Required                         */
-/* Part 8:  Combine U.S. Sales with HM Matches, Calculate Transaction-     */
+/* Part 8:  Combine U.S. Sales with CM Matches, Calculate Transaction-     */
 /*          Specific Lot Adjustments, CEP and Commission Offsets           */
 /* Part 9:  Calculate CEP and Commission Offsets For Constructed Value     */
 /*          Comparisons                                                    */
@@ -132,96 +132,86 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*--------------------------------------------------------------------*/
 /* 1-C: DATE INFORMATION                                              */
 /*                                                                    */
-/* Dates should be written in SAS DATE9 format (e.g., 01JAN2010).     */
+/* Dates should be written in SAS DATE9 format (e.g., 01JAN2020).     */
 /*                                                                    */
 /* USSALEDATE:                                                        */
 /*                                                                    */
 /* The date of sale variable defined by the macro variable            */
 /* USSALEDATE will be used to capture all U.S. sales within the date  */
-/* range specified by the macro variables BEGINDAY and ENDAY.         */
+/* range specified by the macro variables USBEGINDAY and USENDAY.     */
 /*                                                                    */
 /* USDATEBEFORESALE and USEARLIERDATE:                                */
 /*                                                                    */
 /* If there are reported dates before the sale date and you want      */
 /* the earlier dates to be assigned to sale date, define the macro    */
 /* variable USDATEBEFORESALE to 'YES' and assign the variable with    */
-/* earlier dates to the macro variable USEARLIERDATE (ex. SHIPDATE).  */
+/* earlier dates to the macro variable USEARLIERDATE (ex. SHIPDATU).  */
 /* Otherwise define the macro variable USDATEBEFORESALE to 'NO' and   */
 /* ignore the macro variable USEARLIERDATE.                           */
 /*                                                                    */
-/* BEGINDAY and ENDDAY:                                               */
+/* USBEGINDAY and USENDDAY:                                           */
 /*                                                                    */
-/* FOR INVESTIGATIONS, the macro variables BEGINDAY and ENDDAY        */
-/* usually correspond to the first and last dates of the POI.         */
+/* Define the macro variables USBEGINDAY and USENDDAY to correspond   */
+/* to the universe of U.S. sales that you want to use.                */
 /*                                                                    */
-/* FOR REVIEWS, the macro variables BEGINDAY and ENDDAY usually       */
-/* correspond to the first day of the first month and the last day    */
-/* of the last month of the window period, respectively, covering     */
-/* all U.S. sale dates. Reported CEP sales usually include all sales  */
-/* during the POR. For EP sales, they usually include all entries     */
-/* during the POR. Accordingly, there may be U.S. sales transactions  */
-/* with sale dates prior to the POR. For example, if the first EP     */
-/* entry in the POR was in June (first month of POR) but that entry   */
-/* had a sale date back in April, the window period would have to     */
-/* include the three months prior to April. January would then be     */
-/* the beginning of the window period. The variable BEGINDAY is used  */
-/* to define variables USMONTH and HMMONTH that represent the month   */
-/* and year of the sale.                                              */
+/* For Investigations USBEGINDAY often corresponds to the first day   */
+/* of the first month of the POR and USENDDAY often corresponds to    */
+/* the last day of the last month of the POR, respectively,           */
+/* covering all U.S. sales dates.                                     */
 /*                                                                    */
-/* TIME-SPECIFIC COMPARISONS: When making time-specific price-to-     */
-/* price comparisons of HM and US sales, comparisons are not made     */
-/* outside of designated time periods. In such cases, set             */
-/* BEGINWINDOW to the first day of the first time period. Likewise,   */
-/* set ENDDAY to the last day of the last time period.                */
+/* For Reviews USBEGINDAY often corresponds to the first day of the   */
+/* first month of the POR and USENDDAY often corresponds to the last  */
+/* day of the last month of the POR, respectively, covering, all U.S. */
+/* sales dates. Reported CEP sales usually include all sales during   */
+/* the POR. For EP sales, they usually include all entries during     */
+/* the POR. Accordingly, there may be U.S. sales transactions with    */
+/* sale dates prior to the POR. In these cases, adjust USBEGINDAY to  */
+/* to correspond to the first day of the month of the earliest sale   */
+/* you want to keep.                                                  */
 /*                                                                    */
-/* BEGINPERIOD and ENDPERIOD:                                         */
+/* HMBEGINWINDOW:                                                     */
 /*                                                                    */
-/* The macro variables BEGINPERIOD and ENDPERIOD refer to the begin-  */
-/* ning and at the end of the official POI/POR. They are used for     */
-/* titling. BEGINPERIOD is also used in the Cohen's d Test.           */
-/*                                                                    */
-/* BEGINWINDOW:                                                       */
-/*                                                                    */
-/* The macro variable BEGINWINDOW refers to the beginning of the      */
-/* window period in an administrative review. It is used to define    */
+/* The macro variable HMBEGINWINDOW  refers to the beginning of the   */
+/* window period in an Administrative Review. It is used to define    */
 /* the variable USMONTH that represents the month and year of the     */
-/* sale. It is not required for investigations.                       */
+/* sale. It is not required for Investigations.                       */
+/*                                                                    */
+/* QUARTERLY COMPARISONS: When making quarterly price-to-price        */
+/* comparisons of CM and U.S. sales, comparisons are not made outside */
+/* of designated time periods. In such cases, set HMBEGINWINDOW to    */
+/* the first day of the first time period.                            */
 /*                                                                    */
 /* Note: In a review the Margin Calculation macro variable            */
-/* BEGINWINDOW needs to have the same value as the HM macro variable  */
-/* BEGINDAY so that model matching will work properly.                */
+/* HMBEGINWINDOW needs to have the same value as the ME Comparison    */
+/* Market Program macro variable HMBEGINDAY so that model matching    */
+/* will work properly.                                                */
 /*--------------------------------------------------------------------*/
 
-%LET USSALEDATE = <        >;       /* (V) Variable representing the */
-                                    /*     U.S. sale date.           */
-%LET USDATEBEFORESALE = <YES/NO>;   /* (T) Adjust sale date based on */
-                                    /*     an earlier date variable? */
-                                    /*     Type 'YES' (no quotes) to */
-                                    /*     adjust the sale date, or  */
-                                    /*     'NO' to skip this part.   */
-                                    /*     If you typed 'YES' then   */
-                                    /*     also complete the macro   */
-                                    /*     variable USEARLIERDATE.   */
-%LET    USEARLIERDATE = <        >; /* (V) Variable representing the */
-                                    /*     earlier date variable.    */
-%LET BEGINDAY = <DDMONYYYY>;        /* (T) First day of first month  */
-                                    /*     of U.S. sales.            */
-%LET ENDDAY = <DDMONYYYY>;          /* (T) Last day of last month of */
-                                    /*     U.S. sales.               */
-%LET BEGINPERIOD = <DDMONYYYY>;     /* (T) Day 1 of first month of   */
-                                    /*     official POI/POR.         */
-%LET ENDPERIOD = <DDMONYYYY>;       /* (T) Last day last month of    */
-                                    /*     official POI/POR.         */
+%LET USSALEDATE = <        >;       /* (V) Variable representing the  */
+                                    /*     U.S. sale date.            */
+%LET USDATEBEFORESALE = <YES/NO>;   /* (T) Adjust sale date based on  */
+                                    /*     an earlier date variable?  */
+                                    /*     Type 'YES' (no quotes) to  */
+                                    /*     adjust the sale date, or   */
+                                    /*     'NO' to skip this part.    */
+                                    /*     If you typed 'YES' then    */
+                                    /*     also complete the macro    */
+                                    /*     variable USEARLIERDATE.    */
+%LET    USEARLIERDATE = <        >; /* (V) Variable representing the  */
+                                    /*     earlier date variable.     */
+%LET USBEGINDAY = <DDMONYYYY>;      /* (T) Please see above 1-C: DATE */
+                                    /*     INFORMATION for guidance.  */
+%LET USENDDAY = <DDMONYYYY>;        /* (T) Please see above 1-C: DATE */
+                                    /*     INFORMATION for guidance.  */
 
-/* Note: In a review the Margin Calculation macro variable           */
-/* BEGINWINDOW needs to have the same value as the HM macro variable */
-/* BEGINDAY so that model matching will work properly.               */
+/* Note: In a review the Margin Calculation macro variable             */
+/* HMBEGINWINDOW needs to have the same value as the CM macro variable */
+/* variable HMBEGINDAY so that model matching will work properly.      */
 
-%LET BEGINWINDOW = <DDMONYYYY>;     /* (T) Day 1 of first month of   */
-                                    /*     window period in admini-  */
-                                    /*     strative reviews. It is   */
-                                    /*     NOT required for investi- */
-                                    /*     gations.                  */
+%LET HMBEGINWINDOW  = <DDMONYYYY>;   /* (T) Please see above 1-C: DATE */
+                                     /*     INFORMATION for guidance.  */
+                                     /*     NOT required for           */
+                                     /*     investigations.            */
 
 /*--------------------------------------------------------------*/
 /* 1-C-ii: ADDITIONAL FILTERING OF U.S. SALES, IF REQUIRED      */
@@ -235,7 +225,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*  usually include all entries during the POR. To filter EP    */
 /*  sales by entry date, for example, you would put the first   */
 /*  and last days of the POR for BEGINDAY_EP and ENDDAY_EP, and */
-/*    the variable for date of entry under EP_DATE_VAR.         */
+/*  the variable for date of entry under EP_DATE_VAR.           */
 /*--------------------------------------------------------------*/
 
 %LET FILTER_CEP = <YES/NO>;          /*(T) Additionally filter CEP sales?  */
@@ -291,18 +281,35 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*      applicable, are the following:                                     */
 /*                                                                         */
 /*          {RESPONDENT_SEGMENT_STAGE}_COST    = Wt-avg costs              */
-/*          {RESPONDENT_SEGMENT_STAGE}_HMCEP   = HM revenue/expenses for   */
+/*          {RESPONDENT_SEGMENT_STAGE}_HMCEP   = CM revenue/expenses for   */
 /*                                               CEP profit                */
 /*          {RESPONDENT_SEGMENT_STAGE}_CVSELL  = Selling & profit ratios   */
 /*                                               for CV                    */
-/*          {RESPONDENT_SEGMENT_STAGE}_HMWTAV  = Wt-avg HM data            */
+/*          {RESPONDENT_SEGMENT_STAGE}_HMWTAV  = Wt-avg CM data            */
 /*          {RESPONDENT_SEGMENT_STAGE}_LOTADJ  = LOT adjustment factors    */
 /*                                                                         */
 /*          All output datasets will be placed in the COMPANY directory.   */
 /*-------------------------------------------------------------------------*/
 
-%LET PRODUCT    = %NRBQUOTE(<Product under Investigation or Review>);    /*(T) Product */
-%LET COUNTRY    = %NRBQUOTE(<Country under Investigation or Review>);    /*(T) Country */
+%LET PRODUCT = %NRBQUOTE(<Product under Investigation or Review>);    /*(T) Product */
+%LET COUNTRY = %NRBQUOTE(<Country under Investigation or Review>);    /*(T) Country */
+
+/*-------------------------------------------------------------------------*/
+/* The macro variables BEGINPERIOD and ENDPERIOD refer to the beginning    */
+/* and at the end of the official POI/POR. They are used for titling.      */
+/* BEGINPERIOD is also used in the Cohen’s d Test.                         */
+/*                                                                         */
+/* Typically, these dates refer to the first day of the first month for    */
+/* the POI/POR for the BEGINPERIOD and the last day of the last month of   */
+/* the POI/POR for the ENDPERIOD.  However, for first administrative       */
+/* reviews BEGINPERIOD is dependent on the injury results of the           */
+/* International Trade Commission (ITC) and the first day of suspension of */
+/* liquidation. Please confirm the BEGINPERIOD with the Federal Register   */
+/* Notice initiating the first administrative review.                      */
+/*-------------------------------------------------------------------------*/
+
+%LET BEGINPERIOD = <DDMONYYYY>;  /* (T) First day of the official POI/POR. */
+%LET ENDPERIOD = <DDMONYYYY>;    /* (T) Last day of the official POI/POR.  */
 
 /*------------------------------------------------------------------------*/
 /* Between the RESPONDENT, SEGMENT and STAGE macro variables below, there */
@@ -322,7 +329,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                          /*    characters should be used.                        */
 
 /*-------------------------------------------------------------------*/
-/* 1-E: DATABASE INFORMATION FOR U.S. AND HM SALES, COSTS AND        */
+/* 1-E: DATABASE INFORMATION FOR U.S. AND CM SALES, COSTS AND        */
 /*      EXCHANGE RATES                                               */
 /*                                                                   */
 /*     Where information may not be relevant (e.g., re: manufacturer */
@@ -342,16 +349,16 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*               &EXRATE1 or                                    */
 /*               EXRATE_&EXDATA1                                */
 /*                                                              */
-/*          Use EXDATA1     for the HM currency, when required. */
+/*          Use EXDATA1     for the CM currency, when required. */
 /*          It is &EXRATE1 that is used to convert costs and    */
-/*          the HM net price into U.S. dollars.                 */
+/*          the CM net price into U.S. dollars.                 */
 /*                                                              */
-/*          If your Home Market is reported in more than one    */
-/*          currency, you must update section 9-B-i in the HM   */
-/*          program, as well as sections 1-E-i, 1-E-v, and Part */
-/*          5 of the Margin program. Instructions for filling   */
-/*          out those sections are contained at the beginning   */
-/*          of each relevant section.                           */
+/*          If your Comparison Market is reported in more than  */
+/*          onecurrency, you must update section 9-B-i in the   */
+/*          CM program, as well as sections 1-E-i, 1-E-v, and   */
+/*          Part 5 of the Margin program. Instructions for      */
+/*          filling out those sections are contained at the     */
+/*          beginning of each relevant section.                 */
 /*                                                              */
 /*          In the event either exchange rate is not required,  */
 /*          dummy variables with neutral values are created.    */
@@ -399,18 +406,18 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET     USLOT    = <NA>;  /*(V) Level of trade. If not reported in the  */
                            /*    database and not required, type "NA"    */
                            /*    (without quotes). You may also type     */
-                           /*    "NA" if HM & US both have only 1 LOT    */
+                           /*    "NA" if CM & US both have only 1 LOT    */
                            /*    and those LOTs are the same.            */
 
 /* Note: Specify a U.S. manufacturer variable if there is also a         */
-/*       manufacturer variable reported in the HM sales or in straight   */
+/*       manufacturer variable reported in the CM sales or in straight   */
 /*       to CV situation with manufacturer reported in the Cost data.    */
 
 %LET     USMANUF  = <NA>;  /*(V) Manufacturer code. If not applicable,   */
                            /*    type "NA" (without quotes).             */
 
 /* Note: Specify a U.S. prime variable if there is also a prime variable */
-/*       reported in the HM sales or in straight to CV situation with    */
+/*       reported in the CM sales or in straight to CV situation with    */
 /*       prime reported in the Cost data.                                */
 
 %LET     USPRIME  = <NA>;  /*(V) Prime/seconds code. If not applicable,  */
@@ -508,60 +515,60 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*-----------------------------------------------------------------------*/
 /* 1-E-iii. NORMAL VALUE PREFERENCE AND CONSTRUCTED VALUE DATA SELECTION */
 /*                                                                       */
-/*      Set the macro variable NV_TYPE to "P2P" if at least one HM sale  */
-/*      survives the HM Program. The Margin Program will try to make     */
+/*      Set the macro variable NV_TYPE to "P2P" if at least one CM sale  */
+/*      survives the CM Program. The Margin Program will try to make     */
 /*      Price-to-Price comparisons or all U.S. sales and make            */
 /*      Price-to-CV comparisons for any U.S. sales the program cannot    */
 /*      find a model match for.                                          */
 /*                                                                       */
-/*      Set the macro variable NV_TYPE to "CV" if no HM sales survive    */
-/*      the HM Program or you want to make Price-to-CV comparison for    */
+/*      Set the macro variable NV_TYPE to "CV" if no CM sales survive    */
+/*      the CM Program or you want to make Price-to-CV comparison for    */
 /*      all U.S. sales.                                                  */
 /*                                                                       */
-/*      Set the macro variable COST_TYPE to "HM" if at least one HM      */
-/*      sale survives the HM Program.                                    */
+/*      Set the macro variable COST_TYPE to "HM" if at least one CM      */
+/*      sale survives the CM Program.                                    */
 /*                                                                       */
-/*      Set the macro variable COST_TYPE to "CV" if no HM sales survive  */
-/*      the HM Program or you want to make Price-to-CV comparison for    */
+/*      Set the macro variable COST_TYPE to "CV" if no CM sales survive  */
+/*      the CM Program or you want to make Price-to-CV comparison for    */
 /*      all U.S. sales.                                                  */
 /*-----------------------------------------------------------------------*/
 
 %LET NV_TYPE = <P2P/CV>;   /*(T) Type "P2P" (without quotes) if you have  */
-                           /*    HM data for price-to-price comparisons.  */
+                           /*    CM data for price-to-price comparisons.  */
                            /*    Sales not finding a price-to-price       */
                            /*    comparison will then be matched to CV.   */
                            /*    Type "CV" (without quotes) to compare    */
                            /*    U.S. sales directly to CV.               */
 
-%LET COST_TYPE = <HM/CV>;  /*(T) Type "HM" (without quotes) when    */
-                           /*    pulling costs from the HM program. */
+%LET COST_TYPE = <HM/CV>;  /*(T) Type "CM" (without quotes) when    */
+                           /*    pulling costs from the CM program. */
                            /*    Type "CV" (without quotes) when    */
                            /*    calculating CV in this Margin      */
                            /*    program.                           */
 
 /*----------------------------------------------------------------*/
-/* 1-E-iv. HOME MARKET INFORMATION                                */
+/* 1-E-iv. COMPARISON MARKET INFORMATION                          */
 /*                                                                */
 /*     Complete the next section if you typed NV_TYPE = P2P above */
-/*     because you have HM sales for Price-2-Price comparisons.   */
+/*     because you have CM sales for Price-2-Price comparisons.   */
 /*                                                                */
-/*     If information in the HM sales data is in more than one    */
-/*     currency, type HM_MULTI_CUR = YES directly below. You will */
+/*     If information in the CM sales data is in more than one    */
+/*     currency, type CM_MULTI_CUR = YES directly below. You will */
 /*     then also have to edit Part 5 below to (re)calculate the   */
-/*     HM net price, etc., using currency conversions on the date */
+/*     CM net price, etc., using currency conversions on the date */
 /*     of the U.S. sale.                                          */
 /*----------------------------------------------------------------*/
 
-/* Note: Specify a HM manufacturer variable if there is also a           */
+/* Note: Specify a CM manufacturer variable if there is also a           */
 /*       manufacturer variable reported in the U.S. sales.               */
 
-%LET HMMANUF = <YES/NO>;      /*(T) Is there a HM manufacturer variable? */
+%LET HMMANUF = <YES/NO>;      /*(T) Is there a CM manufacturer variable? */
                               /*    Type "YES" or "NO" (without quotes). */
 
-/* Note: Specify a HM prime variable if there is also a prime            */
+/* Note: Specify a CM prime variable if there is also a prime            */
 /*       variable reported in the U.S. sales.                            */
 
-%LET HMPRIME = <YES/NO>;      /*(T) Is there a HM prime variable? Type   */
+%LET CMPRIME = <YES/NO>;      /*(T) Is there a CM prime variable? Type   */
                               /*    "YES" or "NO" (without quotes).      */
 
 /* Note: For model matching to work, physical characteristic variables   */
@@ -573,11 +580,11 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                               /*    in order of importance, with no      */
                               /*    punctuation separating them. Do not  */
                               /*    surround the values with quotes.     */
-%LET HM_MULTI_CUR = <YES/NO>; /*(T) Is HM data in more than one          */
+%LET HM_MULTI_CUR = <YES/NO>; /*(T) Is CM data in more than one          */
                               /*    currency? Type "YES" or "NO"         */
                               /*    (without quotes). If it is "YES",    */
                               /*    then you must also fill out sections */
-                              /*    1-E-i and 9-B-i of the HM program,   */
+                              /*    1-E-i and 9-B-i of the CM program,   */
                               /*    as well as sections 1-E-i, and       */
                               /*    Part 5 of the Margin program.        */
 
@@ -598,7 +605,31 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                /*    (without quotes).                */
 
 /*-----------------------------------------------------------------*/
-/* 1-E-vi. TIME-SPECIFIC COMPARISONS                               */
+/* 1-E-vi. QUARTERLY COMPARISONS                                   */
+/*                                                                 */
+/*     To restrict sales comparisons and the calculation of costs  */
+/*     to within designated time periods, type "YES" and complete  */
+/*     Section 1-E-vi-a. If, instead, you type "NO", you can skip  */
+/*     can Section 1-E-vi-a.                                       */
+/*                                                                 */
+/*     If you have sales and cost data coming from the CM program, */
+/*     those, too, should be calculated on a quarterly basis when  */
+/*     making comparisons to U.S. sales based on time.             */
+/*                                                                 */
+/*     Note: You do not need a separate cost database to restrict  */
+/*     sales comparison to within time periods. However, the VCOMs */
+/*     and TCOMs in the sales databases should also be calculated  */
+/*     on a quarterly basis.                                       */
+/*-----------------------------------------------------------------*/
+
+%LET COMPARE_BY_TIME = <YES/NO>; /*(T) Calculate costs by time     */
+                                 /*    periods? Type "YES" or "NO" */
+                                 /*    (without quotes). If        */
+                                 /*    "YES," then also complete   */
+                                 /*    Section 1-E-vi-a below.     */
+
+/*-----------------------------------------------------------------*/
+/* 1-E-vi-a. QUARTERLY CONSTRUCTED VALUE CALCULATIONS              */
 /*                                                                 */
 /*     To restrict sales comparisons and the calculation of costs  */
 /*     to within designated time periods, type "YES" and complete  */
@@ -622,7 +653,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                  /*    Section 1-E-vi-a below.     */
 
 /*-------------------------------------------------------------*/
-/* 1-E-vi-a. TIME-SPECIFIC CONSTRUCTED VALUE CALCULATIONS      */
+/* 1-E-vi-a. QUARTERLY CONSTRUCTED VALUE CALCULATIONS          */
 /*                                                             */
 /*     Complete this section if you type all of the following: */
 /*                                                             */
@@ -657,15 +688,14 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET      TOTCOM = < >;              /*(V) Reported total cost of    */
                                      /*    manufacturing, often      */
                                      /*    TOTCOM.                   */
-
 /*-----------------------------------------------------*/
-/* 1-E-vii. HYPERINFLATION COSTS                       */
+/* 1-E-vii. HIGH INFLATION COSTS                       */
 /*                                                     */
-/* If you type COMPARE_BY_HYPERINFLATION = YES on the  */
+/* If you type COMPARE_BY_HIGH_INFLATION = YES on the  */
 /* first line  also complete the rest of this section. */
 /*-----------------------------------------------------*/
 
-%LET COMPARE_BY_HYPERINFLATION = <YES/NO>; /*(T) Calculate hyperinflation?     */
+%LET COMPARE_BY_HIGH_INFLATION = <YES/NO>; /*(T) Calculate high inflation?     */
                                            /*    Type "YES" or "NO"            */
                                            /*    (without quotes).             */
 %LET      COST_YEAR_MONTH = <  >;          /*(V) Variable in Cost data         */
@@ -677,7 +707,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /* 1-E-viii. CV DATA ONLY FOR U.S. SALES                       */
 /*                                                             */
 /*     If you type COST_TYPE = CV above in Section 1-E-iii     */
-/*     because you do NOT have cost data coming from the HM    */
+/*     because you do NOT have cost data coming from the CM    */
 /*     program, complete the following sections:               */
 /*                                                             */
 /*     1-E-iv-ii. CV DATA ONLY FOR U.S. SALES                  */
@@ -753,13 +783,13 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET LOT_ADJUST = <NO/HM/INPUT>;  /*(T) Type "NO" (without quotes) when    */
                                   /*    not making an LOT adjustment. Type */
                                   /*    "HM" (without quotes) if using     */
-                                  /*    info. from HM sales. Type "INPUT"  */
+                                  /*    info. from CM sales. Type "INPUT"  */
                                   /*    (without quotes) if using info.    */
-                                  /*    from a source other than HM sales. */
+                                  /*    from a source other than CM sales. */
                                   /*    If you typed "INPUT," then also    */
                                   /*    complete Sect. 7-A-i below.        */
 %LET CEPROFIT = <CALC/INPUT>;     /*(T) Type "CALC" (without quotes) to    */
-                                  /*    use HM and U.S. expense and        */
+                                  /*    use CM and U.S. expense and        */
                                   /*    revenue data. You must have a cost */
                                   /*    database if you type "CALC." Type  */
                                   /*    "INPUT" (without quotes) to supply */
@@ -771,10 +801,10 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET ALLOW_CEP_OFFSET = <YES/NO>; /*(T) Allow CEP offset? Type "YES" or    */
                                   /*    "NO" (without quotes).             */
 %LET CVSELL_TYPE = <HM/OTHER>;    /*(T) Type "HM" (without quotes) when    */
-                                  /*    using HM selling & profit info.    */
+                                  /*    using CM selling & profit info.    */
                                   /*    Type "OTHER" (without quotes)      */
                                   /*    if using info. from a source       */
-                                  /*    other than HM sales.               */
+                                  /*    other than CM sales.               */
                                   /*    If you typed "OTHER," then also    */
                                   /*    complete Sect. 9-A below. This     */
                                   /*    macro variable is required only    */
@@ -788,13 +818,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*------------------------------------------------------------------*/
 /* 1-G: FORMAT, PROGRAM AND PRINT OPTIONS                           */
 /*------------------------------------------------------------------*/
-
-OPTIONS PAPERSIZE = LETTER;
-OPTIONS ORIENTATION = LANDSCAPE;
-OPTIONS TOPMARGIN = ".25IN"
-        BOTTOMMARGIN = ".25IN"
-        LEFTMARGIN = ".25IN"
-        RIGHTMARGIN = ".25IN";
 
 /*-------------------------------------------------------------*/
 /* 1-G-i Options that usually do not require edits.            */
@@ -833,31 +856,36 @@ OPTIONS TOPMARGIN = ".25IN"
 /*     1-G-i-b Programming Options                          */
 /*----------------------------------------------------------*/
 
-%LET DEL_WORKFILES = NO; /*(T) Delete all work library files?  Default    */
-                         /*    is NO. If you type "YES" (without          */
-                         /*    quotes), you may increase program speed,   */
-                         /*    but will not be able examine files in      */
-                         /*    the work library for diagnostic purposes.  */
-%LET CALC_RUNTIME = YES; /*(T) Calculate program run time? If you don't   */
-                         /*    like to see this info., type "NO" (without */
-                         /*    quotes)                                    */
-OPTIONS NOSYMBOLGEN;     /* SYMBOLGYN prints macro variable resolutions.  */
-                         /* Reset to "NOSYMBOLGEN" (without quotes) to    */
-                         /* deactivate.                                   */
-OPTIONS MPRINT;          /* MPRINT prints macro resolutions, type         */
-                         /* "NOMPRINT" (without quotes) to deactivate.    */
-OPTIONS NOMLOGIC;        /* MLOGIC prints additional info. on macros,     */
-                         /* type "MLOGIC" (without quotes) to activate.   */
-OPTIONS MINOPERATOR;     /* MINOPERATOR is required when using the IN(..) */
-                         /* function in macros.                           */
-OPTIONS OBS = MAX;       /* Indicates the number of OBS to process in each*/
-                         /* data set. Default setting of MAX processes all*/
-                         /* transactions. If you have large datasets and  */
-                         /* initially wish to debug the program using a   */
-                         /* limited number of transactions, you can reset */
-                         /* this option by typing in a number.            */
-OPTIONS NODATE PAGENO = 1 YEARCUTOFF = 1960;
-OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
+%LET DEL_WORKFILES = NO;   /*(T) Delete all work library files?  Default       */
+                           /*    is NO. If you type "YES" (without             */
+                           /*    quotes), you may increase program speed,      */
+                           /*    but will not be able examine files in         */
+                           /*    the work library for diagnostic purposes.     */
+%LET CALC_RUNTIME = YES;   /*(T) Calculate program run time? If you don't      */
+                           /*    like to see this info., type "NO" (without    */
+                           /*    quotes)                                       */
+OPTION NOSYMBOLGEN;        /* SYMBOLGYN prints macro variable resolutions.     */
+                           /* Reset to "NOSYMBOLGEN" (without quotes) to       */
+                           /* deactivate.                                      */
+OPTION MPRINT;             /* MPRINT prints macro resolutions, type            */
+                           /* "NOMPRINT" (without quotes) to deactivate.       */
+OPTION NOMLOGIC;           /* MLOGIC prints additional info. on macros,        */
+                           /* type "MLOGIC" (without quotes) to activate.      */
+OPTION MINOPERATOR;        /* MINOPERATOR is required when using the IN(..)    */
+                           /* function in macros.                              */
+OPTION OBS = MAX;          /* Indicates the number of OBS to process in each   */
+                           /* data set. Default setting of MAX processes all   */
+                           /* transactions. If you have large datasets and     */
+                           /* initially wish to debug the program using a      */
+                           /* limited number of transactions, you can reset    */
+                           /* this option by typing in a number.               */
+OPTION NODATE;             /* Suppresses date in header                        */
+OPTION PAGENO = 1;         /* Restarts page numbering at Page 1                */
+OPTION YEARCUTOFF = 1960;  /* Specifies the first year of a 100-year span that */
+                           /* is used to read a two-digit year                 */
+OPTION SPOOL;              /* Aids finding location of syntax error in macros  */
+OPTION VARINITCHK = ERROR; /* An uninitialized variable will generate an ERROR */
+OPTION FORMCHAR = '|----|+|---+=|-/\<>*';          /* For printing tables      */
 
 /*------------------------------------------------------------------*/
 /* 1-H:      GENERATE PROGRAM-SPECIFIC TITLES, FOOTNOTES            */
@@ -875,32 +903,32 @@ OPTIONS FORMCHAR = '|----|+|---+=|-/\<>*';
 /*                                                                      */
 /*     In the programming language, the macro variables &USPRIM,        */
 /*     &SALES_COST_MANF (for merging sales with costs), &USMANF         */
-/*     (for merging U.S. sales with HM sales for P2P comparisons),      */
+/*     (for merging U.S. sales with CM sales for P2P comparisons),      */
 /*     &HMPRIM, &HM_P2P_MANF and &CVMANF are used. Their values         */
 /*     are determined by the answers in Sect. 1-E above.                */
 /*                                                                      */
 /*     If you type %LET USMANUF=NA, then the manufacturer-related       */
 /*     macro variables for U.S. sales (&US_COST_MANF and &USMANF        */
 /*     will be set to null/blank values. Since you need manufacturer    */
-/*     designations in both U.S. & HM sales for them to merge by        */
+/*     designations in both U.S. & CM sales for them to merge by        */
 /*     manufacturer, &HM_P2P_MANF will also be set to a null/blank      */
 /*     value. Similarly, &COST_MANF will be set to null/blank values    */
 /*     if %LET USMANUF=NA. Otherwise, &US_COST_MANF and &USMANF         */
 /*     will be set to the variable indicated by %LET USMANUF=<???>      */
-/*     when manufacturer is also relevant for cost and HM sales,        */
+/*     when manufacturer is also relevant for cost and CM sales,        */
 /*     respectively.                                                    */
 /*                                                                      */
 /*     If you type %LET HMMANUF=NO, then &HM_P2P_MANF will be set to    */
 /*     a null/blank value as will &USMANF. Otherwise, &HMMANF           */
 /*     will be equal to HMMANF, the standardized variable name          */
-/*     assigned in the HM program, as long as U.S. manufacturer is      */
+/*     assigned in the CM program, as long as U.S. manufacturer is      */
 /*     also relevant.                                                   */
 /*                                                                      */
 /*     Similarly, &USPRIM and &HMPRIM will be set to null/blank values  */
 /*     if you type either %LET USPRIME=NA or %LET HMPRIME=NA.           */
 /*     Otherwise, they will be set to the variables indicated in        */
 /*     %LET USPRIME=<???> and %LET HMPRIME=<???> when prime is          */
-/*     relevant for both U.S. and HM sales.                             */
+/*     relevant for both U.S. and CM sales.                             */
 /*----------------------------------------------------------------------*/
 
 %US1_MACROS 
@@ -975,15 +1003,15 @@ DATA USSALES;
     %US2_SALETYPE
 
     /*------------------------------------------------------------------------*/
-    /* 2-E: CREATE THE U.S. QUARTER VARIABLE IN TIME-SPECIFIC COST CASES, AND */
-    /*      THE U.S. YEARMONTH VARIABLE IN HYPERINFLATION COST CASES.         */
+    /* 2-E: CREATE THE U.S. QUARTER VARIABLE IN QUARTERLY COST CASES, AND     */
+    /*      THE U.S. YEARMONTH VARIABLE IN HIGH INFLATION COST CASES.         */
     /*------------------------------------------------------------------------*/
 
     %CREATE_QUARTERS(&USSALEDATE, MARGIN)   /* Assigns quarters to US sales based on */
                                             /* the date of sale variable and the     */
                                             /* first day of the POR/POI. The         */
                                             /* values will be '-1', '0', '1', etc.   */
-    %CREATE_YEAR_MONTH(&USSALEDATE, US)     /* In hyperinflation cases creates the   */
+    %CREATE_YEAR_MONTH(&USSALEDATE, US)     /* In high inflation cases creates the   */
                                             /* variable YEARMONTHH representing the  */
                                             /* year and month of sale date.          */
 RUN;
@@ -1072,13 +1100,13 @@ RUN;
 /******************************************************************/
 /* PART 3: COST INFORMATION                                       */
 /*                                                                */
-/* Determine whether information from the HM program, U.S. sales  */
+/* Determine whether information from the CM program, U.S. sales  */
 /* database or from a CV-only database will be used.              */
 /*                                                                */
 /* If the respondent has supplied separate COP and CV databases,  */
-/* combine them together in HM program in Sect. 3-A and make      */
+/* combine them together in CM program in Sect. 3-A and make      */
 /* required adjustments. The combined weight-averaged cost        */
-/* database calculated in HM Program can then also be used in     */
+/* database calculated in CM Program can then also be used in     */
 /* this Margin Program with U.S. sales. This is preferable to     */
 /* calculating the two separately.                                */
 /*                                                                */
@@ -1103,8 +1131,8 @@ RUN;
 /* production quantities before weight averaging will be done  */
 /* later in Sect. 3-E below.                                   */
 /*                                                             */
-/* For annualized (not time-specific) costs, if the respondent */
-/* dent has already provided surrogate cost information for a  */
+/* For annualized (not quarterly) costs, if the respondent     */
+/* has already provided surrogate cost information for a       */
 /* particular product but has put either a zero or a missing   */
 /* value for production quantity, then the default language    */
 /* in Sect. 3-B will mistakenly mark the product as one still  */
@@ -1149,25 +1177,26 @@ RUN;
         /* be set to "NO," turning off sections 3-B and 3-G.               */
         /*-----------------------------------------------------------------*/
 
-        /*-------------------------------------------------------------*/
-        /* 3-B-i IDENTIFY PRODUCTS NOT PRODUCED DURING POI/POR         */
-        /*       FOR WHICH SURROGATE COSTS ARE NEEDED.                 */
-        /*                                                             */
-        /* The %G8_FIND_NOPRODUCTION macro below identifies products   */
-        /* needing surrogate cost information when total production    */
-        /* during the cost period is zero or missing. If this          */
-        /* assumption does not fit the circumstances, you will need    */
-        /* to make edits accordingly.                                  */
-        /*                                                             */
-        /* For annualized (not time-specific) costs, if the respondent */
-        /* has already provided surrogate cost information for a       */
-        /* particular product but has put either a zero or a missing   */
-        /* value for production quantity, then the default language    */
-        /* will mistakenly think no surrogate information has been     */
-        /* provided. For annualized costs only, you can remedy this    */
-        /* problem by setting the production quantity to a non-zero    */
-        /* or non-missing value above in Sect. 3-A-i.                  */
-        /*-------------------------------------------------------------*/
+        /*------------------------------------------------------------*/
+        /* 3-B-i IDENTIFY PRODUCTS NOT PRODUCED DURING POI/POR        */
+        /*       FOR WHICH SURROGATE COSTS ARE NEEDED.                */
+        /*                                                            */
+        /* The %G8_FIND_NOPRODUCTION macro below identifies products  */
+        /* needing surrogate cost information when total production   */
+        /* during the cost period is zero or missing. If this         */
+        /* assumption does not fit the circumstances, you will need   */
+        /* to make edits accordingly.                                 */
+        /*                                                            */
+        /* For annualized (not quarterly nor high inflation) costs,   */
+        /* if the respondent has already provided surrogate cost      */
+        /* information for a particular product but has put either a  */
+        /* zero or a missing value for production quantity, then the  */
+        /* default language will mistakenly think no surrogate        */
+        /* information has been provided. For annualized costs only,  */
+        /* you can remedy this problem by setting the production      */
+        /* quantity to a non-zero or non-missing value above in       */
+        /* Section 3-A-i.                                             */
+        /*------------------------------------------------------------*/
 
         %IF %UPCASE(&MATCH_NO_PRODUCTION) = YES %THEN
         %DO;
@@ -1191,9 +1220,18 @@ RUN;
 
             %G9_COST_PRODCHARS
         %END;
+
+        PROC PRINT DATA = COST (OBS = &PRINTOBS);
+            WHERE &COST_QTY IN (., 0);
+            TITLE3 "RESPONDENTS REPORTED COST WITH MISSING OR ZERO PRODUCTION QUANTITY";
+            TITLE4 "BY DEFAULT THE PROGRAM WILL SET PRODUCTION QUATITY TO ONE (1)";
+            TITLE5 "IF YOU WANT THE PROGRAM TO FIND SURROGATE COST FOR THESE CONNUMS WITHOUT PRODUCTION QUANTITY";
+            TITLE6 "TURN ON SECTION 1-E-ix. SURROGATE COSTS FOR NON-PRODUCTION";
+        RUN;
                     
         /*---------------------------------------------------------------*/
-        /* 3-C: Time-Specific Cost Situations                            */
+        /* 3-C: Quarterly Cost Situations                                */
+        /*---------------------------------------------------------------*/
         /*                                                               */
         /* If you have CV and quarterly cost, input the period raw       */
         /* material average purchase cost. There must be a separate      */
@@ -1254,35 +1292,40 @@ RUN;
         RUN;
 
         %G10_TIME_PROD_LIST
-
         %G11_CREATE_TIME_COST_DB
-
         %G12_ZERO_PROD_IN_PERIODS
-
         %G13_CREATE_COST_PROD_TIMES
 
         /*-------------------------------------------------------------------*/
-        /* 3-D: Hyperinflation Situations                                    */
+        /* 3-D: High Inflation Situations                                    */
         /*                                                                   */
-        /* Create monthly inflation indexes for hyperinflation adjustments.  */
-        /* Indexes are based in the HM country producer price index (PPI).   */
+        /* Create monthly inflation indexes for high inflation adjustments.  */
+        /* Indexes are based in the CM country producer price index (PPI).   */
+        /* Wrap the year/month and index values in quotes.                   */
         /*-------------------------------------------------------------------*/
 
-        PROC FORMAT;
-        /*    VALUE PRICE_INDEX*/
-        /*        <yyyymm> = <PPI for yyyymm>  */
-        /*        <yyyymm> = <PPI for yyyymm>  */
-        /*        <yyyymm> = <PPI for yyyymm>  */
-        /*        <yyyymm> = <PPI for yyyymm>  */
-        /*        <yyyymm> = <PPI for yyyymm>  */
-        /*        <yyyymm> = <PPI for yyyymm>  */
-        /*        <yyyymm> = <PPI for yyyymm>  */
-        /*        <yyyymm> = <PPI for yyyymm>  */
-        /*        <yyyymm> = <PPI for yyyymm>  */
-        /*        <yyyymm> = <PPI for yyyymm>  */
-        /*        <yyyymm> = <PPI for yyyymm>  */
-        /*        <yyyymm> = <PPI for yyyymm>; */
-        RUN;
+        %MACRO CREATE_HIGH_INFLATION_INDEXES;
+            %IF %UPCASE(&COMPARE_BY_HIGH_INFLATION) = YES %THEN
+            %DO;
+                PROC FORMAT;
+                    VALUE $PRICE_INDEX
+                        '<yyyymm>' = '<PPI for yyyymm>'
+                        '<yyyymm>' = '<PPI for yyyymm>'
+                        '<yyyymm>' = '<PPI for yyyymm>'
+                        '<yyyymm>' = '<PPI for yyyymm>'
+                        '<yyyymm>' = '<PPI for yyyymm>'
+                        '<yyyymm>' = '<PPI for yyyymm>'
+                        '<yyyymm>' = '<PPI for yyyymm>'
+                        '<yyyymm>' = '<PPI for yyyymm>'
+                        '<yyyymm>' = '<PPI for yyyymm>'
+                        '<yyyymm>' = '<PPI for yyyymm>'
+                        '<yyyymm>' = '<PPI for yyyymm>'
+                        '<yyyymm>' = '<PPI for yyyymm>';
+                RUN;
+            %END;
+        %MEND CREATE_HIGH_INFLATION_INDEXES;
+
+        %CREATE_HIGH_INFLATION_INDEXES
 
         /******************************************************************/
         /* 3-E: CALCULATE TOTAL COST OF MANUFACTURING, GNA, INTEREST, AND */
@@ -1437,12 +1480,12 @@ RUN;
 /* 4-B: CEP PROFIT RATE                                                    */
 /*                                                                         */
 /* If you typed %LET CEPPROFIT = CALC in Sect. 1-F above, the US5_CEPRATE  */
-/* macro will use revenue and expense information from U.S. and HM sales   */
+/* macro will use revenue and expense information from U.S. and CM sales   */
 /* to calculate the overall CEP profit ratio. Total amounts for cost of    */
 /* goods sold, revenue, selling expenses and movement will be calculated   */
-/* for each U.S. transaction, and then converted from U.S. dollars into HM */
+/* for each U.S. transaction, and then converted from U.S. dollars into CM */
 /* currency using EXRATE1. The overall amounts for COGS, revenue and       */
-/* expenses on U.S. sales will then be calculated and combined with HM     */
+/* expenses on U.S. sales will then be calculated and combined with CM     */
 /* data to calculate CEP profit rate.                                      */
 /*                                                                         */
 /* If you typed %LET CALC_CEPPROFIT = INPUT above, the profit rate         */
@@ -1512,14 +1555,14 @@ RUN;
 /*ep*/
 
 /***************************************************************************/
-/* PART 5: CONVERT HOME MARKET NET PRICES AND ADJUSTMENTS INTO HM          */
+/* PART 5: CONVERT COMPARISON MARKET NET PRICES AND ADJUSTMENTS INTO CM    */
 /*         CURRENCY, IF REQUIRED                                           */
 /*                                                                         */
-/*     If HM sales data has more than one currency, the HMDATA macro       */
+/*     If CM sales data has more than one currency, the HMDATA macro       */
 /*     immediately following will create another macro called,             */
 /*     MULTIPLE_CURR, which will get executed in the US10_P2PCALC below    */
 /*     in Part 8. Accordingly, you will not see anything in your log       */
-/*     about the calculation of HM net price, etc., at this point.         */
+/*     about the calculation of CM net price, etc., at this point.         */
 /***************************************************************************/
 
 %MACRO HMDATA;
@@ -1529,12 +1572,20 @@ RUN;
             %IF %UPCASE(&HM_MULTI_CUR) = YES %THEN
             %DO;
 
-/*------------------------------------------------------------------------*/
-/* 5-A: If the HM database has more than one currency, edit the formula   */
-/*   for HM net price and, if required, inventory carrying costs (HMICC), */
-/*   indirect selling expenses (HMISELL), commissions (HMCOMM) and        */
-/*   surrogate commissions (HMINDCOM). Calculate all in HM currency.      */
-/*------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------*/
+/* 5-A: If the comparison market database is reported in more than one  */
+/*      currency, the CM net price needs to be recalculated in CM       */
+/*      currency using an exchange rate based on the sale date of the   */
+/*      matching U.S. sale. CM sales have been weight averaged in the   */
+/*      CM Program so the CM net price will be calculated on a model    */
+/*      (HMCONNUM) basis.                                               */
+/*                                                                      */
+/*      Edit the formula for CM net price (HMNETPRI) and, if required,  */
+/*      inventory carrying costs (HMICC), indirect selling expenses     */
+/*      (HMISELL), commissions (HMCOMM), and surrogate commissions      */
+/*      (HMINDCOM). Make sure HMNETPRI, HMICC, HMISELL, HMCOMM, and     */
+/*      HMINDCOM are calculated all in CM currency.                     */
+/*----------------------------------------------------------------------*/
  
                 HMNETPRI = <HMGUP + HMGUPADJ - HMDISREB - HMMOVE
                          -  HMCRED - HMDSELL - HMCOMM - HMPACK>;
@@ -1570,16 +1621,16 @@ RUN;
 /*  PART 7: LEVEL OF TRADE ADJUSTMENT, IF REQUIRED                         */
 /*                                                                         */
 /*     If you typed %LET LOT_ADJUST = HM above in Sect. 1-F, information   */
-/*     calculated in the HM program will be merged with the U.S. sales by  */
+/*     calculated in the CM program will be merged with the U.S. sales by  */
 /*     the US8_LOTADJ macro.                                               */
 /*                                                                         */
 /*     If you typed %LET LOT_ADJUST = NO, then the US8_LOTADJ macro will   */
 /*     set LOTADJ = 0, resulting in no adjustment for LOT.                 */
 /*                                                                         */
 /*     If you typed %LET LOT_ADJUST = INPUT because you will be making an  */
-/*     LOT adjustment using information other than that from the HM sales, */
+/*     LOT adjustment using information other than that from the CM sales, */
 /*     edit the sample language below in Sect. 7-A-i. There should be an   */
-/*     adjustment ratio (LOTADJ) for each combination of U.S. and HM LOT.  */
+/*     adjustment ratio (LOTADJ) for each combination of U.S. and CM LOT.  */
 /*     The amount of the LOT adjustment (LOTADJMT) later calculated will   */
 /*     be equal to HMNETPRI * LOTADJ, and then added to HMNETPRI in        */
 /*     calculating FUPDOL.                                                 */
@@ -1597,7 +1648,7 @@ RUN;
                 LOTHDATA = 'YES'; 
 
 /*------------------------------------------------------------------*/
-/*     7-A-i Create a line for each combination of U.S. and HM LOT. */
+/*     7-A-i Create a line for each combination of U.S. and CM LOT. */
 /*------------------------------------------------------------------*/
 
                 /*
@@ -1637,10 +1688,10 @@ RUN;
 /*ep*/
 
 /***************************************************************************/
-/* PART 8: COMBINE U.S. SALES WITH HM MATCHES, CALCULATE TRANSACTION LOT   */
+/* PART 8: COMBINE U.S. SALES WITH CM MATCHES, CALCULATE TRANSACTION LOT   */
 /*         -SPECIFIC LOT ADJUSTMENTS, CEP AND COMMISSION OFFSETS           */
 /*                                                                         */
-/*     Convert HM commissions and information required for offsets into    */
+/*     Convert CM commissions and information required for offsets into    */
 /*     U.S. dollars. Calculate the LOT adjustment, commission and CEP      */
 /*     offsets.                                                            */
 /***************************************************************************/
@@ -1660,7 +1711,7 @@ RUN;
 
 /*-------------------------------------------------------------------------*/
 /*     9-A CV SELLING EXPENSE RATES WHEN MAKING STRAIGHT COMPARISONS OF    */
-/*          U.S. SALES TO CV, OR WHEN THERE IS NO SUITABLE HM DATA ON      */
+/*          U.S. SALES TO CV, OR WHEN THERE IS NO SUITABLE CM DATA ON      */
 /*          SELLING EXPENSES AND PROFIT.                                   */
 /*                                                                         */
 /*     Supply rates for CV selling expenses and profit in decimal format.  */
@@ -1696,10 +1747,10 @@ RUN;
         %END;
 
 /*-------------------------------------------------------------------------*/
-/*     9-B CV SELLING EXPENSE RATES CALCULATED IN THE HM PROGRAM           */
+/*     9-B CV SELLING EXPENSE RATES CALCULATED IN THE CM PROGRAM           */
 /*                                                                         */
 /*     When there is suitable information on CV selling expense and profit */
-/*     rates calculated in the HM program, the US11_CVSELL_OFFSETS macro   */
+/*     rates calculated in the CM program, the US11_CVSELL_OFFSETS macro   */
 /*     will merge the information with U.S. sales to be compared to CV.    */
 /*-------------------------------------------------------------------------*/
 
@@ -1793,7 +1844,7 @@ RUN;
 /*          - Use single-transaction U.S. prices without offsetting        */
 /*            positive comparison results with negative ones on all sales. */
 /*                                                                         */
-/*   Calculate FUPDOL by converting HM net price (including the DIFMER     */
+/*   Calculate FUPDOL by converting CM net price (including the DIFMER     */
 /*   and LOT adjustments) into U.S. dollars and adding U.S. packing.       */
 /*   Calculate normal value (NV) from FUPDOL by doing COS adjustments      */
 /*   and offsets. Compare U.S. price to NV to calculate the transaction-   */
@@ -1824,7 +1875,7 @@ RUN;
 /*                                                                         */
 /*   The calculation of the foreign unit price in dollars (i.e., FUPDOL)   */
 /*   is below. Typically, FUPDOL does not require editing except in        */
-/*   unusual circumstances such as the reporting of HM sales information   */
+/*   unusual circumstances such as the reporting of CM sales information   */
 /*   in a currency other than that used to report costs. If you need to    */
 /*   edit the calculation of FUPDOL below, be sure to keep the "&SUFFIX"   */
 /*   endings for USPACK&SUFFIX.                                            */

@@ -1,8 +1,8 @@
 /***********************************************************************/
 /*                    COMMON UTILITY MACROS PROGRAM                    */
-/*                     FOR USE FOR BOTH ME AND NME                     */
+/*                 FOR USE BY BOTH ME AND NME PROGRAMS                 */
 /*                                                                     */
-/*             GENERIC VERSION LAST UPDATED FEBRUARY 11, 2021          */
+/*              GENERIC VERSION LAST UPDATED MARCH 1, 2022             */
 /*                                                                     */
 /* PART 1: MACRO TO WRITE LOG TO A PERMANENT FILE                      */ 
 /* PART 2: MACRO TO GET COUNTS OF THE DATASETS                         */ 
@@ -271,9 +271,9 @@ RUN;
     %IF %UPCASE("&ME_OR_NME.") = "MEHOME" %THEN
     %DO;
         %HDR; 
-        %PUT # OF HM SALES WITH PRICES AND/OR QTY <=0 (WORK.NEGDATA_HM)               = %CMPRES(&COUNT_NEGDATA_HM);
-        %PUT # OF HM SALES OUTSIDE DATE RANGE (WORK.OUTDATES_HM)                      = %CMPRES(&COUNT_OUTDATES_HM);
-        %PUT # OF HM SALES WITH NO COST DATA (WORK.NOCOST_HMSALES)                    = %CMPRES(&COUNT_NOCOST_HMSALES);
+        %PUT # OF CM SALES WITH PRICES AND/OR QTY <=0 (WORK.NEGDATA_HM)               = %CMPRES(&COUNT_NEGDATA_HM);
+        %PUT # OF CM SALES OUTSIDE DATE RANGE (WORK.OUTDATES_HM)                      = %CMPRES(&COUNT_OUTDATES_HM);
+        %PUT # OF CM SALES WITH NO COST DATA (WORK.NOCOST_HMSALES)                    = %CMPRES(&COUNT_NOCOST_HMSALES);
         %IF &RUN_DOWNSTREAM. = YES %THEN
         %DO;
             %PUT # OF DOWNSTREAM SALES WITH NO COST DATA (WORK.NOCOST_DOWNSTREAM)     = %CMPRES(&COUNT_NOCOST_DSSALES);
@@ -282,23 +282,23 @@ RUN;
         %PUT # OF TOTAL COST OBS GOING IN (COMPANY.&COST_DATA)                        = %CMPRES(&COUNT_ORIG_COST);
         %PUT # OF COST OBS TO BE WEIGHT AVERAGED (WORK.COST)                          = %CMPRES(&COUNT_PRE_AVGCOST);
         %PUT # OF WEIGHT AVERAGED COST MODELS (WORK.AVGCOST)                          = %CMPRES(&COUNT_AVGCOST);
-        %PUT # OF TOTAL HM SALES GOING IN (COMPANY.&HMDATA)                           = %CMPRES(&COUNT_ORIG_HMSALES);
+        %PUT # OF TOTAL CM SALES GOING IN (COMPANY.&HMDATA)                           = %CMPRES(&COUNT_ORIG_HMSALES);
         %IF &RUN_ARMSLENGTH. = YES %THEN
         %DO;
-            %PUT # OF HM SALES FAILING ARMS LENGTH TEST (WORK.HMAFFOUT)               = %CMPRES(&COUNT_HMAFFOUT);
+            %PUT # OF CM SALES FAILING ARMS LENGTH TEST (WORK.HMAFFOUT)               = %CMPRES(&COUNT_HMAFFOUT);
         %END; 
         %IF &RUN_DOWNSTREAM. = YES %THEN
         %DO;
             %PUT # OF TOTAL DS SALES GOING IN (COMPANY.&DOWNSTREAMDATA)               = %CMPRES(&COUNT_ORIG_DSSALES);
         %END;
-        %PUT # OF HM SALES ABOVE COST TEST (WORK.HMABOVE)                             = %CMPRES(&COUNT_HMABOVE);
-        %PUT # OF HM SALES FAILING THE COST TEST (WORK.HMBELOW)                       = %CMPRES(&COUNT_HMBELOW);
+        %PUT # OF CM SALES ABOVE COST TEST (WORK.HMABOVE)                             = %CMPRES(&COUNT_HMABOVE);
+        %PUT # OF CM SALES FAILING THE COST TEST (WORK.HMBELOW)                       = %CMPRES(&COUNT_HMBELOW);
         %IF &COMPARE_BY_TIME. = YES %THEN
         %DO;
-            %PUT # OF HM SALES PASSING THE COST RECOVERY TEST (WORK.RECOVERED)        = %CMPRES(&COUNT_RECOVERED);
+            %PUT # OF CM SALES PASSING THE COST RECOVERY TEST (WORK.RECOVERED)        = %CMPRES(&COUNT_RECOVERED);
         %END;
-        %PUT # OF HM TO BE WEIGHT AVERAGED (WORK.HM)                                  = %CMPRES(&COUNT_HMWTAVG);
-        %PUT # OF WEIGHT AVERAGED HM MODELS (WORK.HMAVG)                              = %CMPRES(&COUNT_HMAVG);
+        %PUT # OF CM TO BE WEIGHT AVERAGED (WORK.HM)                                  = %CMPRES(&COUNT_HMWTAVG);
+        %PUT # OF WEIGHT AVERAGED CM MODELS (WORK.HMAVG)                              = %CMPRES(&COUNT_HMAVG);
         %PUT ************************************************************************************;
         %PUT ************************************************************************************;
     %END;

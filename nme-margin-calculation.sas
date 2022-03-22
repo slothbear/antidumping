@@ -1,8 +1,8 @@
 /*--------------------------------------------------------------*/
+/*                ANTIDUMPING NON-MARKET ECONOMY                */
+/*                  MARGIN CALCULATION PROGRAM                  */
 /*                                                              */
-/*              NME MARGIN CALCULATION PROGRAM                  */
-/*                                                              */
-/*      GENERIC VERSION LAST UPDATED FEBRUARY 11, 2021          */
+/*          GENERIC VERSION LAST UPDATED MARCH 1, 2022          */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */
@@ -32,19 +32,22 @@
 /* PART 20: REVIEW LOG FOR ERRORS, WARNINGS, UNINIT., ETC.      */
 /*--------------------------------------------------------------*/
 
-/*-------------------------------------------------------------------------*/
-/*    EDITING THE PROGRAM:                                                 */
-/*                                                                         */
-/*          Places requiring edits are indicated by angle brackets         */
-/*          (i.e., '< >'). Replace angle brackets with case-specific       */
-/*          information.                                                   */
-/*                                                                         */
-/*          Types of Inputs:(D) = SAS dataset name                         */
-/*                          (E) = Equation                                 */
-/*                          (V) = Variable name                            */
-/*                          (T) = Text (no specific format),               */
-/*                                do NOT use punctuation marks             */
-/*-------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------*/
+/* EDITING THE PROGRAM:                                                  */
+/*                                                                       */
+/* Places requiring edits are indicated by angle brackets (i.e., '< >'). */
+/* Replace angle brackets with case-specific information.                */
+/*                                                                       */
+/*          Types of Inputs: (D) = SAS dataset name                      */
+/*                           (V) = Variable name                         */
+/*                           (T) = Text (no specific format),            */
+/*                                do NOT use punctuation marks           */
+/*                                                                       */
+/* If there are angle brackets that are commented out, replacing the     */
+/* angles brackets with case specific code is optional. For example:     */
+/*                                                                       */
+/*          <Insert changes here, if required.>                          */
+/*-----------------------------------------------------------------------*/
 
 /*--------------------------------------------------------------*/
 /* EXECUTING/RUNNING THE PROGRAM:                               */
@@ -160,121 +163,157 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /*(T) Location & Name of the     
                                  /*    NAMEOFTHESHEET$COLUMNRANGE.            */
                                  /*    EXAMPLE: SummaryofSVs$P6:P34           */
 
-/*-------------------------------------------------------------------*/
-/* DATE INFORMATION                                                  */
-/*                                                                   */
-/* Dates should be written in SAS DATE9 format (e.g., 01JAN2010).    */
-/*                                                                   */
-/* USSALEDATE:                                                       */
-/*                                                                   */
-/* The date of sale variable defined by the macro variable           */
-/* USSALEDATE will be used to capture all U.S. sales within the date */
-/* range specified by the macro variables BEGINDAY and ENDAY.        */
-/*                                                                   */
-/* USDATEBEFORESALE and USEARLIERDATE:                               */
-/*                                                                   */
-/* If there are reported dates before the sale date and you want     */
-/* the earlier dates to be assigned to sale date, define the macro   */
-/* variable USDATEBEFORESALE to 'YES' and assign the variable with   */
-/* earlier dates to the macro variable USEARLIERDATE (ex. SHIPDATE). */
-/* Otherwise define the macro variable USDATEBEFORESALE to 'NO' and  */
-/* ignore the macro variable USEARLIERDATE.                          */
-/*                                                                   */
-/* BEGINDAY and ENDDAY:                                              */
-/*                                                                   */
-/* FOR INVESTIGATIONS, the macro variables BEGINDAY and ENDDAY       */
-/* usually correspond to the first and last dates of the POI.        */
-/*                                                                   */
-/* FOR REVIEWS, the macro variables BEGINDAY and ENDDAY usually  */
-/* correspond to the first day of the first month and the last day   */
-/* of the last month of the POR. For EP sales, they usually include  */
-/* all entries during the POR Accordingly, there may be EP trans-    */
-/* actions with sale dates prior to the POR Adjust the BEGINDAY and  */
-/* ENDDAY to capture the first and last US sales.                    */
-/*                                                                   */
-/* BEGINPERIOD and ENDPERIOD:                                        */
-/*                                                                   */
-/* The macro variables BEGINPERIOD and ENDPERIOD refer to the begin- */
-/* ning and at the end of the official POI/POR. They are used for    */
-/* titling. BEGINPERIOD is also used in the Cohen’s d Test.          */
-/*-------------------------------------------------------------------*/
+/*--------------------------------------------------------------------*/
+/* DATE INFORMATION                                                   */
+/*                                                                    */
+/* Dates should be written in SAS DATE9 format (e.g., 01JAN2020).     */
+/*                                                                    */
+/* USSALEDATE:                                                        */
+/*                                                                    */
+/* The date of sale variable defined by the macro variable            */
+/* USSALEDATE will be used to capture all U.S. sales within the date  */
+/* range specified by the macro variables USBEGINDAY and USENDAY.     */
+/*                                                                    */
+/* USDATEBEFORESALE and USEARLIERDATE:                                */
+/*                                                                    */
+/* If there are reported dates before the sale date and you want      */
+/* the earlier dates to be assigned to sale date, define the macro    */
+/* variable USDATEBEFORESALE to 'YES' and assign the variable with    */
+/* earlier dates to the macro variable USEARLIERDATE (ex. SHIPDATU).  */
+/* Otherwise define the macro variable USDATEBEFORESALE to 'NO' and   */
+/* ignore the macro variable USEARLIERDATE.                           */
+/*                                                                    */
+/* USBEGINDAY and USENDDAY:                                           */
+/*                                                                    */
+/* Define the macro variables USBEGINDAY and USENDDAY to correspond   */
+/* to the universe of U.S. sales that you want to use.                */
+/*                                                                    */
+/* For Investigations USBEGINDAY often corresponds to the first day   */
+/* of the first month of the period and USENDDAY often corresponds to */
+/* the last day of the last month of the period, respectively,        */
+/* covering all U.S. sales dates.                                     */
+/*                                                                    */
+/* For Reviews USBEGINDAY often corresponds to the first day of the   */
+/* first month of the window (i.e., 3 months before month of first    */
+/* reported U.S. sale date) and USENDDAY often corresponds to the     */
+/* last day of the last month of the window (i.e., 2 months after     */
+/* month of last reported U.S. sale date).                            */
+/*--------------------------------------------------------------------*/
 
-%LET USSALEDATE = <        >;       /*(V) Variable representing the */
-                                    /*    U.S. sale date.           */
-%LET USDATEBEFORESALE = <YES/NO>;   /*(T) Adjust sale date based on */
-                                    /*    an earlier date variable? */
-                                    /*    Type 'YES' (no quotes) to */
-                                    /*    adjust the sale date, or  */
-                                    /*    'NO' to skip this part.   */
-                                    /*    If you typed 'YES' then   */
-                                    /*    also complete the macro   */
-                                    /*    variable EARLIERDATE.     */
-%LET      EARLIERDATE = <        >; /*(V) Variable representing the */
-                                    /*    earlier date variable.    */
-%LET BEGINDAY = <DDMONYYYY>;        /*(T) First day of first month  */
-                                    /*    of U.S. sales.            */
-%LET ENDDAY   = <DDMONYYYY>;        /*(T) Last day of last month of */
-                                    /*    U.S. sales.               */
-%LET BEGINPERIOD = <DDMONYYYY>;     /*(T) Day 1 of first month of   */
-                                    /*    official POI/POR.         */
-%LET ENDPERIOD   = <DDMONYYYY>;     /*(T) Last day last month of    */
-                                    /*    official POI/POR.         */
+%LET USSALEDATE = <        >;       /* (V) Variable representing the  */
+                                    /*     U.S. sale date.            */
+%LET USDATEBEFORESALE = <YES/NO>;   /* (T) Adjust sale date based on  */
+                                    /*     an earlier date variable?  */
+                                    /*     Type 'YES' (no quotes) to  */
+                                    /*     adjust the sale date, or   */
+                                    /*     'NO' to skip this part.    */
+                                    /*     If you typed 'YES' then    */
+                                    /*     also complete the macro    */
+                                    /*     variable USEARLIERDATE.    */
+%LET    USEARLIERDATE = <        >; /* (V) Variable representing the  */
+                                    /*     earlier date variable.     */
+%LET USBEGINDAY = <DDMONYYYY>;      /* (T) Please see above DATE      */
+                                    /*     INFORMATION for guidance.  */
+%LET USENDDAY = <DDMONYYYY>;        /* (T) Please see above DATE      */
+                                    /*     INFORMATION for guidance.  */
     
-/*----------------------------------------------------------------*/
-/* ADDITIONAL FILTERING OF U.S. SALES, IF REQUIRED                */
-/*                                                                */
-/*  Should you additionally wish to filter U.S. sales using       */
-/*    different dates and/or date variables for CEP v EP sales,   */
-/*    complete the following section.    This may be useful when  */
-/*    you have both EP and CEP sales in an administrative review. */
-/*    In reviews, reported CEP sales usually include all sales    */
-/*  during the POR.  For EP sales in reviews, reported sales      */
-/*    usually include all entries during the POR.  To filter EP   */
-/*    sales by entry date, for example, you would put the first   */
-/*    and last days of the POR for BEGINDAY_EP and ENDDAY_EP, and */
-/*    the variable for date of entry under EP_DATE_VAR.           */
-/*----------------------------------------------------------------*/
+/*--------------------------------------------------------------*/
+/*  ADDITIONAL FILTERING OF U.S. SALES, IF REQUIRED             */
+/*                                                              */
+/*  Should you additionally wish to filter U.S. sales using     */
+/*  different dates and/or date variables for CEP v EP sales,   */
+/*  complete the following section. This may be useful when     */
+/*  you have both EP and CEP sales in an administrative review. */
+/*  In reviews, reported CEP sales usually include all sales    */
+/*  during the POR. For EP sales in reviews, reported sales     */
+/*  usually include all entries during the POR. To filter EP    */
+/*  sales by entry date, for example, you would put the first   */
+/*  and last days of the POR for BEGINDAY_EP and ENDDAY_EP, and */
+/*  the variable for date of entry under EP_DATE_VAR.           */
+/*--------------------------------------------------------------*/
 
-%LET FILTER_CEP = <YES/NO>;             /*(T) Additionally filter CEP sales?  Type "YES" (no quotes) to filter,  */
-                                        /*    "NO" to skip this part. If you typed "YES," then also complete     */
-                                        /*    the three subsequent indented macro variables re: CEP.             */
-    %LET CEP_DATE_VAR = <        >;     /*(V) The date variable to be used to filter CEP sales.                  */
-    %LET BEGINDAY_CEP = <DDMONYYYY>;    /*(T) Day 1 of 1st month of CEP U.S. sales to be kept.                   */
-    %LET ENDDAY_CEP   = <DDMONYYYY>;    /*(T) Last day of last month of CEP U.S. sales to be kept.               */
+%LET FILTER_CEP = <YES/NO>;          /*(T) Additionally filter CEP sales?  */
+                                     /*    Type "YES" (no quotes) to       */
+                                     /*    filter, "NO" to skip this part. */
+                                     /*    If you typed "YES," then also   */
+                                     /*    complete the three subsequent   */
+                                     /*    indented macro variables.       */
+%LET    CEP_DATE_VAR = <  >;         /*(V) The date variable to be used to */
+                                     /*    filter CEP sales                */
+%LET    BEGINDAY_CEP = <DDMONYYYY>;  /*(T) Day 1 of 1st month of CEP U.S.  */
+                                     /*    sales to be kept.               */
+%LET    ENDDAY_CEP   = <DDMONYYYY>;  /*(T) Last day of last month of CEP   */
+                                     /*    U.S. sales to be kept.          */
 
-%LET FILTER_EP     = <YES/NO>;          /*(T) Additionally filter EP sales?  Type "YES" (no quotes) to filter,   */
-                                        /*    "NO" to skip this part. If you typed "YES," then also complete     */
-                                        /*    the three subsequent indented macro variables re: EP.              */
-    %LET EP_DATE_VAR  = <  >;           /*(V) The date variable to be used to filter EP sales, e.g., entry date. */
-    %LET BEGINDAY_EP  = <DDMONYYYY>;    /*(T) Day 1 of 1st month of EP U.S. sales to be kept.                    */
-    %LET ENDDAY_EP    = <DDMONYYYY>;    /*(T) Last day of last month of EP U.S. sales to be kept.                */
+%LET FILTER_EP = <YES/NO>;           /*(T) Additionally filter EP sales?   */
+                                     /*    Type "YES" (no quotes) to       */
+                                     /*    filter, "NO" to skip this part. */
+                                     /*    If you typed "YES," then also   */
+                                     /*    complete the three subsequent   */
+                                     /*    indented macro variables.       */
+%LET    EP_DATE_VAR  = <  >;         /*(V) The date variable to be used to */
+                                     /*    filter EP sales, such as,       */
+                                     /*    entry date.                     */
+%LET    BEGINDAY_EP  = <DDMONYYYY>;  /*(T) Day 1 of 1st month of EP U.S.   */
+                                     /*    sales to be kept.               */
+%LET    ENDDAY_EP    = <DDMONYYYY>;  /*(T) Last day of last month of EP    */
+                                     /*    U.S. sales to be kept.          */
 
-/*----------------------------------------------------------------------------------------------------------------------*/
-/* TITLES, FOOTNOTES AND AUTOMATIC NAMES FOR OUTPUT DATASETS                                                            */
-/*                                                                                                                      */
-/* The information below will be used in creating titles and footnotes, and naming output datasets.                     */
-/*                                                                                                                      */
-/* NAMES FOR INPUT/OUTPUT DATASETS: Names of all output datasets generated by this program will have a standardized     */
-/* prefix using the format:  "RESPONDENT_SEGMENT_STAGE" in which:                                                       */
-/*                                                                                                                      */
-/* RESPONDENT = Respondent identifier (e.g., company name)                                                              */
-/* SEGMENT    = Segment of proceeding (e.g., INVEST, AR6, REMAND)                                                       */
-/* STAGE      = PRELIM or FINAL                                                                                         */
-/*                                                                                                                      */
-/* The total number of places/digits used in the RESPONDENT, SEGMENT and STAGE identifiers, combined, should NOT        */
-/* exceed 21.  Letters, numbers and underscores are acceptable. No punctuation marks, blank spaces or special           */
-/* characters should be used.                                                                                           */
-/*                                                                                                                      */
-/* The names of the output datasets this program creates are as follows:                                                */
-/*                                                                                                                      */
-/* {RESPONDENT_SEGMENT_STAGE}_AVGMARG/AVGMIXED/TRNMIXED/TRANMARG = Transaction results for Cash Deposit                 */
-/* {RESPONDENT_SEGMENT_STAGE}_IMPSTND/IMPCSTN/IMPCTRN/IMPTRAN    = Importer-specific transaction results for assessment */
-/*                                                                                                                      */
-/* All output datasets will be placed in the COMPANY directory.                                                         */
-/*----------------------------------------------------------------------------------------------------------------------*/
+/*-------------------------------------------------------------------------*/
+/*      TITLES, FOOTNOTES AND AUTOMATIC NAMES FOR OUTPUT DATASETS          */
+/*                                                                         */
+/*        The information below will be used in creating titles, footnotes */
+/*        and the names of output datasets for later use in the U.S. Sales */
+/*        Margin Program.                                                  */
+/*                                                                         */
+/*          NAMES FOR OUTPUT DATASETS:                                     */
+/*                                                                         */
+/*      Names of all output datasets generated by this program will have a */
+/*      standardized prefix using the format:  "RESPONDENT_SEGMENT_STAGE"  */
+/*      in which:                                                          */
+/*                                                                         */
+/*         RESPONDENT  = Respondent identifier (e.g., company name)        */
+/*         SEGMENT     = Segment of proceeding (e.g., INVEST, AR6, REMAND) */
+/*         STAGE       = PRELIM or FINAL                                   */
+/*                                                                         */
+/*      The total number of places/digits used in the RESPONDENT, SEGMENT  */
+/*      and STAGE identifiers, combined, should NOT exceed 21. Letters,    */
+/*      numbers and underscores are acceptable. No punctuation marks,      */
+/*      blank spaces or special characters should be used.                 */
+/*                                                                         */
+/*      The names of the output datasets this program creates, where       */
+/*      applicable, are the following:                                     */
+/*                                                                         */
+/*          {RESPONDENT_SEGMENT_STAGE}_COST    = Wt-avg costs              */
+/*          {RESPONDENT_SEGMENT_STAGE}_HMCEP   = HM revenue/expenses for   */
+/*                                               CEP profit                */
+/*          {RESPONDENT_SEGMENT_STAGE}_CVSELL  = Selling & profit ratios   */
+/*                                               for CV                    */
+/*          {RESPONDENT_SEGMENT_STAGE}_HMWTAV  = Wt-avg HM data            */
+/*          {RESPONDENT_SEGMENT_STAGE}_LOTADJ  = LOT adjustment factors    */
+/*                                                                         */
+/*          All output datasets will be placed in the COMPANY directory.   */
+/*-------------------------------------------------------------------------*/
 
 %LET PRODUCT    = %NRBQUOTE(<Product under Investigation or Review>);    /*(T) Product */
 %LET COUNTRY    = %NRBQUOTE(<Country under Investigation or Review>);    /*(T) Country */
+
+/*-------------------------------------------------------------------------*/
+/* The macro variables BEGINPERIOD and ENDPERIOD refer to the beginning    */
+/* and at the end of the official POI/POR. They are used for titling.      */
+/* BEGINPERIOD is also used in the Cohen’s d Test.                         */
+/*                                                                         */
+/* Typically, these dates refer to the first day of the first month for    */
+/* the POI/POR for the BEGINPERIOD and the last day of the last month of   */
+/* the POI/POR for the ENDPERIOD.  However, for first administrative       */
+/* reviews BEGINPERIOD is dependent on the injury results of the           */
+/* International Trade Commission (ITC) and the first day of suspension of */
+/* liquidation. Please confirm the BEGINPERIOD with the Federal Register   */
+/* Notice initiating the first administrative review.                      */
+/*-------------------------------------------------------------------------*/
+
+%LET BEGINPERIOD = <DDMONYYYY>;  /* (T) First day of the official POI/POR. */
+%LET ENDPERIOD = <DDMONYYYY>;    /* (T) Last day of the official POI/POR.  */
 
 /*------------------------------------------------------------------------*/
 /* Between the RESPONDENT, SEGMENT and STAGE macro variables below, there */
@@ -976,7 +1015,7 @@ DATA USSALES;
     /* Selectively adjust sale date based */
     /* on an earlier date variable.       */
 
-    %DEFINE_SALE_DATE (SALEDATE = &USSALEDATE, DATEBEFORESALE = &USDATEBEFORESALE, EARLIERDATE = &EARLIERDATE); 
+    %DEFINE_SALE_DATE (SALEDATE = &USSALEDATE, DATEBEFORESALE = &USDATEBEFORESALE, EARLIERDATE = &USEARLIERDATE); 
 
     /* <Insert changes here, if required.> */
 
@@ -1138,7 +1177,7 @@ RUN;
     %IF %UPCASE(&CASE_TYPE) = AR %THEN
     %DO;
         MON = MONTH(&USSALEDATE);
-        YRDIFF = YEAR(&USSALEDATE) - YEAR("&BEGINDAY"D);
+        YRDIFF = YEAR(&USSALEDATE) - YEAR("&USBEGINDAY"D);
         USMONTH = MON + YRDIFF * 12;
         DROP MON YRDIFF;
         %LET USMONTH = USMONTH;
@@ -1151,7 +1190,7 @@ DATA USSALES NEGDATA OUTDATES;
     IF (&USQTY LE 0) OR (&USGUP LE 0) THEN
         OUTPUT NEGDATA;
     ELSE
-    IF (&USSALEDATE LT "&BEGINDAY"D) OR (&USSALEDATE GT "&ENDDAY"D) THEN
+    IF (&USSALEDATE LT "&USBEGINDAY"D) OR (&USSALEDATE GT "&USENDDAY"D) THEN
         OUTPUT OUTDATES;
     %MARGIN_FILTER
     ELSE
@@ -1169,7 +1208,7 @@ RUN;
 
 PROC PRINT DATA = OUTDATES (OBS = &PRINTOBS);
     TITLE3 "SAMPLE OF U.S. SALES OUTSIDE THE PERIOD OF ANALYSIS";
-    TITLE4 "BASED ON THE VALUE OF &USSALEDATE BEING OUTSIDE THE DATE RANGE &BEGINDAY AND &ENDDAY";
+    TITLE4 "BASED ON THE VALUE OF &USSALEDATE BEING OUTSIDE THE DATE RANGE &USBEGINDAY AND &USENDDAY";
     TITLE6 "NOTE:  Default programming removes these sales from the calculations.";
     TITLE7 "Should this not be appropriate, adjust accordingly.";
 RUN;
@@ -1255,9 +1294,9 @@ RUN;
                         %DO;
                             &EXDATA.I = EXRATE_&EXDATA) DROP = &EXDATA.R)
                         %END;
-                  OUT = RATES;
-            WHERE "&BEGINDAY"D LE &USSALEDATE LE "&ENDDAY"D;
-                   BY &USSALEDATE;
+                     OUT = RATES;
+               WHERE "&USBEGINDAY"D LE &USSALEDATE LE "&USENDDAY"D;
+               BY &USSALEDATE;
         RUN;
 
         PROC PRINT DATA = RATES (OBS = &PRINTOBS);
@@ -2416,68 +2455,67 @@ RUN;
 /* PART 13: COMPARISON RESULTS */
 /*-----------------------------*/
 
-/*--------------------------------------------------------------------------*/
-/*  CALCULATE COMPARISON RESULTS USING THE STANDARD                         */
+/*----------------------------------------------------------------------------*/
+/*  CALCULATE COMPARISON RESULTS USING THE STANDARD                           */
 /*            METHODOLOGY, THE A-2-T ALTERNATIVE METHODOLOGY AND, WHEN        */
 /*            REQUIRED, THE MIXED ALTERNATIVE METHODOLOGY.                    */
 /*                                                                            */
-/*    STANDARD METHODOLOGY:                                                    */
-/*        - Use weight-averaged U.S. prices, offsetting positive comparison    */
-/*          results with negative ones, for all sales.                         */
-/*    MIXED ALTERNATIVE METHODOLOGY                                            */
-/*        - A rate calculated by using single-transaction prices without         */
-/*          offsetting on sales that pass the Cohen's-d Test, and weight-        */
+/*    STANDARD METHODOLOGY:                                                   */
+/*        - Use weight-averaged U.S. prices, offsetting positive comparison   */
+/*          results with negative ones, for all sales.                        */
+/*    MIXED ALTERNATIVE METHODOLOGY                                           */
+/*        - A rate calculated by using single-transaction prices without      */
+/*          offsetting on sales that pass the Cohen's-d Test, and weight-     */
 /*          averaged U.S. prices with offsetting on sales not passing.        */
-/*    A-2-T ALTERNATIVE METHODOLOGY                                            */
-/*        - Use single-transaction U.S. prices without offsetting positive     */
-/*          comparison results with negative ones on all sales.                */
+/*    A-2-T ALTERNATIVE METHODOLOGY                                           */
+/*        - Use single-transaction U.S. prices without offsetting positive    */
+/*          comparison results with negative ones on all sales.               */
 /*                                                                            */
-/*    Compare U.S. price to NV to calculate the transaction-specific            */
-/*    comparison results.  (Note, no offsetting of positive comparison         */
+/*    Compare U.S. price to NV to calculate the transaction-specific          */
+/*    comparison results.  (Note, no offsetting of positive comparison        */
 /*    results with negatives is done at this point.)  The resulting databases */
-/*    are called:                                                                */
+/*    are called:                                                             */
 /*                                                                            */
-/*        - _AVGMARG for the Standard                                             */    
-/*                Methodology on the full U.S. sales database                    */
-/*        - _AVGMIXED for the portion of sales                                 */
-/*                being calculated with the Standard Methodology as part of    */
-/*                the Mixed Alternative Methodology.                            */
+/*        - _AVGMARG for the Standard                                         */    
+/*                Methodology on the full U.S. sales database                 */
+/*        - _AVGMIXED for the portion of sales                                */
+/*                being calculated with the Standard Methodology as part of   */
+/*                the Mixed Alternative Methodology.                          */
 /*        - _TRNMIXED for the portion of sales                                */
-/*                being calculated with the A-2-T Alternative Methodology        */
-/*                as part of the Mixed Alternative Methodology.                */ 
-/*        - _TRANMARG for the A-2-T Alternative                                */
+/*                being calculated with the A-2-T Alternative Methodology     */
+/*                as part of the Mixed Alternative Methodology.               */ 
+/*        - _TRANMARG for the A-2-T Alternative                               */
 /*                Methodology on the full U.S. sales database.                */    
 /*                                                                            */
-/*    Variables with "&SUFFIX" added to their names in the programming will      */
-/*    have two or three values in the database: 1) the non-averaged/single-    */
-/*     transaction value when &SUFFIX is a blank space (e.g., USPACK&SUFFIX      */
-/*    becomes USPACK), 2) the weight-averaged value when &SUFFIX=_MEAN         */
+/*    Variables with "&SUFFIX" added to their names in the programming will   */
+/*    have two or three values in the database: 1) the non-averaged/single-   */
+/*     transaction value when &SUFFIX is a blank space (e.g., USPACK&SUFFIX   */
+/*    becomes USPACK), 2) the weight-averaged value when &SUFFIX=_MEAN        */
 /*    (e.g., USPACK&SUFFIX becomes USPACK_MEAN) for the Standard Methodology, */
-/*    and sometimes 3) the weight-averaged value when &SUFFIX=_MIXED (e.g.,      */
-/*    USPACK&SUFFIX becomes USPACK_MIXED) for the Mixed Alternative            */
-/*    Methodology.  The selection of averaged v non-averaged values is done     */
-/*    automatically.                                                            */
+/*    and sometimes 3) the weight-averaged value when &SUFFIX=_MIXED (e.g.,   */
+/*    USPACK&SUFFIX becomes USPACK_MIXED) for the Mixed Alternative           */
+/*    Methodology.  The selection of averaged v non-averaged values is done   */
+/*    automatically.                                                          */
 /*                                                                            */
-/*--------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/
 
-/*----------------------------------------------------------------------*/
-/*    For variables with the macro variable SUFFIX added to their names,    */
-/*    weight-averaged values will be used when SUFFIX = _MEAN or _MIXED,    */
-/*    but single-transaction values will be used when the suffix is a     */
-/*    blank space. For example, USNETPRI will be used in calculating the     */
-/*    Alternative Method, USNETPRI_MEAN for the Standard Method             */
-/*    and USNETPRI_MIXED with the sales not passing Cohen's d for the     */
+/*-------------------------------------------------------------------------*/
+/*    For variables with the macro variable SUFFIX added to their names,   */
+/*    weight-averaged values will be used when SUFFIX = _MEAN or _MIXED,   */
+/*    but single-transaction values will be used when the suffix is a      */
+/*    blank space. For example, USNETPRI will be used in calculating the   */
+/*    Alternative Method, USNETPRI_MEAN for the Standard Method            */
+/*    and USNETPRI_MIXED with the sales not passing Cohen's d for the      */
 /*    Mixed Alternative Method.                                            */
-/*                                                                        */
-/*    For purposes of calculting the initial cash deposit rate, the         */
-/*    IMPORTER macro variable will be set to a blank space and not enter    */ 
-/*    into the calculations.  When an assessment calculation is warranted,*/
+/*                                                                         */
+/*    For purposes of calculating the initial cash deposit rate, the       */
+/*    IMPORTER macro variable will be set to a blank space and not enter   */ 
+/*    into the calculations.  When an assessment calculation is warranted, */
 /*    the section will be re-executed on an importer-specific basis by     */
-/*    setting the IMPORTER macro variable to IMPORTER.                    */
-/*----------------------------------------------------------------------*/
+/*    setting the IMPORTER macro variable to IMPORTER.                     */
+/*-------------------------------------------------------------------------*/
 
 %MACRO RESULTS; 
-
     %MACRO CALC_RESULTS(METHOD,CALC_TYPE,IMPORTER,OUTDATA,SUFFIX);
 
     /*------------------------------------------------------*/
@@ -2530,7 +2568,7 @@ RUN;
         %END;
 
     /*----------------------------------------------------------*/
-    /*    Calculate Results                                        */
+    /*    Calculate Results                                     */
     /*----------------------------------------------------------*/
 
         DATA COMPANY.&RESPONDENT._&SEGMENT._&STAGE._&OUTDATA NONVMARG_&OUTDATA; 
@@ -3263,7 +3301,11 @@ RUN;
 /*-------------------------------------*/
 /* PART 17: MEANINGFUL DIFFERENCE TEST */
 /*-------------------------------------*/
+
 %MACRO MEANINGFUL_DIFF_TEST;
+    %GLOBAL MA_METHOD AT_METHOD;  /* Macro variables for results of Meaningful Difference Test.             */
+    %LET MA_METHOD = N/A;         /* Initiated to N/A for when meaningful difference test is not performed. */
+    %LET AT_METHOD = N/A;         /* Initiated to N/A for when meaningful difference test is not performed. */
 
     %IF &CALC_METHOD NE STANDARD %THEN
     %DO;
@@ -3329,10 +3371,10 @@ RUN;
             END;
 
             IF METHOD = "MIXED ALTERNATIVE" THEN
-                CALL SYMPUT('MA_METHOD', MEANINGFUL_DIFF);
+                CALL SYMPUT('MA_METHOD', MEANINGFUL_DIFF);  /* Macro variable for meaningful difference mixed alternative result. */ 
             ELSE
             IF METHOD = "A-to-T ALTERNATIVE" THEN
-                CALL SYMPUT('AT_METHOD', MEANINGFUL_DIFF);
+                CALL SYMPUT('AT_METHOD', MEANINGFUL_DIFF);  /* Macro variable meaningful difference alternative result. */
         RUN;
 
         PROC FORMAT;
@@ -3351,13 +3393,12 @@ RUN;
             FORMAT WTAVGPCT WTAVGPCT_STND RELATIVE_CHANGE RELCHNG.;
             TITLE3 "RESULTS OF THE MEANINGFUL DIFFERENCE TEST";
             TITLE5 "CASE ANALYST:  Please notify management of results so that the proper method can be selected.";
-            TITLE7 "PERCENT OF SALES PASSING THE COHEN'S D TEST = %SYSFUNC(STRIP(&PERCENT_VALUE_PASSING))";
+            TITLE7 "PERCENT OF SALES PASSING THE COHEN'S D TEST = %CMPRES(&PERCENT_VALUE_PASSING)";
             FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
             FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
         RUN;
 
     %END;
-
 %MEND MEANINGFUL_DIFF_TEST;
 
 %MEANINGFUL_DIFF_TEST
@@ -3802,8 +3843,8 @@ RUN;
     PROC PRINT DATA = ANSWER NOOBS SPLIT = '*';
         TITLE3 "SUMMARY OF CASH DEPOSIT RATES";
         TITLE5 "PERCENT OF SALES PASSING THE COHEN'S D TEST: %SYSFUNC(STRIP(&PERCENT_VALUE_PASSING))";   
-        TITLE6 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE MIXED-ALTERNATIVE METHOD: %SYSFUNC(STRIP(&MA_METHOD))";
-        TITLE7 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE A-to-T ALTERNATIVE METHOD: %SYSFUNC(STRIP(&AT_METHOD))";
+        TITLE6 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE MIXED-ALTERNATIVE METHOD: %CMPRES(&MA_METHOD)";
+        TITLE7 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE A-to-T ALTERNATIVE METHOD: %CMPRES(&AT_METHOD)";
         TITLE8 " ";
         VAR &PREFIX._STND &PREFIX._MIXED &PREFIX._ALT;
         LABEL &PREFIX._STND = &LABEL_STND
