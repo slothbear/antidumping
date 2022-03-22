@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET ECONOMY                       */
 /*               ANALYSIS OF COMPARISON MARKET SALES PROGRAM               */
 /*                                                                         */
-/*                GENERIC VERSION LAST UPDATED MARCH 1, 2022               */
+/*               GENERIC VERSION LAST UPDATED MARCH 21, 2022               */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring in Comparison Market Sales, Convert Date Variable, If    */
@@ -750,7 +750,7 @@ RUN;
 /*ep*/
 
 /*------------------------------------------------------------------*/
-/* 2-C-iii: GET HMSALES COUNT FOR LOG REPORTING                     */
+/* 2-C-iii: GET CM SALES COUNT FOR LOG REPORTING                    */
 /*------------------------------------------------------------------*/
 
 %CMAC2_COUNTER (DATASET = COMPANY.&HMDATA, MVAR = ORIG_HMSALES);
@@ -1168,7 +1168,7 @@ RUN;
 /*ep*/
 
 /*-------------------------------------------------------------------------*/
-/* 3-G: MERGE COSTS WITH HMSALES AND OUTPUT A COST DATABASE FOR USE WITH   */
+/* 3-G: MERGE COSTS WITH CM SALES AND OUTPUT A COST DATABASE FOR USE WITH  */
 /*      U.S. SALES DATA                                                    */
 /*                                                                         */
 /* The output database will be named using the standardized naming         */

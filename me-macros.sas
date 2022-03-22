@@ -2,7 +2,7 @@
 /*                    ANTIDUMPING MARKET ECONOMY                    */
 /*                          MACROS PROGRAM                          */
 /*                                                                  */
-/*            GENERIC VERSION LAST UPDATED MARCH 1, 2022            */
+/*           GENERIC VERSION LAST UPDATED MARCH 21, 2022            */
 /*                                                                  */
 /********************************************************************/
 /*                          GENERAL MACROS                          */
@@ -134,7 +134,49 @@ RUN;
 %MACRO G3_COST_TIME_MVARS;
     %GLOBAL HM_TIME_PERIOD NAF_TIME_PERIOD COST_TIME_PERIOD US_TIME_PERIOD
             US_TIME AND_TIME EQUAL_TIME OR_TIME FIRST_TIME COP_TIME_OUT
-            COST_PERIODS TIME_ANNUAL ANNUAL_COST;
+            COST_PERIODS TIME_ANNUAL ANNUAL_COST COST_DUTY_DRAWBACK_VARIABLE;
+
+    /*--------------------------------------------*/
+    /* Define format for different kinds of Cost. */
+    /*--------------------------------------------*/
+
+    PROC FORMAT;
+        VALUE $TIMETYPE
+            'AN' = 'Reported Annualized'
+            'SG' = 'Surrogate Annualized'
+
+            'TS' = 'Reported Quarterly'
+            'BL' = 'Blended Surrogate Quarterly'
+            'GF' = 'Gap Fill Surrogate Quarterly'
+
+            'H1' = 'Reported High Inflation'
+            'H2' = 'Annualized High Inflation'
+            'H3' = 'Surrogate High Inflation'
+
+            'CA' = 'Calculated'
+            'NA' = 'N/A';
+    RUN;
+
+    /*--------------------------------------------------------*/
+    /* Define macro variable used to keep Cost duty drawback. */
+    /*--------------------------------------------------------*/
+
+    %LET COST_DUTY_DRAWBACK_VARIABLE = ;    /* Cost duty drawback variable */
+    %IF %UPCASE(&SALESDB) = HMSALES %THEN
+    %DO;
+        %IF &USE_COST_DUTY_DRAWBACK = YES %THEN
+        %DO;
+            %LET COST_DUTY_DRAWBACK_VARIABLE = &COST_DUTY_DRAWBACK;
+        %END;
+    %END;
+    %ELSE
+    %IF %UPCASE(&SALESDB) = USSALES AND %UPCASE(&COST_TYPE) = CV %THEN   
+    %DO;
+        %IF &USE_COST_DUTY_DRAWBACK = YES %THEN
+        %DO;
+            %LET COST_DUTY_DRAWBACK_VARIABLE = &COST_DUTY_DRAWBACK;
+        %END;
+    %END;
 
     %IF %UPCASE(&COMPARE_BY_TIME) = YES %THEN
     %DO;
@@ -1911,7 +1953,7 @@ RUN;
     DATA REPORTED_EXTENDED_COST (DROP = I);
         SET COST;  
 
-        ENDINDEX = INPUT(PUT(&LAST_YEAR_MONTH, $PRICE_INDEX.), 8.);
+        ENDINDEX = INPUT(PUT("&LAST_YEAR_MONTH", $PRICE_INDEX.), 8.);
         INDEX = INPUT(PUT(&COST_YEAR_MONTH, $PRICE_INDEX.), 8.);
         INFLATOR = ENDINDEX / INDEX;
 
@@ -1924,7 +1966,7 @@ RUN;
     RUN;
 
     PROC PRINT DATA = REPORTED_EXTENDED_COST (OBS = &PRINTOBS) SPLIT = '<';
-        VAR &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_YEAR_MONTH TCOMCOP VCOMCOP GNACOP INTEXCOP TOTALCOP 
+        VAR &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_YEAR_MONTH &COST_DUTY_DRAWBACK_VARIABLE TCOMCOP VCOMCOP GNACOP INTEXCOP TOTALCOP 
             INDEX ENDINDEX INFLATOR TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT;
         LABEL &COST_YEAR_MONTH = 'YEAR AND<MONTH'
               ENDINDEX = 'END OF PERIOD<MONTHLY INFLATION<INDEX'
@@ -1946,13 +1988,13 @@ RUN;
     PROC MEANS DATA = REPORTED_EXTENDED_COST NWAY NOPRINT;
         CLASS &COST_MFR_HP &COST_PRIME_HP &COST_MATCH;
         ID &COST_CHAR;
-        VAR TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT;
+        VAR &COST_DUTY_DRAWBACK_VARIABLE TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT;
         WEIGHT &COST_QTY;
         OUTPUT OUT = WEIGHT_AVERAGED_COST (DROP = _:) MEAN = SUMWGT = TOTAL_PROD_QUANTITY;
     RUN;
 
     PROC PRINT DATA = WEIGHT_AVERAGED_COST (OBS = &PRINTOBS) SPLIT = "<";
-        VAR &COST_MFR_HP &COST_PRIME_HP &COST_MATCH TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT;
+        VAR &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_DUTY_DRAWBACK_VARIABLE TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT;
         LABEL TCOMCOP_EXT = "WA EXTENDED<TCOMCOP"
               VCOMCOP_EXT = "WA EXTENDED<VCOMCOP"
               GNACOP_EXT = "WA EXTENDED<GNACOP"
@@ -1981,7 +2023,7 @@ RUN;
         /*********************************************************/
 
         INDEX = INPUT(PUT(&COST_YEAR_MONTH, $PRICE_INDEX.), 8.);
-        ENDINDEX = INPUT(PUT(&LAST_YEAR_MONTH, $PRICE_INDEX.), 8.);
+        ENDINDEX = INPUT(PUT("&LAST_YEAR_MONTH", $PRICE_INDEX.), 8.);
         DEFLATOR = INDEX / ENDINDEX;
 
         ARRAY EXTEND (*) TCOMCOP VCOMCOP GNACOP INTEXCOP TOTALCOP;
@@ -1991,13 +2033,13 @@ RUN;
             EXTEND(I) = EXTENDED(I) * DEFLATOR;
         END;
 
-        COST_TYPE = 'CA';
+        COST_TYPE = 'H1';
         FORMAT COST_TYPE $TIMETYPE.;
     RUN;
 
     PROC PRINT DATA = REPORTED_COST (OBS = &PRINTOBS) SPLIT = '<';
-        VAR &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_YEAR_MONTH TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT
-            TOTALCOP_EXT INDEX ENDINDEX DEFLATOR TCOMCOP VCOMCOP GNACOP INTEXCOP TOTALCOP COST_TYPE;
+        VAR &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_YEAR_MONTH &COST_DUTY_DRAWBACK_VARIABLE TCOMCOP_EXT 
+            VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT INDEX ENDINDEX DEFLATOR TCOMCOP VCOMCOP GNACOP INTEXCOP TOTALCOP COST_TYPE;
         LABEL &COST_YEAR_MONTH = 'YEAR AND<MONTH'
               TCOMCOP_EXT = 'WA EXTENDED<TCOMCOP'
               VCOMCOP_EXT = 'WA EXTENDED<VCOMCOP'
@@ -2026,9 +2068,9 @@ RUN;
         BY NO_PROD_CONNUM;
     RUN;
 
-    PROC SORT DATA = REPORTED_COST (KEEP = &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_QTY TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT
-                                  INTEXCOP_EXT TOTALCOP_EXT)
-         OUT =  END_OF_PERIOD_COST NODUPKEY;   
+    PROC SORT DATA = REPORTED_COST (KEEP = &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_QTY &COST_DUTY_DRAWBACK_VARIABLE
+                                           TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT)
+              OUT =  END_OF_PERIOD_COST NODUPKEY;   
         BY &COST_MFR_HP &COST_PRIME_HP &COST_MATCH;
     RUN;
 
@@ -2037,13 +2079,13 @@ RUN;
     /***************************************************************************************/
 
     DATA COST_FROM_DIFFERENT_MONTH (DROP = I)
-         NOPRODUCTION_COST (DROP = I RENAME = (&COST_MFR_HP_RENAME &COST_PRIME_HP_RENAME
-                                               &COST_MATCH = NO_PROD_CONNUM
-                                               &COST_YEAR_MONTH = NO_PROD_YEAR_MONTH));
+        NOPRODUCTION_COST (DROP = I RENAME = (&COST_MFR_HP_RENAME &COST_PRIME_HP_RENAME
+                                              &COST_MATCH = NO_PROD_CONNUM
+                                              &COST_YEAR_MONTH = NO_PROD_YEAR_MONTH));
         MERGE NOPRODUCTION (IN = A RENAME = (&COST_MFR_HP_RENAME_BACK &COST_PRIME_HP_RENAME_BACK
                                              NO_PROD_CONNUM = &COST_MATCH
                                              NO_PROD_YEAR_MONTH = &COST_YEAR_MONTH))
-              END_OF_PERIOD_COST (IN = B); 
+                           END_OF_PERIOD_COST (IN = B); 
         BY &COST_MFR_HP &COST_PRIME_HP &COST_MATCH;
         IF A AND B THEN
         DO;
@@ -2052,7 +2094,7 @@ RUN;
             /*********************************************************/
 
             INDEX = INPUT(PUT(&COST_YEAR_MONTH, $PRICE_INDEX.), 8.);
-            ENDINDEX = INPUT(PUT(&LAST_YEAR_MONTH, $PRICE_INDEX.), 8.);
+            ENDINDEX = INPUT(PUT("&LAST_YEAR_MONTH", $PRICE_INDEX.), 8.);
             DEFLATOR = INDEX / ENDINDEX;
 
             ARRAY EXTENDED (*) TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT;
@@ -2062,7 +2104,7 @@ RUN;
                 ANNUALIZED(I) = EXTENDED(I) * DEFLATOR;
             END;
 
-            COST_TYPE = 'AN';
+            COST_TYPE = 'H2';
             FORMAT COST_TYPE $TIMETYPE.;
             OUTPUT COST_FROM_DIFFERENT_MONTH;
         END;
@@ -2072,8 +2114,8 @@ RUN;
     RUN;
 
     PROC PRINT DATA = COST_FROM_DIFFERENT_MONTH (OBS = &PRINTOBS);
-        VAR &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_YEAR_MONTH TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT
-            TOTALCOP_EXT INDEX ENDINDEX DEFLATOR TCOMCOP VCOMCOP GNACOP INTEXCOP TOTALCOP COST_TYPE;
+        VAR &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_YEAR_MONTH &COST_DUTY_DRAWBACK_VARIABLE TCOMCOP_EXT VCOMCOP_EXT 
+            GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT INDEX ENDINDEX DEFLATOR TCOMCOP VCOMCOP GNACOP INTEXCOP TOTALCOP;
         LABEL &COST_YEAR_MONTH = 'YEAR AND<MONTH'
               TCOMCOP_EXT = 'WA EXTENDED<TCOMCOP'
               VCOMCOP_EXT = 'WA EXTENDED<VCOMCOP'
@@ -2087,8 +2129,7 @@ RUN;
               VCOMCOP = 'DEFLATED<VCOMCOP'
               GNACOP= 'DEFLATED<GNACOP'
               INTEXCOP = 'DEFLATED<INTEXCOP'
-              TOTALCOP = 'DEFLATED<TOTALCOP'
-              COST_TYPE = 'COST<TYPE';
+              TOTALCOP = 'DEFLATED<TOTALCOP';
         TITLE3 "COSTS FOR PRODUCED CONNUMS/MONTHS SOLD BUT NOT PRODUCED IN THE SAME CONNUMS/MONTHS";
         TITLE4 "WITH PERIOD-WIDE WEIGHT AVERAGED COSTS (I.E. EXTENDED) RESTATED (I.E. DEFLATED) IN MONTH CURRENCY VALUES";
         TITLE5 "COST VARIABLE = EXTENDED COST VARIABLE * DEFLATOR";
@@ -2106,21 +2147,10 @@ RUN;
     PROC MEANS NWAY DATA = IDENTICAL_CONNUM_COST NOPRINT;
         CLASS &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_YEAR_MONTH;
         ID &COST_CHAR COST_TYPE;
-        VAR
-        %IF &USE_COST_DUTY_DRAWBACK = YES %THEN
-        %DO;
-            &COST_DUTY_DRAWBACK
-        %END;
-            VCOMCOP TCOMCOP GNACOP INTEXCOP TOTALCOP;
-
+        VAR &COST_DUTY_DRAWBACK_VARIABLE VCOMCOP TCOMCOP GNACOP INTEXCOP TOTALCOP;
         WEIGHT &COST_QTY;
         OUTPUT OUT = IDENTICAL_CONNUM_COST (DROP = _:) SUMWGT = &COST_QTY
-               MEAN = 
-               %IF &USE_COST_DUTY_DRAWBACK = YES %THEN
-               %DO;
-                      &COST_DUTY_DRAWBACK
-               %END;
-                      AVGVCOM AVGTCOM AVGGNA AVGINT AVGCOST;
+               MEAN = &COST_DUTY_DRAWBACK_VARIABLE AVGVCOM AVGTCOM AVGGNA AVGINT AVGCOST;
     RUN;
 
     PROC SORT DATA = IDENTICAL_CONNUM_COST OUT = IDENTICAL_CONNUM_COST;
@@ -2233,10 +2263,6 @@ RUN;
         SET SIMCOST;
         BY &NO_PROD_COST_MANF &NO_PROD_COST_PRIME NO_PROD_CONNUM NO_PROD_YEAR_MONTH &DIF_CHAR;
 
-        COST_TYPE = 'SG';
-        FORMAT COST_TYPE $TIMETYPE.;
-
-
         IF FIRST.NO_PROD_YEAR_MONTH THEN
             CHOICE = 0;
 
@@ -2253,12 +2279,11 @@ RUN;
         BY &NO_PROD_COST_MANF &NO_PROD_COST_PRIME NO_PROD_CONNUM NO_PROD_YEAR_MONTH;
         PAGEBY NO_PROD_YEAR_MONTH;
         VAR CHOICE &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_YEAR_MONTH
-            &NOPROD_CHAR &COST_CHAR &DIF_CHAR COST_TYPE;
+            &NOPROD_CHAR &COST_CHAR &DIF_CHAR;
         LABEL NO_PROD_CONNUM = 'NO PROCUCTION CONNUM'
               NO_PROD_YEAR_MONTH = 'NO PROCUCTION YEAR AND MONTH'
               &COST_MATCH = 'SURROGATE<CONNUM'
-              &COST_YEAR_MONTH = 'SURROGATE<YEAR AND<MONTH'
-              COST_TYPE = 'COST<TYPE';
+              &COST_YEAR_MONTH = 'SURROGATE<YEAR AND<MONTH';
         TITLE3 "TOP FIVE SIMILAR SURROGATE COST MATCHES FOR CONNUMS NOT PRODUCED DURING THE COST ACCOUNTING PERIOD";
     RUN;
 
@@ -2277,14 +2302,15 @@ RUN;
     /**********************************************/
 
     PROC SORT DATA = WEIGHT_AVERAGED_COST (KEEP = &COST_MFR_HP &COST_PRIME_HP &COST_MATCH
-                                                  TOTAL_PROD_QUANTITY TCOMCOP_EXT VCOMCOP_EXT
+                                                  TOTAL_PROD_QUANTITY &COST_DUTY_DRAWBACK_VARIABLE
+                                                  TCOMCOP_EXT VCOMCOP_EXT
                                                   GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT)
         OUT = WA_COST_FOR_SURROGATE;
         BY &COST_MFR_HP &COST_PRIME_HP &COST_MATCH;
     RUN;
 
     /************************************************************************/
-    /* G-14-D-v: Attach no-production CONNUMs to annualized cost by CONNUM. */
+    /* G-14-D-v: Append no-production CONNUMs to annualized cost by CONNUM. */
     /************************************************************************/
 
     DATA MOST_SIMILAR_ANNUALIZED_COST;
@@ -2292,8 +2318,11 @@ RUN;
         BY &COST_MFR_HP &COST_PRIME_HP &COST_MATCH;
         IF A AND B THEN
         DO;
+            COST_TYPE = 'H3';
+            FORMAT COST_TYPE $TIMETYPE.;
+
             INDEX = INPUT(PUT(NO_PROD_YEAR_MONTH, $PRICE_INDEX.), 8.);
-            ENDINDEX = INPUT(PUT(&LAST_YEAR_MONTH, $PRICE_INDEX.), 8.);
+            ENDINDEX = INPUT(PUT("&LAST_YEAR_MONTH", $PRICE_INDEX.), 8.);
             DEFLATOR = INDEX / ENDINDEX;
 
             ARRAY EXTEND (*) TCOMCOP VCOMCOP GNACOP INTEXCOP TOTALCOP;
@@ -2309,9 +2338,9 @@ RUN;
 
     PROC PRINT DATA = MOST_SIMILAR_ANNUALIZED_COST (OBS = &PRINTOBS) SPLIT = '*';
         VAR &NO_PROD_COST_MANF &NO_PROD_COST_PRIME NO_PROD_CONNUM NO_PROD_YEAR_MONTH
-            &COST_MFR_HP &COST_PRIME_HP &COST_MATCH TOTAL_PROD_QUANTITY 
-            TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT
-            INDEX ENDINDEX DEFLATOR TCOMCOP VCOMCOP GNACOP INTEXCOP TOTALCOP COST_TYPE;
+            &COST_MFR_HP &COST_PRIME_HP &COST_MATCH TOTAL_PROD_QUANTITY  
+            &COST_DUTY_DRAWBACK_VARIABLE TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT
+            INDEX ENDINDEX DEFLATOR TCOMCOP VCOMCOP GNACOP INTEXCOP TOTALCOP;
         LABEL &NO_PROD_COST_MANF_LABEL
               &NO_PROD_COST_PRIME_LABEL
               NO_PROD_CONNUM = 'NO PROCUCTION*CONNUM'
@@ -2330,8 +2359,7 @@ RUN;
               VCOMCOP = 'DEFLATED*VCOMCOP'
               GNACOP = 'DEFLATED*GNACOP'
               INTEXCOP = 'DEFLATED*INTEXCOP'
-              TOTALCOP = 'DEFLATED<TOTALCOP'
-              COST_TYPE = 'COST*TYPE';
+              TOTALCOP = 'DEFLATED<TOTALCOP';
         TITLE3 "SURROGATE COST MATCHES FOR CONNUMS NOT PRODUCED DURING THE COST ACCOUNTING PERIOD";
         TITLE4 "PERIOD-WIDE WEIGHT AVERAGED COSTS (I.E. EXTENDED) RESTATED (I.E. DEFLATED) IN MONTH CURRENCY VALUES";
         TITLE5 "COST VARIABLE = EXTENDED COST VARIABLE * DEFLATOR";
@@ -2344,20 +2372,10 @@ RUN;
     PROC MEANS NWAY DATA = MOST_SIMILAR_ANNUALIZED_COST NOPRINT;
         CLASS &NO_PROD_COST_MANF &NO_PROD_COST_PRIME NO_PROD_CONNUM NO_PROD_YEAR_MONTH;
         ID &NOPROD_CHAR COST_TYPE;
-        VAR
-        %IF &USE_COST_DUTY_DRAWBACK = YES %THEN
-        %DO;
-            &COST_DUTY_DRAWBACK
-        %END;
-            VCOMCOP TCOMCOP GNACOP INTEXCOP TOTALCOP;
+        VAR &COST_DUTY_DRAWBACK_VARIABLE VCOMCOP TCOMCOP GNACOP INTEXCOP TOTALCOP;
         WEIGHT TOTAL_PROD_QUANTITY;
         OUTPUT OUT = SIMILAR_CONNUM_COST (DROP = _:) SUMWGT = &COST_QTY
-               MEAN = 
-               %IF &USE_COST_DUTY_DRAWBACK = YES %THEN
-               %DO;
-                      &COST_DUTY_DRAWBACK
-               %END;
-                      AVGVCOM AVGTCOM AVGGNA AVGINT AVGCOST;
+               MEAN = &COST_DUTY_DRAWBACK_VARIABLE AVGVCOM AVGTCOM AVGGNA AVGINT AVGCOST;
     RUN;
 
     /*********************************************************************************************************/
@@ -2396,8 +2414,8 @@ RUN;
         TITLE3 "SAMPLE OF WEIGHT-AVERAGED COST DATA BY COST TYPE";
     RUN;
 
-    PROC SORT DATA = AVGCOST (KEEP = &COST_MANF &COST_PRIM &COST_MATCH &COST_YEAR_MONTH
-                                     &COST_QTY &COST_CHAR AVGVCOM AVGTCOM AVGGNA AVGINT AVGCOST COST_TYPE)
+     PROC SORT DATA = AVGCOST (KEEP = &COST_MANF &COST_PRIM &COST_MATCH &COST_YEAR_MONTH &COST_QTY &COST_CHAR
+                                      &COST_DUTY_DRAWBACK_VARIABLE AVGVCOM AVGTCOM AVGGNA AVGINT AVGCOST COST_TYPE)
               OUT = AVGCOST;
         BY &COST_MANF &COST_PRIM &COST_MATCH &COST_YEAR_MONTH;
     RUN;
@@ -2491,20 +2509,10 @@ RUN;
                       %END; 
                       &COST_TIME_PERIOD;
                 %IDCHARS
-                VAR
-                %IF &USE_COST_DUTY_DRAWBACK = YES %THEN
-                %DO;
-                    &COST_DUTY_DRAWBACK
-                %END;
-                    VCOMCOP TCOMCOP GNACOP INTEXCOP TOTALCOP;
+                VAR &COST_DUTY_DRAWBACK_VARIABLE VCOMCOP TCOMCOP GNACOP INTEXCOP TOTALCOP;
                 WEIGHT &COST_QTY;
                 OUTPUT OUT = AVGCOST (DROP = _:) SUMWGT = &COST_QTY
-               MEAN = 
-               %IF &USE_COST_DUTY_DRAWBACK = YES %THEN
-               %DO;
-                      &COST_DUTY_DRAWBACK
-               %END;
-                      AVGVCOM AVGTCOM AVGGNA AVGINT AVGCOST;
+                       MEAN = &COST_DUTY_DRAWBACK_VARIABLE AVGVCOM AVGTCOM AVGGNA AVGINT AVGCOST;
             RUN;
 
             PROC PRINT DATA = AVGCOST (OBS = &PRINTOBS);
@@ -2798,6 +2806,14 @@ RUN;
             %END;
         %END;
 
+        %IF %UPCASE(&SALESDB) = USSALES %THEN 
+        %DO;
+            %IF %UPCASE(&COST_TYPE) = CM %THEN
+            %DO;                                   /* Define Cost CONNUM in Cost data */
+                %LET COST_MATCH = COST_MATCH;      /* set created by the CM program.  */ 
+            %END;
+        %END;
+
         PROC SORT DATA = &SALES OUT = &SALES;    
             BY &SALES_COST_MANF &SALES_COST_PRIME &SALES_MATCH &SALES_YEAR_MONTH &SALES_TIME;
         RUN;
@@ -2840,7 +2856,7 @@ RUN;
             SET AVGCOST;
         RUN;
     %END;
-
+    %ELSE
     %IF %UPCASE(&SALESDB) = DOWNSTREAM %THEN 
     %DO;
         %MERGE_COST(DOWNSTREAM, &HMCPPROD, &HM_TIME_PERIOD, AVGCOST);
@@ -2848,11 +2864,12 @@ RUN;
     %ELSE
     %IF %UPCASE(&SALESDB) = USSALES %THEN 
     %DO;
-        %IF %UPCASE(&COST_TYPE) = HM %THEN
+        %IF %UPCASE(&COST_TYPE) = CM %THEN
         %DO;
             %MERGE_COST(USSALES, &USCVPROD, &US_TIME_PERIOD, 
                         COMPANY.&RESPONDENT._&SEGMENT._&STAGE._COST);
         %END;
+        %ELSE
         %IF %UPCASE(&COST_TYPE) = CV %THEN
         %DO;
             %MERGE_COST(USSALES, &USCVPROD, &US_TIME_PERIOD, AVGCOST);
@@ -2955,20 +2972,6 @@ RUN;
     /* will not affect the CM program.                                                                   */
 
     %LET NV_TYPE = ; 
-
-    /*--------------------------------------------*/
-    /* Define format for different kinds of Cost. */
-    /*--------------------------------------------*/
-
-    PROC FORMAT;
-        VALUE $TIMETYPE
-            'AN' = 'Annualized'
-            'CA' = 'Calculated'
-            'HI' = 'High Inflation'
-            'NA' = 'N/A'
-            'SG' = 'Surrogate'
-            'TS' = 'Time Specific';
-    RUN;
 
     /*------------------------------------------------------------------------------------*/
     /* Create null values for macro variables when CM sales manufacturer is not relevant. */
@@ -4196,20 +4199,6 @@ RUN;
             NO_PROD_COST_PRIME PRIME_LABEL PRIME_TITLE SALES_COST_MANF
             SALES_COST_PRIME USMANF USMON USPRIM;
 
-    /*--------------------------------------------*/
-    /* Define format for different kinds of Cost. */
-    /*--------------------------------------------*/
-
-    PROC FORMAT;
-        VALUE $TIMETYPE
-            'AN' = 'Annualized'
-            'CA' = 'Calculated'
-            'HI' = 'High Inflation'
-            'NA' = 'N/A'
-            'SG' = 'Surrogate'
-            'TS' = 'Time Specific';
-    RUN;
-
     /*--------------------------------------------------------------------*/
     /* 1-A DEFINE MACRO VARIABLES AND SET THEIR DEFALUT VALUES TO NOTHING */
     /*--------------------------------------------------------------------*/
@@ -4353,7 +4342,7 @@ RUN;
     /*  1-H CREATE QUARTERLY COST MACROS WHEN COST DATA COMES FROM THE CM PROGRAM */
     /*----------------------------------------------------------------------------*/
 
-    %IF %UPCASE(&COST_TYPE) EQ HM %THEN  /* Create values when Cost is calculated in the Margin Program. */
+    %IF %UPCASE(&COST_TYPE) EQ CM %THEN  /* Create values when Cost is calculated in the Comparison Market Program. */
     %DO;
         %LET COST_MATCH = COST_MATCH;    /* Variable linking costs to sales. */
 
@@ -5235,11 +5224,10 @@ OPTIONS SYMBOLGEN;
 /***********************************************************************/
 
 %MACRO US11_CVSELL_OFFSETS; 
-
     %IF %UPCASE(&CVSELL_TYPE) = CM %THEN
     %DO;
 
-        PROC SORT DATA = COMPANY.&RESPONDENT._&SEGMENT._&STAGE._CVSELL (RENAME = (CMLOT = USLOT))
+        PROC SORT DATA = COMPANY.&RESPONDENT._&SEGMENT._&STAGE._CVSELL (RENAME = (HMLOT = USLOT))
                   OUT = CMCVSELL;
             BY USLOT;
         RUN;

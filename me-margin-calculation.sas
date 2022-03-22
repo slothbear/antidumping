@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET ECONOMY                       */
 /*                        MARGIN CALCULATION PROGRAM                       */
 /*                                                                         */
-/*                GENERIC VERSION LAST UPDATED MARCH 1, 2022               */
+/*               GENERIC VERSION LAST UPDATED MARCH 21, 2022               */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
@@ -540,7 +540,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                            /*    Type "CV" (without quotes) to compare    */
                            /*    U.S. sales directly to CV.               */
 
-%LET COST_TYPE = <HM/CV>;  /*(T) Type "CM" (without quotes) when    */
+%LET COST_TYPE = <CM/CV>;  /*(T) Type "CM" (without quotes) when    */
                            /*    pulling costs from the CM program. */
                            /*    Type "CV" (without quotes) when    */
                            /*    calculating CV in this Margin      */
@@ -568,7 +568,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /* Note: Specify a CM prime variable if there is also a prime            */
 /*       variable reported in the U.S. sales.                            */
 
-%LET CMPRIME = <YES/NO>;      /*(T) Is there a CM prime variable? Type   */
+%LET HMPRIME = <YES/NO>;      /*(T) Is there a CM prime variable? Type   */
                               /*    "YES" or "NO" (without quotes).      */
 
 /* Note: For model matching to work, physical characteristic variables   */
@@ -603,30 +603,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                /*    both the sales and the cost      */
                                /*    datasets? Type "YES" or "NO"     */
                                /*    (without quotes).                */
-
-/*-----------------------------------------------------------------*/
-/* 1-E-vi. QUARTERLY COMPARISONS                                   */
-/*                                                                 */
-/*     To restrict sales comparisons and the calculation of costs  */
-/*     to within designated time periods, type "YES" and complete  */
-/*     Section 1-E-vi-a. If, instead, you type "NO", you can skip  */
-/*     can Section 1-E-vi-a.                                       */
-/*                                                                 */
-/*     If you have sales and cost data coming from the CM program, */
-/*     those, too, should be calculated on a quarterly basis when  */
-/*     making comparisons to U.S. sales based on time.             */
-/*                                                                 */
-/*     Note: You do not need a separate cost database to restrict  */
-/*     sales comparison to within time periods. However, the VCOMs */
-/*     and TCOMs in the sales databases should also be calculated  */
-/*     on a quarterly basis.                                       */
-/*-----------------------------------------------------------------*/
-
-%LET COMPARE_BY_TIME = <YES/NO>; /*(T) Calculate costs by time     */
-                                 /*    periods? Type "YES" or "NO" */
-                                 /*    (without quotes). If        */
-                                 /*    "YES," then also complete   */
-                                 /*    Section 1-E-vi-a below.     */
 
 /*-----------------------------------------------------------------*/
 /* 1-E-vi-a. QUARTERLY CONSTRUCTED VALUE CALCULATIONS              */
@@ -800,7 +776,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                   /*    CEP profit rate in decimal form.   */
 %LET ALLOW_CEP_OFFSET = <YES/NO>; /*(T) Allow CEP offset? Type "YES" or    */
                                   /*    "NO" (without quotes).             */
-%LET CVSELL_TYPE = <HM/OTHER>;    /*(T) Type "HM" (without quotes) when    */
+%LET CVSELL_TYPE = <CM/OTHER>;    /*(T) Type "CM" (without quotes) when    */
                                   /*    using CM selling & profit info.    */
                                   /*    Type "OTHER" (without quotes)      */
                                   /*    if using info. from a source       */
@@ -1848,7 +1824,7 @@ RUN;
 /*   and LOT adjustments) into U.S. dollars and adding U.S. packing.       */
 /*   Calculate normal value (NV) from FUPDOL by doing COS adjustments      */
 /*   and offsets. Compare U.S. price to NV to calculate the transaction-   */
-/*   specific comparison results. (Note, no offsetting of positive        */
+/*   specific comparison results. (Note, no offsetting of positive         */
 /*   comparison results with negatives is done at this point.)  The        */
 /*   resulting databases are put in the COMPANY library as the following:  */
 /*                                                                         */
