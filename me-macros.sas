@@ -2,7 +2,7 @@
 /*                    ANTIDUMPING MARKET ECONOMY                    */
 /*                          MACROS PROGRAM                          */
 /*                                                                  */
-/*           GENERIC VERSION LAST UPDATED MARCH 21, 2022            */
+/*           GENERIC VERSION LAST UPDATED MARCH 28, 2022            */
 /*                                                                  */
 /********************************************************************/
 /*                          GENERAL MACROS                          */
@@ -5191,8 +5191,6 @@ OPTIONS SYMBOLGEN;
         %MEND P2P_ADJUSTMT_CEP;
 
         DATA NVIDSIM;
-            A = 0;  /* Reset the IN = flags to false force all ISMODELS variables to */
-            B = 0;  /*     be reread every time the merge statement is executed      */
             MERGE USSALES (IN = A) ISMODELS (IN = B);
             BY &USMANF &USPRIM USLOT &USCONNUM &US_TIME_PERIOD &YEARMONTHU &USMON;
             IF A & B THEN
