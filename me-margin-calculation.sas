@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET ECONOMY                       */
 /*                        MARGIN CALCULATION PROGRAM                       */
 /*                                                                         */
-/*               GENERIC VERSION LAST UPDATED MARCH 28, 2022               */
+/*               GENERIC VERSION LAST UPDATED JUNE 21, 2022                */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
@@ -690,36 +690,41 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*     1-E-iv-iii. SURROGATE COSTS FOR NON-PRODUCTION          */
 /*-------------------------------------------------------------*/
 
-%LET COST_DATA = <  >;    /*(D) Cost dataset name                   */
-%LET COSTBARCODE = <  >;  /*(T) Bar code number(s) of cost          */
-                          /*    dataset(s) used in this program.    */
-%LET COST_MATCH = <  >;   /*(V) The variable (usually CONNUM)       */
-                          /*    linking cost data to sales data.    */
-%LET COST_QTY = <  >;     /*(V) Production quantity                 */
+%LET COST_DATA = <  >;    /*(D) Cost dataset name                     */
+%LET COSTBARCODE = <  >;  /*(T) Bar code number(s) of cost            */
+                          /*    dataset(s) used in this program.      */
+%LET COST_MATCH = <  >;   /*(V) The variable (usually CONNUM)         */
+                          /*    linking cost data to sales data.      */
+%LET COST_QTY = <  >;     /*(V) Production quantity                   */
 
-/* Note: Specify a Cost manufacturer if there is also a             */
-/*       manufacturer reported in the U.S. sales.                   */
+/* Note: Specify a Cost manufacturer if there is also a manufacturer  */
+/*       reported in the U.S. sales.                                  */
+/*                                                                    */
+/* If applicable, the cost manufacturer variable will be identified   */
+/* in the cost data file. This occurs in cases where the respondent   */
+/* is reporting the costs for a manufacturer of the merchandise under */
+/* consideration that is not collapsed with the respondent.  If there */
+/* is no cost manufacturer variable included in the cost database,    */
+/* use "NA".                                                          */
+/*                                                                    */
+/* The cost manufacturer variable identifies the respondent and any   */
+/* manufacturer other than the respondent that is not collapsed with  */
+/* the respondent. This is different from those instances where a     */
+/* respondent has more than one producing entity and we consider the  */
+/* producing entity to be part of the respondent (i.e., the producing */
+/* entities are collapsed with the respondent). In such instances,    */
+/* the respondent may submit a cost data file for each producing      */
+/* entity, and we will weight-average those costs.                    */
 
-%LET COST_MANUF = <NA>;   /*(V) Manufacturer code. If not           */
-                          /*    applicable, type "NA" (without      */
-                          /*    quotes).                            */
+%LET COST_MANUF = <NA>;   /*(V) Manufacturer code. If not             */
+                          /*    applicable, type "NA" (without        */
+                          /*    quotes).                              */
 
-/* Note: Specify a Cost prime variable if there is also a prime     */
-/*       variable reported in the U.S. sales.                       */
+/* Note: Specify a Cost prime variable if there is also a prime       */
+/*       variable reported in the U.S. sales.                         */
 
-%LET COST_PRIME = <NA>;   /*(V) Prime code. If not applicable,      */
-                          /*    type "NA" (without quotes).         */
-
-%LET USE_COST_DUTY_DRAWBACK = <YES/NO>;     /*(T) Make Cost duty drawback      */
-                                            /*    available for use in         */
-                                            /*    calculating the net U.S.     */
-                                            /*    price? Type "YES" or "NO"    */
-                                            /*    (without quotes). If "YES,"  */
-                                            /*    then also define the macro   */
-                                            /*    variable COST_DUTY_DRAWBACK  */
-                                            /*    below.                       */
-%LET      COST_DUTY_DRAWBACK =  <  >;       /*(V) Variable in Cost data        */
-                                            /*    representing duty drawback.  */
+%LET COST_PRIME = <NA>;   /*(V) Prime code. If not applicable,        */
+                          /*    type "NA" (without quotes).           */
 
 /*---------------------------------------------------------*/
 /* 1-E-ix. SURROGATE COSTS FOR NON-PRODUCTION              */
@@ -1386,10 +1391,6 @@ RUN;
 /* "_USD" added. For example, if you typed "%LET EX1_VARS = TRUCKING" in     */
 /* Sect. I-E-ii, the new variable TRUCKING_USD has been created and set      */
 /* equal to TRUCKING * &EXRATE1.                                             */
-/*                                                                           */
-/* If you want to use the Cost based duty drawback in the calculation        */
-/* USNETPRI, the duty drawback variable will need to be converted to USD by  */
-/* multiplying the variable by an exchange rate variable such as &EXRATE1.   */
 /*---------------------------------------------------------------------------*/
 
 DATA USSALES;
