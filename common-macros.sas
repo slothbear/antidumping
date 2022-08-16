@@ -2,7 +2,7 @@
 /*                    COMMON UTILITY MACROS PROGRAM                    */
 /*                 FOR USE BY BOTH ME AND NME PROGRAMS                 */
 /*                                                                     */
-/*              GENERIC VERSION LAST UPDATED MARCH 1, 2022             */
+/*             GENERIC VERSION LAST UPDATED AUGUST 15, 2022            */
 /*                                                                     */
 /* PART 1: MACRO TO WRITE LOG TO A PERMANENT FILE                      */ 
 /* PART 2: MACRO TO GET COUNTS OF THE DATASETS                         */ 
@@ -17,13 +17,13 @@
 %GLOBAL NVMATCH_TYPE1 NVMATCH_TYPE2 NVMATCH_TYPE3 NVMATCH_VALUE1 NVMATCH_VALUE2 NVMATCH_VALUE3;
 
 DATA _NULL_;
-    CALL SYMPUT('BDAY', UPCASE(STRIP(PUT(DATE(), DOWNAME.))));
-    CALL SYMPUT('BWDATE', UPCASE(STRIP(PUT(DATE(), WORDDATE18.))));
-    CALL SYMPUT('BTIME', UPCASE(STRIP(PUT(TIME(), TIMEAMPM8.))));
+    CALL SYMPUT('BDAY', STRIP(PUT(DATE(), DOWNAME.)));
+    CALL SYMPUT('BWDATE', STRIP(PUT(DATE(), WORDDATE18.)));
+    CALL SYMPUT('BTIME', STRIP(PUT(TIME(), TIMEAMPM8.)));
     CALL SYMPUT('BDATETIME', (STRIP(PUT(DATETIME(), 20.))));
 RUN;
 
-%PUT NOTE: THIS PROGRAM WAS RUN ON &BDAY, &BWDATE, AT &BTIME..;
+%PUT NOTE: This program started running on &BDAY, &BWDATE at &BTIME..;
 
 /*--------------------------------------------------------------------*/
 /* PART 1: WRITE LOG TO THE PROGRAM LOCATION                          */
@@ -38,7 +38,6 @@ RUN;
         RUN;
     %END;
 %MEND CMAC1_WRITE_LOG;
-
 
 /*--------------------------------------------------------------------*/
 /* PART 2: MACRO TO GET COUNTS OF THE DATASETS                        */

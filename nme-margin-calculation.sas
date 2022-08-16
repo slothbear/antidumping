@@ -2,7 +2,7 @@
 /*                ANTIDUMPING NON-MARKET ECONOMY                */
 /*                  MARGIN CALCULATION PROGRAM                  */
 /*                                                              */
-/*          GENERIC VERSION LAST UPDATED MARCH 1, 2022          */
+/*         GENERIC VERSION LAST UPDATED AUGUST 15, 2022         */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */
@@ -864,34 +864,34 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /*(T) Location & Name of the     
     RUN;
 %MEND CALCULATE_USNETPRI;
 
-/*----------------------------------------------*/
-/* FORMAT, PROGRAM AND PRINT OPTIONS            */
-/*----------------------------------------------*/
+/*-----------------------------------*/
+/* FORMAT, PROGRAM AND PRINT OPTIONS */
+/*-----------------------------------*/
 
-OPTIONS OBS = MAX;                         /* LIMIT DATA PROCESSED                       */
-%LET PRINTOBS = 10;                        /* NUMBER OF OBSERVATIONS TO PRINT            */
+%LET PRINTOBS = 10;        /* Number of observations to print.                 */
 
-OPTIONS PAPERSIZE = LETTER;
-OPTIONS ORIENTATION = LANDSCAPE;
-OPTIONS TOPMARGIN = ".25IN"
-        BOTTOMMARGIN = ".25IN"
-        LEFTMARGIN = ".25IN"
-        RIGHTMARGIN = ".25IN";
-
-TITLE1 "NME MARGIN CALCULATION PROGRAM - &PRODUCT FROM &COUNTRY - (&BEGINPERIOD - &ENDPERIOD)";
-TITLE2 "&SEGMENT &STAGE FOR RESPONDENT &RESPONDENT (&CASE_NUMBER)";
-FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
-FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
-
-OPTIONS NODATE;                            /* SUPPRESS DATE IN HEADER                    */
-OPTIONS PAGENO = 1;                        /* RESET PAGE NUMBER TO 1                     */
-OPTIONS FORMCHAR = '|----|+|---+=|-/<>*';  /* FOR PRINTING TABLES                        */
-OPTIONS SYMBOLGEN;                         /* PRINT MACRO VARIABLE VALUES                */
-OPTIONS MPRINT;                            /* PRINT MACRO RESOLUTIONS                    */
-OPTIONS NOMLOGIC;                          /* PRINTS ADDITIONAL MACRO INFORMATION        */
-                                           /* TYPE "MLOGIC" (WITHOUT QUOTES) TO ACTIVATE */
-OPTIONS MINOPERATOR;                       /* MINOPERATOR IS REQUIRED WHEN USING THE     */
-                                           /* IN(..) FUNCTION IN MACROS                  */
+OPTION NOSYMBOLGEN;        /* SYMBOLGYN prints macro variable resolutions.     */
+                           /* Reset to "NOSYMBOLGEN" (without quotes) to       */
+                           /* deactivate.                                      */
+OPTION MPRINT;             /* MPRINT prints macro resolutions, type            */
+                           /* "NOMPRINT" (without quotes) to deactivate.       */
+OPTION NOMLOGIC;           /* MLOGIC prints additional info. on macros,        */
+                           /* type "MLOGIC" (without quotes) to activate.      */
+OPTION MINOPERATOR;        /* MINOPERATOR is required when using the IN(..)    */
+                           /* function in macros.                              */
+OPTION OBS = MAX;          /* Indicates the number of OBS to process in each   */
+                           /* data set. Default setting of MAX processes all   */
+                           /* transactions. If you have large datasets and     */
+                           /* initially wish to debug the program using a      */
+                           /* limited number of transactions, you can reset    */
+                           /* this option by typing in a number.               */
+OPTION NODATE;             /* Suppresses date in header                        */
+OPTION PAGENO = 1;         /* Restarts page numbering at Page 1                */
+OPTION YEARCUTOFF = 1960;  /* Specifies the first year of a 100-year span that */
+                           /* is used to read a two-digit year                 */
+OPTION SPOOL;              /* Aids finding location of syntax error in macros  */
+OPTION VARINITCHK = ERROR; /* An uninitialized variable will generate an ERROR */
+OPTION FORMCHAR = '|----|+|---+=|-/\<>*';          /* For printing tables      */
 
 %LET COMMA_FORMAT = COMMA12.2;    /* Comma format using 12 total spaces and two  */
                                   /* decimal places.                             */
@@ -3859,15 +3859,15 @@ RUN;
 %FINAL_CASH_DEPOSIT
 
 DATA _NULL_;
-    CALL SYMPUT('EDAY', UPCASE(STRIP(PUT(DATE(), DOWNAME.))));
-    CALL SYMPUT('EWDATE', UPCASE(STRIP(PUT(DATE(), WORDDATE18.))));
-    CALL SYMPUT('ETIME', UPCASE(STRIP(PUT(TIME(), TIMEAMPM8.))));
+    CALL SYMPUT('EDAY', STRIP(PUT(DATE(), DOWNAME.)));
+    CALL SYMPUT('EWDATE', STRIP(PUT(DATE(), WORDDATE18.)));
+    CALL SYMPUT('ETIME', STRIP(PUT(TIME(), TIMEAMPM8.)));
     TOTALDATETIME = DATETIME() - &BDATETIME;
     CALL SYMPUT('TOTALTIME', (STRIP(PUT(TOTALDATETIME, HHMM.))));
 RUN;
 
-%PUT NOTE: THIS PROGRAM FINISHED RUNNING ON &EDAY, &EWDATE, AT &ETIME.;
-%PUT NOTE: THIS PROGRAM TOOK &TOTALTIME (HOURS:MINUTES) TO RUN.;
+%PUT NOTE: This program finished running on &EDAY, &EWDATE, at &ETIME..;
+%PUT NOTE: This program took &TOTALTIME (HOURS:MINUTES) to run.;
 
 /***************************************************************************/
 /* PART 20: REVIEW LOG AND REPORT SUMMARY AT THE END OF THE LOG FOR:       */

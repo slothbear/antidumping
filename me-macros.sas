@@ -2,7 +2,7 @@
 /*                    ANTIDUMPING MARKET ECONOMY                    */
 /*                          MACROS PROGRAM                          */
 /*                                                                  */
-/*            GENERIC VERSION LAST UPDATED JUNE 21, 2022            */
+/*          GENERIC VERSION LAST UPDATED AUGUST 15, 2022            */
 /*                                                                  */
 /********************************************************************/
 /*                          GENERAL MACROS                          */
@@ -68,16 +68,14 @@
 /********************************************************/
 
 %MACRO G1_RUNTIME_SETUP;
+    DATA _NULL_;
+        CALL SYMPUT('BDAY', STRIP(PUT(DATE(), DOWNAME.)));
+        CALL SYMPUT('BWDATE', STRIP(PUT(DATE(), WORDDATE18.)));
+        CALL SYMPUT('BTIME', STRIP(PUT(TIME(), TIMEAMPM8.)));
+        CALL SYMPUT('BDATETIME', (STRIP(PUT(DATETIME(), 20.))));
+    RUN;
 
-DATA _NULL_;
-    CALL SYMPUT ('BTIME',PUT(TIME(),TIME5.));
-    CALL SYMPUT ('BDATE',PUT(DATE(),DATE.));
-    CALL SYMPUT ('BWDATE',TRIM(LEFT(PUT(DATE(),WORDDATE18.))));
-    CALL SYMPUT ('BDAY',TRIM(LEFT(PUT(DATE(),DOWNAME.))));
-RUN;
-
-%PUT NOTE: This program started running on &BDAY, &BWDATE - &BTIME;
-
+    %PUT NOTE: This program started running on &BDAY, &BWDATE at &BTIME..;
 %MEND G1_RUNTIME_SETUP;
 
 %GLOBAL INDEX_SOURCE TIME_OUTSIDE_POR TIME_ANNUALIZED;
@@ -145,9 +143,9 @@ RUN;
             'AN' = 'Reported Annualized'
             'SG' = 'Surrogate Annualized'
 
-            'TS' = 'Reported Quarterly'
-            'BL' = 'Blended Surrogate Quarterly'
-            'GF' = 'Gap Fill Surrogate Quarterly'
+            'Q1' = 'Reported Quarterly'
+            'Q2' = 'Blended Surrogate Quarterly'
+            'Q3' = 'Gap Fill Surrogate Quarterly'
 
             'H1' = 'Reported High Inflation'
             'H2' = 'Annualized High Inflation'
@@ -611,14 +609,14 @@ RUN;
             %IF %UPCASE(&TIME_ANNUALIZED) EQ NA %THEN
             %DO;
                 %MACRO NOPROD_TIME_TYPE;
-                    NOPROD_TIME_TYPE = "TS";
+                    NOPROD_TIME_TYPE = 'Q1';
                 %MEND NOPROD_TIME_TYPE;
             %END;
             %ELSE 
             %IF %UPCASE(&TIME_ANNUALIZED) NE NA %THEN
             %DO;
                 %MACRO NOPROD_TIME_TYPE;
-                    NOPROD_TIME_TYPE = "TS";
+                    NOPROD_TIME_TYPE = 'Q1';
                     IF &COST_TIME_PERIOD IN(&TIME_ANNUALIZED) THEN
                         NOPROD_TIME_TYPE = "AN";
                 %MEND NOPROD_TIME_TYPE;
@@ -699,7 +697,7 @@ RUN;
     /* G-8-B: High inflation Cost Without Production */
     /*************************************************/
 
-    %IF %UPCASE(&COMPARE_BY_HIGH_INFLATION) EQ YES %THEN
+    %IF %UPCASE(&COMPARE_BY_HIGH_INFLATION) EQ YES AND %UPCASE(&FIND_SURROGATES) = YES %THEN
     %DO;
         /****************************************************/
         /* G-8-B-i: Define macro variables used in finding  */
@@ -902,9 +900,9 @@ RUN;
     %END;
 %MEND G9_COST_PRODCHARS;
 
-/****************************************************************************/
-/* G-10. FILL IN MISSING LINES IN  TIME SPECIFIC COST DATA, WHEN REQUIRED  */
-/****************************************************************************/
+/**********************************************************************/
+/* G-10. FILL IN MISSING LINES IN QUARTERLY COST DATA, WHEN REQUIRED  */
+/**********************************************************************/
 
 /**********************************************************************************************/
 /* For cases where there are time–specific costs, i.e. quarterly cost, the program assigns    */
@@ -1246,7 +1244,7 @@ RUN;
             CLASS &COST_MANF &COST_MATCH;
             VAR _NUMERIC_;
             WEIGHT &COST_QTY;
-            OUTPUT OUT = POR_COST (DROP = _:) MEAN =;
+            OUTPUT OUT = POR_COST (DROP = _:) MEAN = ;
         RUN;
 
         PROC MEANS NWAY DATA = COST NOPRINT;
@@ -1277,6 +1275,13 @@ RUN;
             INTO :ALLCOSTVARS SEPARATED BY " "
             FROM ALLCOSTVARS;
         QUIT;
+
+        %IF %UPCASE(&FIND_SURROGATES) = YES %THEN
+        %DO;
+            PROC PRINT DATA = POR_COST (OBS = &PRINTOBS);
+                TITLE3 "PERIOD WIDE WEIGHT AVERAGED COSTS";
+            RUN;
+        %END;
     %END;
 %MEND G10_TIME_PROD_LIST;
 
@@ -1403,7 +1408,7 @@ RUN;
 /* Replace time period specific conversion costs with period average conversion costs. */
 /***************************************************************************************/
 
-            PROC SORT DATA= NO_PROD_TIMES_COST (KEEP = &DIRMAT_VARS &COST_MATCH &COST_MANF &COST_TIME_PERIOD);
+            PROC SORT DATA = NO_PROD_TIMES_COST (KEEP = &DIRMAT_VARS &COST_MATCH &COST_MANF &COST_TIME_PERIOD);
                 BY &COST_MANF &COST_MATCH;
             RUN;
 
@@ -1435,13 +1440,14 @@ RUN;
                     OUTPUT NO_PROD_TIMES_COST;
             RUN;
 
-            DATA NO_PROD_TIMES_COST(DROP = SUM_INDEXED_DIRMATS);
+            DATA NO_PROD_TIMES_COST;
                 SET NO_PROD_TIMES_COST;
                 SUM_INDEXED_DIRMATS = SUM(&SUM_DIRMAT_VARS);
                 REVISED_&TOTCOM = REDUCED_&TOTCOM + SUM_INDEXED_DIRMATS;
             RUN;
 
-            PROC PRINT DATA = NO_PROD_TIMES_COST (OBS = &PRINTOBS);
+            PROC PRINT DATA = NO_PROD_TIMES_COST (OBS = &PRINTOBS) SPLIT = '*';
+                LABEL SUM_INDEXED_DIRMATS = "SUM OF AVERAGE PURCHASE COSTS";
                 TITLE3 "SELECTION OF COSTS IN PERIODS WITHOUT PRODUCTION";
                 TITLE4 "WITH REVISED DIRECT MATERIAL VARIABLES WITH AVERAGE PURCHASE COSTS (&SUM_DIRMAT_VARS)";
                 TITLE5 "ADDED TO REDUCED TOTAL COST OF MANUFACTURING (REDUCED_&TOTCOM)";
@@ -1461,7 +1467,7 @@ RUN;
 /**************************************************************/
 
 %MACRO G12_ZERO_PROD_IN_PERIODS;
-    %IF %UPCASE(&COMPARE_BY_TIME) = YES %THEN
+    %IF %UPCASE(&COMPARE_BY_TIME) EQ YES AND %UPCASE(&FIND_SURROGATES) = YES %THEN
     %DO;
         %IF &COST_MANUF NE NA %THEN
         %DO;
@@ -1558,15 +1564,15 @@ RUN;
         RUN;
 
         PROC SORT DATA = ZERO_PROD_SIMCOST_TOP5 OUT = ZERO_PROD_SIMCOST_TOP5;
-            BY NO_PRODUCTION_CONNUM;
+            BY &COST_TIME_PERIOD NO_PRODUCTION_CONNUM;
         RUN;
 
         PROC PRINT DATA = ZERO_PROD_SIMCOST_TOP5 (OBS = &PRINTOBS);
-            BY NO_PRODUCTION_CONNUM;
+            BY &COST_TIME_PERIOD NO_PRODUCTION_CONNUM;
             PAGEBY NO_PRODUCTION_CONNUM;
-            VAR &COST_TIME_PERIOD NO_PRODUCTION_CONNUM %NTC_MANF &COST_MATCH
+            VAR %NTC_MANF &COST_MATCH
                 &COST_MANF &DIF_CHAR CHOICE &DIRMAT_VARS;
-            TITLE3 "CHECK TO 5 SIMILIAR MATCHES FOR ASSIGNING DIRECT MATERIALS TO CONNUMS WITHOUT PRODUCTION IN PERIODS WITH PRODUCTION";
+            TITLE3 "CHECK OF 5 SIMILIAR MATCHES FOR ASSIGNING DIRECT MATERIALS TO CONNUMS WITHOUT PRODUCTION IN PERIODS WITH PRODUCTION";
         RUN;
 
         /* Add por weight averaged conversion costs to similar list */ 
@@ -1580,6 +1586,11 @@ RUN;
         PROC SORT DATA = ZERO_PROD_SIMCOST_TOP1 (KEEP = &COST_TIME_PERIOD &COST_MANF &COST_MATCH &DIRMAT_VARS)
                   OUT = ZERO_PROD_SIMCOST_TOP1;
             BY &COST_MANF &COST_MATCH;
+        RUN;
+
+        PROC PRINT DATA = POR_COST_3 (OBS = &PRINTOBS);
+            TITLE3 "SAMPLE OF PERIOD-WIDE WEIGHT AVERAGED CONVERSION COSTS";
+            TITLE4 "WITH &TOTCOM REDUCED BY DIRECT MATERIAL VARIABLES (&DIRMAT_VARS)";
         RUN;
 
         PROC SORT DATA = POR_COST_3 
@@ -1598,16 +1609,24 @@ RUN;
             SET ZERO_PROD_ALLCOST;
             SUMDURMATS = SUM(&SUM_DIRMAT_VARS);
             &TOTCOM = R&TOTCOM + SUMDURMATS;
+            COST_TIME_TYPE = 'Q2';
         RUN;
 
         PROC PRINT DATA = ZERO_PROD_ALLCOST (OBS = &PRINTOBS);
             TITLE3 "SAMPLE OF COSTS FOR CONNUMS WITH ZERO PRODUCTION WITHIN PERIODS WITH PRODUCTION";
+            TITLE4 "WITH SURROGATE DIRECT MATERIAL VARIABLES (&DIRMAT_VARS) FOUND IN THE SAME QUARTER ADDED TO REDUCED &TOTCOM";
         RUN;
 
         /* Append to the total cost dataset */
 
         DATA COST;
+            SET COST;
+            COST_TIME_TYPE = 'Q1';
+        RUN;
+
+        DATA COST;
             SET COST ZERO_PROD_ALLCOST;
+            FORMAT COST_TIME_TYPE $TIMETYPE.;
         RUN;
     %END;
 %MEND G12_ZERO_PROD_IN_PERIODS;
@@ -1618,7 +1637,7 @@ RUN;
 /*************************************************************/
 
 %MACRO G13_CREATE_COST_PROD_TIMES;
-    %IF %UPCASE(&COMPARE_BY_TIME) = YES %THEN
+    %IF %UPCASE(&COMPARE_BY_TIME) EQ YES AND %UPCASE(&FIND_SURROGATES) = YES %THEN
     %DO;
         %IF &COST_MANUF NE NA %THEN
         %DO;
@@ -1678,6 +1697,7 @@ RUN;
                         DIFCHR(I) = ABS(INPUT(NOPROD(I), 8.) - INPUT(COSTPROD(I), 8.));
                     END;
 
+                    COST_TIME_TYPE = 'Q2';
                     OUTPUT ISNC_SIMCOST;
                 END;
             END;
@@ -1685,7 +1705,7 @@ RUN;
 
         PROC SORT DATA = ISNC_SIMCOST;
            BY &COST_MANF &COST_TIME_PERIOD ISNC_&COST_MATCH &DIF_CHAR;
-           RUN;
+        RUN;
 
         DATA ISNC_SIMCOST_TOP5
             ISNC_SIMCOST_TOP1 (DROP = &DIF_CHAR &NOPROD_CHAR CHOICE &COST_MATCH %ISNC_MANF ISNC_&COST_TIME_PERIOD
@@ -1721,8 +1741,9 @@ RUN;
         /* Append to the total cost dataset */
 
         DATA COST;
-            SET COST ISNC_SIMCOST_TOP1;
-            COST_TIME_TYPE = "TS";
+            SET COST ISNC_SIMCOST_TOP1 (IN = B);
+            IF B THEN
+                COST_TIME_TYPE = 'Q2';
             FORMAT COST_TIME_TYPE $TIMETYPE.;
         RUN;
 
@@ -1930,7 +1951,7 @@ RUN;
     /********************************************************/
 
     DATA REPORTED_EXTENDED_COST (DROP = I);
-        SET COST;
+        SET COST;  
 
         LENGTH FIRST_YEAR_MONTH LAST_YEAR_MONTH $6.;
         FIRST_YEAR_MONTH = CAT(PUT(YEAR("&BEGINPERIOD"D), 4.), PUT(MONTH("&BEGINPERIOD"D), Z2.));
@@ -2052,7 +2073,7 @@ RUN;
         BY NO_PROD_CONNUM;
     RUN;
 
-    PROC SORT DATA = REPORTED_COST (KEEP = &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_QTY 
+    PROC SORT DATA = REPORTED_COST (KEEP = &COST_MFR_HP &COST_PRIME_HP &COST_MATCH &COST_QTY
                                            TCOMCOP_EXT VCOMCOP_EXT GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT)
               OUT =  END_OF_PERIOD_COST NODUPKEY;   
         BY &COST_MFR_HP &COST_PRIME_HP &COST_MATCH;
@@ -2276,7 +2297,7 @@ RUN;
     /************************************************************************/
 
     PROC SORT DATA = TOP1SIMCOST (KEEP = &NO_PROD_COST_MANF &NO_PROD_COST_PRIME NO_PROD_CONNUM NO_PROD_YEAR_MONTH
-                                         &NOPROD_CHAR &COST_MFR_HP &COST_PRIME_HP &COST_MATCH)
+                                         &NOPROD_CHAR &COST_MFR_HP &COST_PRIME_HP &COST_MATCH COST_TYPE)
               OUT = SIMILARCOST;
         BY &COST_MFR_HP &COST_PRIME_HP &COST_MATCH;
     RUN;
@@ -2286,7 +2307,7 @@ RUN;
     /**********************************************/
 
     PROC SORT DATA = WEIGHT_AVERAGED_COST (KEEP = &COST_MFR_HP &COST_PRIME_HP &COST_MATCH
-                                                  TOTAL_PROD_QUANTITY 
+                                                  TOTAL_PROD_QUANTITY
                                                   TCOMCOP_EXT VCOMCOP_EXT
                                                   GNACOP_EXT INTEXCOP_EXT TOTALCOP_EXT)
         OUT = WA_COST_FOR_SURROGATE;
@@ -2437,12 +2458,6 @@ RUN;
                 %MACRO TIME_TYPE_FORMAT;
                 %MEND TIME_TYPE_FORMAT;
             %END;
-            %ELSE
-            %IF %UPCASE(&COMPARE_BY_TIME) = NO %THEN
-            %DO;
-                %MACRO TIME_TYPE_FORMAT;
-                %MEND TIME_TYPE_FORMAT;
-            %END;
 
             %IF %UPCASE(&FIND_SURROGATES) = NO %THEN 
             %DO;
@@ -2476,8 +2491,30 @@ RUN;
             /* G-15-A-i: Print a sample of the cost calculations. */
             /*----------------------------------------------------*/
 
-            PROC PRINT DATA = COST (OBS = &PRINTOBS);
-                %TIME_TYPE_FORMAT
+            DATA COST;
+                SET COST;
+                FORMAT COST_TIME_TYPE $TIMETYPE.;
+            RUN;
+
+            PROC SORT DATA = COST OUT = COSTCHECK;
+                BY COST_TIME_TYPE &COST_MATCH;
+            RUN;
+
+            DATA COSTCHECK (DROP = COUNT);
+                SET COSTCHECK;
+                BY COST_TIME_TYPE &COST_MATCH;
+
+                IF FIRST.COST_TIME_TYPE THEN
+                    COUNT = 0;
+
+                COUNT + 1;
+
+                IF COUNT LE 5;
+            RUN;
+
+            PROC PRINT DATA = COSTCHECK (OBS = &PRINTOBS);
+                BY COST_TIME_TYPE;
+                ID COST_TIME_TYPE;
                 TITLE3 "SAMPLE OF COST CALCULATIONS BEFORE WEIGHT AVERAGING";
             RUN;
 
@@ -2492,15 +2529,32 @@ RUN;
                           &COST_YEAR_MONTH
                       %END; 
                       &COST_TIME_PERIOD;
-                %IDCHARS
+                ID &COST_CHAR COST_TIME_TYPE;
                 VAR VCOMCOP TCOMCOP GNACOP INTEXCOP TOTALCOP;
                 WEIGHT &COST_QTY;
                 OUTPUT OUT = AVGCOST (DROP = _:) SUMWGT = &COST_QTY
                        MEAN = AVGVCOM AVGTCOM AVGGNA AVGINT AVGCOST;
             RUN;
 
-            PROC PRINT DATA = AVGCOST (OBS = &PRINTOBS);
-                %TIME_TYPE_FORMAT
+            PROC SORT DATA = AVGCOST OUT = COSTCHECK;
+                BY COST_TIME_TYPE &COST_MATCH;
+            RUN;
+
+            DATA COSTCHECK (DROP = COUNT);
+                SET COSTCHECK;
+                BY COST_TIME_TYPE &COST_MATCH;
+
+                IF FIRST.COST_TIME_TYPE THEN
+                    COUNT = 0;
+
+                COUNT + 1;
+
+                IF COUNT LE 5;
+            RUN;
+
+            PROC PRINT DATA = COSTCHECK (OBS = &PRINTOBS);
+                BY COST_TIME_TYPE;
+                ID COST_TIME_TYPE;
                 TITLE3 "SAMPLE OF WEIGHT-AVERAGED COST DATA";
             RUN;
         %END;
@@ -6138,13 +6192,28 @@ OPTIONS SYMBOLGEN;
         %LET AR_VARS = US_IMPORTER SOURCEU ENTERED_VALUE;
         %IF &CASH_DEPOSIT_DONE = NO %THEN
         %DO;
-            %LET AR_BY_VARS = &USMON;
+            %IF %UPCASE(&COMPARE_BY_TIME) EQ NO %THEN     /* In quarterly cost reviews do not weight average by USMONTH */
+            %DO;
+                %LET AR_BY_VARS = &USMON;
+            %END;
+            %IF %UPCASE(&COMPARE_BY_TIME) EQ YES %THEN    /* In annualized cost reviews weight average by USMONTH */
+            %DO;
+                %LET AR_BY_VARS = ;
+            %END;
             %LET TITLE4_WTAVG = CONTROL NUMBER AVERAGING CALCULATIONS FOR CASH DEPOSIT PURPOSES; 
             %LET TITLE4_MCALC = CALCULATIONS FOR CASH DEPOSIT PURPOSES; 
         %END;
         %ELSE %IF &CASH_DEPOSIT_DONE = YES %THEN
         %DO;
-            %LET AR_BY_VARS = &USMON US_IMPORTER;
+            %IF %UPCASE(&COMPARE_BY_TIME) EQ NO %THEN     /* In quarterly cost reviews do not weight average by USMONTH AND IMPORTER */
+            %DO;
+                %LET AR_BY_VARS = &USMON US_IMPORTER;
+            %END;
+            %ELSE
+            %IF %UPCASE(&COMPARE_BY_TIME) EQ YES %THEN    /* In annualized  cost reviews weight average by IMPORTER */
+            %DO;
+                %LET AR_BY_VARS = US_IMPORTER;
+            %END;
             %LET TITLE4_WTAVG = IMPORTER-SPECIFIC AVERAGING CALCULATIONS FOR ASSESSMENT PURPOSES;
             %LET TITLE4_MCALC = IMPORTER-SPECIFIC CALCULATIONS FOR ASSESSMENT PURPOSES;
         %END;
