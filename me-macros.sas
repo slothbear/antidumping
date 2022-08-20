@@ -2,7 +2,7 @@
 /*                    ANTIDUMPING MARKET ECONOMY                    */
 /*                          MACROS PROGRAM                          */
 /*                                                                  */
-/*          GENERIC VERSION LAST UPDATED AUGUST 15, 2022            */
+/*          GENERIC VERSION LAST UPDATED AUGUST 16, 2022            */
 /*                                                                  */
 /********************************************************************/
 /*                          GENERAL MACROS                          */
@@ -72,6 +72,7 @@
         CALL SYMPUT('BDAY', STRIP(PUT(DATE(), DOWNAME.)));
         CALL SYMPUT('BWDATE', STRIP(PUT(DATE(), WORDDATE18.)));
         CALL SYMPUT('BTIME', STRIP(PUT(TIME(), TIMEAMPM8.)));
+        CALL SYMPUT ('BDATE',PUT(DATE(),DATE.));
         CALL SYMPUT('BDATETIME', (STRIP(PUT(DATETIME(), 20.))));
     RUN;
 
@@ -2935,7 +2936,7 @@
     %IF &CALC_RUNTIME = YES %THEN
     %DO;
         DATA _NULL_;
-            CALL SYMPUT('ETIME', PUT(TIME(), TIME5.));
+            CALL SYMPUT('ETIME', PUT(TIME(), TIMEAMPM8.));
             CALL SYMPUT('EDATE', PUT(DATE(), DATE.));
             CALL SYMPUT('EWDATE', TRIM(LEFT(PUT(DATE(), WORDDATE18.))));
             CALL SYMPUT('EDAY', TRIM(LEFT(PUT(DATE(), DOWNAME.))));
@@ -2954,7 +2955,7 @@
              CALL SYMPUT('TTIME', PUT(TOT_TIME, TIME5.));
         RUN;
 
-        %PUT NOTE: This program finished running on &EDAY, &EWDATE - &ETIME.;
+        %PUT NOTE: This program finished running on &EDAY, &EWDATE at &ETIME..;
         %PUT NOTE: This program took &TTIME (hours:minutes) to run.;
     %END;
 %MEND G19_PROGRAM_RUNTIME;

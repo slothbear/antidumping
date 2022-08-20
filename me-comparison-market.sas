@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET ECONOMY                       */
 /*               ANALYSIS OF COMPARISON MARKET SALES PROGRAM               */
 /*                                                                         */
-/*              GENERIC VERSION LAST UPDATED AUGUST 15, 2022               */
+/*              GENERIC VERSION LAST UPDATED AUGUST 16, 2022               */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring in Comparison Market Sales, Convert Date Variable, If    */
@@ -646,7 +646,7 @@ OPTION FORMCHAR = '|----|+|---+=|-/\<>*';          /* For printing tables      *
 
 %LET SALESDB = HMSALES;
 
-%G1_RUNTIME_SETUP
+/*%G1_RUNTIME_SETUP*/
 %G2_TITLE_SETUP
 %G3_COST_TIME_MVARS
 

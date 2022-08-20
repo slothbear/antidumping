@@ -2,7 +2,7 @@
 /*                ANTIDUMPING NON-MARKET ECONOMY                */
 /*                  MARGIN CALCULATION PROGRAM                  */
 /*                                                              */
-/*         GENERIC VERSION LAST UPDATED AUGUST 15, 2022         */
+/*         GENERIC VERSION LAST UPDATED AUGUST 16, 2022         */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */

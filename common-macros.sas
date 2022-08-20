@@ -2,10 +2,11 @@
 /*                    COMMON UTILITY MACROS PROGRAM                    */
 /*                 FOR USE BY BOTH ME AND NME PROGRAMS                 */
 /*                                                                     */
-/*             GENERIC VERSION LAST UPDATED AUGUST 15, 2022            */
+/*             GENERIC VERSION LAST UPDATED AUGUST 16, 2022            */
 /*                                                                     */
-/* PART 1: MACRO TO WRITE LOG TO A PERMANENT FILE                      */ 
-/* PART 2: MACRO TO GET COUNTS OF THE DATASETS                         */ 
+/* PART 0: SET UP MACRO VARIABLES FOR RUN TIME CALCULATION             */
+/* PART 1: MACRO TO WRITE LOG TO A PERMANENT FILE                      */
+/* PART 2: MACRO TO GET COUNTS OF THE DATASETS                         */
 /* PART 3: REVIEW AND REPORT GENERAL SAS LOG ALERTS SUCH AS ERRORS,    */
 /*         WARNINGS, UNINITIALIZED VARIABLES ETC. AND PROGRAM SPECIFIC */
 /*         ALERTS WE NEED TO WATCH FOR                                 */
@@ -16,10 +17,15 @@
 
 %GLOBAL NVMATCH_TYPE1 NVMATCH_TYPE2 NVMATCH_TYPE3 NVMATCH_VALUE1 NVMATCH_VALUE2 NVMATCH_VALUE3;
 
+/*---------------------------------------------------------*/
+/* PART 0: SET UP MACRO VARIABLES FOR RUN TIME CALCULATION */
+/*---------------------------------------------------------*/
+
 DATA _NULL_;
     CALL SYMPUT('BDAY', STRIP(PUT(DATE(), DOWNAME.)));
     CALL SYMPUT('BWDATE', STRIP(PUT(DATE(), WORDDATE18.)));
     CALL SYMPUT('BTIME', STRIP(PUT(TIME(), TIMEAMPM8.)));
+    CALL SYMPUT('BDATE',PUT(DATE(),DATE.));
     CALL SYMPUT('BDATETIME', (STRIP(PUT(DATETIME(), 20.))));
 RUN;
 
@@ -38,6 +44,7 @@ RUN;
         RUN;
     %END;
 %MEND CMAC1_WRITE_LOG;
+
 
 /*--------------------------------------------------------------------*/
 /* PART 2: MACRO TO GET COUNTS OF THE DATASETS                        */
@@ -166,7 +173,7 @@ RUN;
             %CMAC2_COUNTER (DATASET = NOCOST_DOWNSTREAM, MVAR = NOCOST_DSSALES);
         %END;
 
-        %IF &COMPARE_BY_TIME. = YES %THEN
+/**/    %IF &COMPARE_BY_TIME. = YES AND &RUN_RECOVERY. = YES %THEN
         %DO;
             %CMAC2_COUNTER (DATASET = RECOVERED, MVAR = RECOVERED);        
         %END;
@@ -292,7 +299,7 @@ RUN;
         %END;
         %PUT # OF CM SALES ABOVE COST TEST (WORK.HMABOVE)                             = %CMPRES(&COUNT_HMABOVE);
         %PUT # OF CM SALES FAILING THE COST TEST (WORK.HMBELOW)                       = %CMPRES(&COUNT_HMBELOW);
-        %IF &COMPARE_BY_TIME. = YES %THEN
+/**/    %IF &COMPARE_BY_TIME. = YES AND &RUN_RECOVERY. = YES %THEN
         %DO;
             %PUT # OF CM SALES PASSING THE COST RECOVERY TEST (WORK.RECOVERED)        = %CMPRES(&COUNT_RECOVERED);
         %END;

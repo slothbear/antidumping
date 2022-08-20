@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET ECONOMY                       */
 /*                        MARGIN CALCULATION PROGRAM                       */
 /*                                                                         */
-/*               GENERIC VERSION LAST UPDATED AUGUST 15, 2022              */
+/*               GENERIC VERSION LAST UPDATED AUGUST 16, 2022              */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
@@ -664,6 +664,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 %LET      TOTCOM = < >;              /*(V) Reported total cost of    */
                                      /*    manufacturing, often      */
                                      /*    TOTCOM.                   */
+
 /*-----------------------------------------------------*/
 /* 1-E-vii. HIGH INFLATION COSTS                       */
 /*                                                     */
@@ -874,7 +875,7 @@ OPTION FORMCHAR = '|----|+|---+=|-/\<>*';          /* For printing tables      *
 /*------------------------------------------------------------------*/
 
 %LET SALESDB = USSALES; 
-%G1_RUNTIME_SETUP
+/*%G1_RUNTIME_SETUP*/
 %G2_TITLE_SETUP     
 %G3_COST_TIME_MVARS     
 
