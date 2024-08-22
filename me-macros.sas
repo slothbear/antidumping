@@ -2,7 +2,7 @@
 /*                    ANTIDUMPING MARKET ECONOMY                    */
 /*                          MACROS PROGRAM                          */
 /*                                                                  */
-/*                 GENERIC VERSION LAST UPDATED JUNE 12, 2024       */
+/*               GENERIC VERSION LAST UPDATED AUGUST 13, 2024       */
 /*                                                                  */
 /********************************************************************/
 /*                          GENERAL MACROS                          */
@@ -145,7 +145,7 @@
 
             'RQ' = 'Reported Quarterly'
             'BQ' = 'Blended Surrogate Quarterly'
-            'GQ' = 'Gap Fill Surrogate Quarterly'
+            'IQ' = 'Indexed Surrogate Quarterly'
 
             'H1' = 'Reported High Inflation'
             'H2' = 'Annualized High Inflation'
@@ -362,36 +362,27 @@
             %MARGIN_FILTER
             ELSE
             DO;
-                /*--------------------------------------------------------------*/
-                /* In annualized cost administrative reviews, define HMMONTH    */
-                /* and USMONTH variables so that each month has a unique value. */
-                /*--------------------------------------------------------------*/
+                /*-------------------------------------------------------*/
+                /* In administrative reviews, define HMMONTH and USMONTH */
+                /* variables so that each month has a unique value.      */
+                /*-------------------------------------------------------*/
 
                 %IF (%UPCASE(&CASE_TYPE) EQ AR) %THEN
                 %DO;
-                    %IF (%UPCASE(&COMPARE_BY_TIME) NE YES) AND              /* In annualized cost reviews */
-                        (%UPCASE(&COMPARE_BY_HIGH_INFLATION) NE YES) %THEN  /* define USMONTH/HMMONTH.    */ 
-                    %DO; 
-                        %IF &DBTYPE = US %THEN
-                        %DO;
-                            %LET BEGIN = &HMBEGINWINDOW;
-                        %END;
-                        %ELSE
-                        %DO;
-                            %LET BEGIN = &HMBEGINDAY;
-                        %END;
-                            MON = MONTH(&DATE);
-                            YRDIFF = YEAR(&DATE) - YEAR("&BEGIN."D);
-                            &SALES_MONTH = MON + YRDIFF * 12;
-                            DROP MON YRDIFF;
-                            %LET MONTH = &SALES_MONTH;
+                    %IF &DBTYPE = US %THEN
+                    %DO;
+                        %LET BEGIN = &HMBEGINWINDOW;
                     %END;
                     %ELSE
-                    %IF (%UPCASE(&COMPARE_BY_TIME) EQ YES) OR               /* In non-annualized cost reviews */
-                        (%UPCASE(&COMPARE_BY_HIGH_INFLATION) EQ YES) %THEN  /* set USMONTH/HMMONTH to blank.  */
-                    %DO;                                                
-                        %LET MONTH = ;
+                    %DO;
+                        %LET BEGIN = &HMBEGINDAY;
                     %END;
+
+                    MON = MONTH(&DATE);
+                    YRDIFF = YEAR(&DATE) - YEAR("&BEGIN."D);
+                    &SALES_MONTH = MON + YRDIFF * 12;
+                    DROP MON YRDIFF;
+                    %LET MONTH = &SALES_MONTH;
                 %END;
                 OUTPUT &SALES;
             END;
@@ -706,7 +697,7 @@
     /* G-8-B: High inflation Cost Without Production */
     /*************************************************/
 
-    %IF %UPCASE(&COMPARE_BY_HIGH_INFLATION) EQ YES AND %UPCASE(&FIND_SURROGATES) = YES %THEN
+    %IF %UPCASE(&COMPARE_BY_HIGH_INFLATION) EQ YES %THEN
     %DO;
         /****************************************************/
         /* G-8-B-i: Define macro variables used in finding  */
@@ -914,7 +905,7 @@
 /**********************************************************************/
 
 /**********************************************************************************************/
-/* For cases where there are time–specific costs, i.e. quarterly cost, the program assigns    */
+/* For cases where there are timeñspecific costs, i.e. quarterly cost, the program assigns    */
 /* quarters to the CM and U.S. sales observations. The quarters are based off of the reported */
 /* sale date, and first day of the POR/POI. The quarters are character, length 2, with the    */
 /* values '-2', '-1', '0', '1', '2', etc. This will only run if there is quarterly cost.      */
@@ -950,7 +941,7 @@
 
 /**********************************************************************************************************************/
 /*                                                                                                                    */
-/* For cases where there are time – specific costs, i.e. quarterly cost, the program takes the following steps:       */
+/* For cases where there are time ñ specific costs, i.e. quarterly cost, the program takes the following steps:       */
 /* 1. In section G-10;                                                                                                */
 /*     a. Makes a list of CONNUMS and time periods with reported sales                                                */
 /*     b. Makes a list of time periods with reported costs.                                                           */
@@ -959,13 +950,13 @@
 /* 2. In Section G-11, if there are periods that have sales that do not have any reported costs:                      */
 /*     a. On a CONNUM specific basis, pull the closest period of production into the period that needs production.    */
 /*        Keep the direct materials costs, and index them to adjust those costs according to the period.              */
-/*     b. Apply the POR/I weight average ‘conversion costs’ i.e. the non-direct materials costs, to each CONNUM.      */
+/*     b. Apply the POR/I weight average ëconversion costsí i.e. the non-direct materials costs, to each CONNUM.      */
 /* 3. In Section G-12; if there CONNUMS with no production in a specific period, but production in other period(s):   */
 /*     a. Find the most similar CONNUM with production in the period and assign its direct materials costs as         */
 /*        surrogate to the CONNUM(s) with no production.                                                              */
 /*     b. Assign the POR/I weight average conversion costs to those CONNUMS with no production in the period.         */
 /* 4. In Section G-13; if there are CONNUMS with sales in the POR/I and no production anywhere in the POR/I:          */
-/*     a. Assign the most similar CONNUM’s cost from within the period as the surrogate for the CONNUM with no costs. */
+/*     a. Assign the most similar CONNUMís cost from within the period as the surrogate for the CONNUM with no costs. */
 /*                                                                                                                    */
 /**********************************************************************************************************************/
 
@@ -1403,8 +1394,9 @@
 
             PROC PRINT DATA = NO_PROD_TIMES_COST (OBS = &PRINTOBS);
                 VAR &ALLCOSTVARS NEED_TIME TIME_DIF NO_PROD: CLOSEST_PROD: PERCENT_CHANGE: R:;
-                TITLE3 "DIRECT MATERIALS ADJUSTMENT CALCULATIONS (&REVISED_DIRMAT_VARS)";
-                TITLE4 "FOR COSTS IN PERIODS WITHOUT PRODUCTION";
+                TITLE3 "INDEXED SURROGATE COST";
+                TITLE4 "DIRECT MATERIALS ADJUSTMENT CALCULATIONS (&REVISED_DIRMAT_VARS)";
+                TITLE5 "FOR COSTS IN PERIODS WITHOUT PRODUCTION";
             RUN;
 
             DATA NO_PROD_TIMES_COST (KEEP = &ALLCOSTVARS);
@@ -1430,9 +1422,11 @@
 
             PROC PRINT DATA = POR_COST_2 (OBS = &PRINTOBS);
                 VAR &COST_MANF &COST_MATCH &TOTCOM &DIRMAT_VARS_WITHOUT_COMMAS REDUCED_&TOTCOM;
-                TITLE3 "REDUCED TOTAL COST OF MANUFACTURING (REDUCED_&TOTCOM)";
-                TITLE4 "WITH DIRECT MATERIAL VARIABLES NEEDING AVERAGE PURCHASE COSTS (&SUM_DIRMAT_VARS)";
-                TITLE5 "BACKED OUT OF THE ORIGINAL TOTAL COST OF MANUFACTURING (&TOTCOM)";
+                TITLE3 "INDEXED SURROGATE COST";
+                TITLE4 "REDUCED TOTAL COST OF MANUFACTURING (REDUCED_&TOTCOM)";
+                TITLE5 "WITH DIRECT MATERIAL VARIABLES NEEDING AVERAGE PURCHASE COSTS (&SUM_DIRMAT_VARS)";
+                TITLE6 "BACKED OUT OF THE ORIGINAL TOTAL COST OF MANUFACTURING (&TOTCOM)";
+                TITLE7 "FOR COSTS IN PERIODS WITHOUT PRODUCTION";
             RUN;
 
             PROC SORT DATA = POR_COST_2 (DROP = &DIRMAT_VARS SUMDURMATS) OUT = POR_COST_2;
@@ -1453,13 +1447,16 @@
                 SET NO_PROD_TIMES_COST;
                 SUM_INDEXED_DIRMATS = SUM(&SUM_DIRMAT_VARS);
                 REVISED_&TOTCOM = REDUCED_&TOTCOM + SUM_INDEXED_DIRMATS;
+                COST_TIME_TYPE = 'IQ';
+                FORMAT COST_TIME_TYPE $TIMETYPE.;
             RUN;
 
             PROC PRINT DATA = NO_PROD_TIMES_COST (OBS = &PRINTOBS) SPLIT = '*';
                 LABEL SUM_INDEXED_DIRMATS = "SUM OF AVERAGE PURCHASE COSTS";
-                TITLE3 "SELECTION OF COSTS IN PERIODS WITHOUT PRODUCTION";
-                TITLE4 "WITH REVISED DIRECT MATERIAL VARIABLES WITH AVERAGE PURCHASE COSTS (&SUM_DIRMAT_VARS)";
-                TITLE5 "ADDED TO REDUCED TOTAL COST OF MANUFACTURING (REDUCED_&TOTCOM)";
+                TITLE3 "INDEXED SURROGATE COST";
+                TITLE4 "SELECTION OF COSTS IN PERIODS WITHOUT PRODUCTION";
+                TITLE5 "WITH REVISED DIRECT MATERIAL VARIABLES WITH AVERAGE PURCHASE COSTS (&SUM_DIRMAT_VARS)";
+                TITLE6 "ADDED TO REDUCED TOTAL COST OF MANUFACTURING (REDUCED_&TOTCOM)";
             RUN;
 
             DATA COST;
@@ -1581,7 +1578,8 @@
             PAGEBY NO_PRODUCTION_CONNUM;
             VAR %NTC_MANF &COST_MATCH
                 &COST_MANF &DIF_CHAR CHOICE &DIRMAT_VARS;
-            TITLE3 "CHECK OF 5 SIMILIAR MATCHES FOR ASSIGNING DIRECT MATERIALS TO CONNUMS WITHOUT PRODUCTION IN PERIODS WITH PRODUCTION";
+            TITLE3 "BLENDED SURROGATE COST";
+            TITLE4 "CHECK OF 5 SIMILIAR MATCHES FOR ASSIGNING DIRECT MATERIALS TO CONNUMS WITHOUT PRODUCTION IN PERIODS";
         RUN;
 
         /* Add por weight averaged conversion costs to similar list */ 
@@ -1598,8 +1596,9 @@
         RUN;
 
         PROC PRINT DATA = POR_COST_3 (OBS = &PRINTOBS);
-            TITLE3 "SAMPLE OF PERIOD-WIDE WEIGHT AVERAGED CONVERSION COSTS";
-            TITLE4 "WITH &TOTCOM REDUCED BY DIRECT MATERIAL VARIABLES (&DIRMAT_VARS)";
+            TITLE3 "BLENDED SURROGATE COST";
+            TITLE4 "SAMPLE OF PERIOD-WIDE WEIGHT AVERAGED CONVERSION COSTS";
+            TITLE5 "WITH &TOTCOM REDUCED BY DIRECT MATERIAL VARIABLES (&DIRMAT_VARS)";
         RUN;
 
         PROC SORT DATA = POR_COST_3 
@@ -1619,14 +1618,16 @@
             SUMDURMATS = SUM(&SUM_DIRMAT_VARS);
             &TOTCOM = R&TOTCOM + SUMDURMATS;
             COST_TIME_TYPE = 'BQ';
+            FORMAT COST_TIME_TYPE $TIMETYPE.;
         RUN;
 
         PROC PRINT DATA = ZERO_PROD_ALLCOST (OBS = &PRINTOBS);
-            TITLE3 "SAMPLE OF COSTS FOR CONNUMS WITH ZERO PRODUCTION WITHIN PERIODS WITH PRODUCTION";
-            TITLE4 "WITH SURROGATE DIRECT MATERIAL VARIABLES (&DIRMAT_VARS) FOUND IN THE SAME QUARTER ADDED TO REDUCED &TOTCOM";
+            TITLE3 "BLENDED SURROGATE COST";
+            TITLE4 "SAMPLE OF COSTS FOR CONNUMS WITH ZERO PRODUCTION WITHIN PERIODS WITH PRODUCTION";
+            TITLE5 "WITH SURROGATE DIRECT MATERIAL VARIABLES (&DIRMAT_VARS) FOUND IN THE SAME QUARTER ADDED TO REDUCED &TOTCOM";
         RUN;
 
-        /* Append to the total cost dataset */
+        /* Append indexed surrogate cost to cost with reported production */
 
         DATA COST;
             SET COST;
@@ -1679,7 +1680,7 @@
         RUN;
 
         PROC SORT DATA = ALL_SALES_TIME_PERIODS (KEEP = &COST_MANF &COST_TIME_PERIOD &COST_MATCH &COSTPROD)
-                  OUT = ALL_SALES_TIME_PERIODS;
+                  OUT = ALL_SALES_TIME_PERIODS NODUPKEY;
             BY &COST_TIME_PERIOD &COST_MANF &COST_MATCH;
         RUN;
 
@@ -1706,14 +1707,13 @@
                         DIFCHR(I) = ABS(INPUT(NOPROD(I), 8.) - INPUT(COSTPROD(I), 8.));
                     END;
 
-                    COST_TIME_TYPE = 'BQ';
                     OUTPUT ISNC_SIMCOST;
                 END;
             END;
         RUN;
 
-        PROC SORT DATA = ISNC_SIMCOST;
-           BY &COST_MANF &COST_TIME_PERIOD ISNC_&COST_MATCH &DIF_CHAR;
+        PROC SORT DATA = ISNC_SIMCOST OUT = ISNC_SIMCOST;
+            BY &COST_MANF &COST_TIME_PERIOD ISNC_&COST_MATCH &DIF_CHAR;
         RUN;
 
         DATA ISNC_SIMCOST_TOP5
@@ -1744,16 +1744,14 @@
             BY ISNC_&COST_MATCH;
             PAGEBY ISNC_&COST_MATCH;
             VAR &COST_TIME_PERIOD ISNC_&COST_MATCH %ISNC_MANF &COST_MATCH &COST_MANF &DIF_CHAR CHOICE &DIRMAT_VARS;
-            TITLE3 "CHECK OF 5 SIMILIAR MATCHES FOR SALES WITHOUT PRODUCTION IN PERIODS WITH PRODUCTION";
+            TITLE3 "BLENDED SURROGATE COST";
+            TITLE4 "CHECK OF 5 SIMILIAR MATCHES FOR SALES WITHOUT PRODUCTION IN PERIODS WITH PRODUCTION";
         RUN;
 
-        /* Append to the total cost dataset */
+        /* Append blended surrogate cost to cost with reported production and indexed cost */
 
         DATA COST;
-            SET COST ISNC_SIMCOST_TOP1 (IN = B);
-            IF B THEN
-                COST_TIME_TYPE = 'BQ';
-            FORMAT COST_TIME_TYPE $TIMETYPE.;
+            SET COST ISNC_SIMCOST_TOP1;
         RUN;
 
         PROC SORT DATA = COST NODUPKEY OUT = CTEST DUPOUT = CDUPS;
@@ -2259,6 +2257,7 @@
                     DIF_CHAR(I) = ABS(INPUT(NOPROD_CHAR(I), 8.) - INPUT(PROD_CHAR(I), 8.));
                 END;
 
+                COST_TYPE = 'H3';
                 OUTPUT SIMCOST;
 
         %IF &COST_MANUF NE NA OR &COST_PRIME NE NA %THEN    /* Cost Manufacturer and/or Cost Prime reported */
@@ -3901,7 +3900,7 @@
         %IF &RUN_RECOVERY = YES %THEN
         %DO;
             PROC MEANS NWAY DATA = COMPANY.&RESPONDENT._&SEGMENT._&STAGE._COST NOPRINT;
-                WHERE '1' <= COST_TIME_PERIOD <= PUT(SUM(INTCK('QTR', "&BEGINPERIOD"D, "&ENDPERIOD"D, 'DISCRETE'), 1), 1.) 
+                WHERE '1' <= COST_TIME_PERIOD <= PUT(SUM(INTCK('QTR', "&BEGINPERIOD"D, "&ENDPERIOD"D, 'CONTINUOUS'), 1), 1.) 
                       AND COST_TIME_TYPE = 'RQ';
                 CLASS &COP_MANF_OUT COST_MATCH;
                 VAR AVGCOST;
@@ -4287,29 +4286,18 @@
     /*  1-B DEFINE INVESTIGATION OR ADMINISTRATIVE REVIEWS SPECIFIC MACRO VARIABLES */
     /*------------------------------------------------------------------------------*/
 
-    %IF %UPCASE(&CASE_TYPE) EQ INV %THEN  /* de minimis is 2 and month is not relevant */
+    %IF %UPCASE(&CASE_TYPE) EQ INV %THEN  /* de minimis is 2 */
     %DO;
         %LET DE_MINIMIS = 2;
         %LET HMMON = ; 
         %LET USMON = ;
     %END;
     %ELSE
-    %IF %UPCASE(&CASE_TYPE) EQ AR %THEN  /* de minimis is 0.5 and month is relevant */
+    %IF %UPCASE(&CASE_TYPE) EQ AR %THEN  /* de minimis is 0.5 */
     %DO;
         %LET DE_MINIMIS = .5;
-        %IF (%UPCASE(&COMPARE_BY_TIME) NE YES) AND              /* In annualized cost reviews */
-            (%UPCASE(&COMPARE_BY_HIGH_INFLATION) NE YES) %THEN  /* define USMONTH/HMMONTH.    */ 
-        %DO;                                                
-            %LET USMON = USMONTH;
-            %LET HMMON = HMMONTH;
-        %END;
-        %ELSE
-        %IF (%UPCASE(&COMPARE_BY_TIME) EQ YES) OR               /* In non-annualized cost reviews */
-            (%UPCASE(&COMPARE_BY_HIGH_INFLATION) EQ YES) %THEN  /* set USMONTH/HMMONTH to blank.  */
-        %DO;                                                
-            %LET USMON = ;
-            %LET HMMON = ;
-        %END;
+        %LET USMON = USMONTH;
+        %LET HMMON = HMMONTH;
     %END;
 
     /*------------------------------------------------------------------------*/
@@ -4821,7 +4809,7 @@ OPTIONS SYMBOLGEN;
         /*--------------------------------------------------------------------*/
 
         %MACRO CONTEMP; 
-            %IF (%UPCASE(&CASE_TYPE) = AR) AND (%UPCASE(&COMPARE_BY_TIME) NE YES) %THEN
+            %IF (%UPCASE(&CASE_TYPE) = AR) %THEN
             %DO;  
                 TIMEDEV = &USMON - &HMMON;
                 SELECT (TIMEDEV);

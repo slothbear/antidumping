@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET ECONOMY                       */
 /*               ANALYSIS OF COMPARISON MARKET SALES PROGRAM               */
 /*                                                                         */
-/*                 GENERIC VERSION LAST UPDATED JUNE 12, 2024              */
+/*              GENERIC VERSION LAST UPDATED AUGUST 13, 2024               */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring in Comparison Market Sales, Convert Date Variable, If    */
@@ -201,7 +201,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /*-------------------------------------------------------------------------*/
 /* The macro variables BEGINPERIOD and ENDPERIOD refer to the beginning    */
 /* and at the end of the official POI/POR. They are used for titling.      */
-/* BEGINPERIOD is also used in the Cohen’s d Test.                         */
+/* BEGINPERIOD is also used in the Cohenís d Test.                         */
 /*                                                                         */
 /* Typically, these dates refer to the first day of the first month for    */
 /* the POI/POR for the BEGINPERIOD and the last day of the last month of   */
@@ -398,16 +398,25 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /* If there are quarterly costs (Section 1-E-iii-a.) and/or the     */
 /* need to find surrogate costs (Section 1-E-iii-b.) but there are  */
 /* no product matching characteristics in cost data, fill in the    */
-/* macro variable USDATA. Otherwise leave it blank.                 */
+/* following six macro variables. Otherwise leave them blank.       */
 /********************************************************************/
 
-%LET      USDATA = <  >;    /*(D) U.S. sales dataset filename, needed  */
-                            /*    if there are quarterly costs and/or  */
-                            /*    the need to find surrogate costs and */
-                            /*    there are no product matching        */
-                            /*    characteristics in cost data.        */
-%LET      USBARCODE = <  >; /*(T) Bar code number(s) of US sales       */
-                            /*    dataset(s) used in this program.     */
+%LET USDATA = <        >;         /*(D) U.S. sales dataset filename, needed     */
+                                  /*    if there are quarterly costs and/or     */
+                                  /*    the need to find surrogate costs and    */
+                                  /*    there are no product matching           */
+                                  /*    characteristics in cost data.           */
+%LET      USBARCODE = <  >;       /*(T) Bar code number(s) of US sales          */
+                                  /*    dataset(s) used in this program.        */
+%LET      USCONNUM = <         >; /*(V) Control number                          */
+%LET      USQTY    = <       >;   /*(V) Quantity                                */
+%LET      USGUP    = <       >;   /*(V) Gross price. Need not be in consistent  */
+                                  /*    currency, used only to check for zero,  */
+                                  /*    negative and missing values.            */
+%LET      USBEGINDAY = <     >;   /*(T) Please see above 1-C: DATE INFORMATION  */
+                                  /*    in ME Margin Program for guidance.      */
+%LET      USENDDAY = <       >;   /*(T) Please see above 1-C: DATE INFORMATION  */
+                                  /*    in ME Margin Program for guidance.      */
 
 /*----------------------------------------------------*/
 /* 1-E-iii-a. SURROGATE COSTS FOR NON-PRODUCTION      */
@@ -557,7 +566,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
                                 /*    unaffiliated sales. Default is       */
                                 /*    numeric value of 1.                  */
 %LET RUN_DOWNSTREAM = <YES/NO>; /*(T) Include a downstream sales dataset?  */
-                                /*    You must run the Arm’s-Length test   */
+                                /*    You must run the Armís-Length test   */
                                 /*    to use downstream sales. Type "YES"  */
                                 /*    or "NO" (without quotes).            */
 %LET     DOWNSTREAMDATA = <  >; /*(D) Downstream sales dataset filename.   */
@@ -818,7 +827,7 @@ RUN;
 /*------------------------------------------------------------------*/
 
 %MACRO READ_US;
-    DATA USSALES;
+    DATA USSALES NEGDATA_US OUTDATES_US;
         SET COMPANY.&USDATA;
         &USSALEDATE = FLOOR(&USSALEDATE); /* Eliminates the time part of sale date when defined as a datetime variable. */
 
@@ -833,6 +842,14 @@ RUN;
                                             /* the date of sale variable and the     */
                                             /* first day of the POR/POI. The         */
                                             /* values will be '-1', '0', '1', etc.   */
+        IF &USQTY LE 0 OR &USGUP LE 0 THEN
+            OUTPUT NEGDATA_US;
+        ELSE
+        IF "&USBEGINDAY."D GT &USSALEDATE OR &USSALEDATE GT "&USENDDAY."D THEN
+            OUTPUT OUTDATES_US;
+      /*  %MARGIN_FILTER */
+        ELSE
+            OUTPUT USSALES;
     RUN;
 %MEND READ_US;
 

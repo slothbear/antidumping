@@ -2,7 +2,7 @@
 /*                    COMMON UTILITY MACROS PROGRAM                    */
 /*                 FOR USE BY BOTH ME AND NME PROGRAMS                 */
 /*                                                                     */
-/*              GENERIC VERSION LAST UPDATED JUNE 12, 2024             */
+/*            GENERIC VERSION LAST UPDATED AUGUST 13, 2024             */
 /*                                                                     */
 /* PART 0: SET UP MACRO VARIABLES FOR RUN TIME CALCULATION             */
 /* PART 1: MACRO TO WRITE LOG TO A PERMANENT FILE                      */
@@ -522,7 +522,18 @@ RUN;
 		                ASSESS_MIXED (RENAME = (MIXEDRATE = &PREFIX._MIXED))
 	 	  %END;
 
-		  %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = NO %THEN 
+	      %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = NA %THEN
+	      %DO;	
+			   MERGE 
+
+		   %IF %UPCASE(&ABOVE_DEMINIMIS_STND) = YES %THEN
+			%DO;
+                     ASSESS_IMPSTND (RENAME = (IMPSTNDRATE = &PREFIX._STND))
+		   %END;
+	  %END;
+		  	
+
+		  %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED)  = NO %THEN 
 		  %DO;
                 SET
 		  %END;
@@ -549,15 +560,20 @@ RUN;
                     &PREFIX._MIXED
 		        %END;
                               );
-                    %IF %UPCASE(&ABOVE_DEMINIMIS_STND) = NO %THEN
-                    %DO;
-                        &PREFIX._STND = '0 (%)';
-                    %END;
+                %IF %UPCASE(&ABOVE_DEMINIMIS_STND) = NO %THEN
+                %DO;
+                    &PREFIX._STND = '0 (%)';
+                %END;
         
-                    %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = NO  %THEN
-                    %DO;
-                        &PREFIX._MIXED = '0 (%)';
-                    %END;
+                %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = NO  %THEN
+                %DO;
+                    &PREFIX._MIXED = '0 (%)';
+                %END;
+
+    			%IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = NA  %THEN
+                %DO;
+                    &PREFIX._MIXED = 'NA';
+                %END;
             RUN;
         %END;
     %END;
@@ -625,7 +641,12 @@ RUN;
 
     PROC PRINT DATA = ANSWER NOOBS SPLIT = '*';
         TITLE3 "SUMMARY OF CASH DEPOSIT RATES";
-    	TITLE4 "AND IMPORTER-SPECIFIC ASSESSMENT RATES";
+
+        %IF %UPCASE(&CASE_TYPE) = AR AND &ANSWEROBSCOUNT > 1 %THEN 
+        %DO;
+            TITLE4 "AND IMPORTER-SPECIFIC ASSESSMENT RATES";
+        %END;
+
         TITLE6 "PERCENT OF SALES PASSING THE COHEN'S D TEST: %CMPRES(&PERCENT_VALUE_PASSING)";   
         TITLE7 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE MIXED-ALTERNATIVE METHOD: %CMPRES(&MA_METHOD)";
         TITLE8 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE A-to-T ALTERNATIVE METHOD: %CMPRES(&AT_METHOD)";
