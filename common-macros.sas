@@ -2,7 +2,7 @@
 /*                    COMMON UTILITY MACROS PROGRAM                    */
 /*                 FOR USE BY BOTH ME AND NME PROGRAMS                 */
 /*                                                                     */
-/*             GENERIC VERSION LAST UPDATED AUGUST 16, 2022            */
+/*              GENERIC VERSION LAST UPDATED JUNE 12, 2024             */
 /*                                                                     */
 /* PART 0: SET UP MACRO VARIABLES FOR RUN TIME CALCULATION             */
 /* PART 1: MACRO TO WRITE LOG TO A PERMANENT FILE                      */
@@ -13,6 +13,9 @@
 /* PART 4: CALL LOG SCAN MACRO ON DEMAND                               */
 /* PART 5: SELECTIVELY ADJUST SALE DATE BASED ON AN EARLIER DATE       */
 /*         VARIABLE.                                                   */
+/* PART 6: CALCULATE IMPORTER-SPECIFIC DE MINIMIS TEST RESULTS AND     */
+/*         ASSESSMENT RATES.                                           */
+/* PART 7: PRINT SUMMARY OF CASH DEPOSIT RATES                         */
 /***********************************************************************/
 
 %GLOBAL NVMATCH_TYPE1 NVMATCH_TYPE2 NVMATCH_TYPE3 NVMATCH_VALUE1 NVMATCH_VALUE2 NVMATCH_VALUE3;
@@ -173,7 +176,7 @@ RUN;
             %CMAC2_COUNTER (DATASET = NOCOST_DOWNSTREAM, MVAR = NOCOST_DSSALES);
         %END;
 
-/**/    %IF &COMPARE_BY_TIME. = YES AND &RUN_RECOVERY. = YES %THEN
+        %IF &COMPARE_BY_TIME. = YES AND &RUN_RECOVERY. = YES %THEN
         %DO;
             %CMAC2_COUNTER (DATASET = RECOVERED, MVAR = RECOVERED);        
         %END;
@@ -223,7 +226,10 @@ RUN;
         %CMAC2_COUNTER (DATASET = NEGDATA, MVAR = NEGDATA);
         %CMAC2_COUNTER (DATASET = OUTDATES, MVAR = OUTDATES);
         %CMAC2_COUNTER (DATASET = NOFOP, MVAR = NOFOP);
-        %CMAC2_COUNTER (DATASET = NOEXRATE, MVAR = NOEXRATE);
+        %IF &USE_EXRATES1 = YES %THEN
+        %DO;
+            %CMAC2_COUNTER (DATASET = NOEXRATE, MVAR = NOEXRATE);
+        %END;
         %CMAC2_COUNTER (DATASET = NEGATIVE_NVALUES, MVAR = NEGATIVE_NVALUES);
         %CMAC2_COUNTER (DATASET = NEGATIVE_USPRICES, MVAR = NEGATIVE_USPRICES);
         %CMAC2_COUNTER (DATASET = NO_DP_REGION_TEST, MVAR = NO_DP_REGION_TEST);
@@ -299,7 +305,7 @@ RUN;
         %END;
         %PUT # OF CM SALES ABOVE COST TEST (WORK.HMABOVE)                             = %CMPRES(&COUNT_HMABOVE);
         %PUT # OF CM SALES FAILING THE COST TEST (WORK.HMBELOW)                       = %CMPRES(&COUNT_HMBELOW);
-/**/    %IF &COMPARE_BY_TIME. = YES AND &RUN_RECOVERY. = YES %THEN
+        %IF &COMPARE_BY_TIME. = YES AND &RUN_RECOVERY. = YES %THEN
         %DO;
             %PUT # OF CM SALES PASSING THE COST RECOVERY TEST (WORK.RECOVERED)        = %CMPRES(&COUNT_RECOVERED);
         %END;
@@ -342,7 +348,10 @@ RUN;
         %PUT # OF US SALES WITH PRICES AND/OR QTY <=0 (WORK.NEGDATA)                 = %CMPRES(&COUNT_NEGDATA);
         %PUT # OF US SALES OUTSIDE DATE RANGE (WORK.OUTDATES)                        = %CMPRES(&COUNT_OUTDATES);
         %PUT # OF US SALES WITH NO MATCHING FACTORS OF PRODUCTION (WORK.NOFOP)       = %CMPRES(&COUNT_NOFOP);
-        %PUT # OF US SALES WITH NO EXCHANGE RATES (WORK.NOEXRATE)                    = %CMPRES(&COUNT_NOEXRATE);
+        %IF &USE_EXRATES1 = YES %THEN
+        %DO;
+            %PUT # OF US SALES WITH NO EXCHANGE RATES (WORK.NOEXRATE)                    = %CMPRES(&COUNT_NOEXRATE);
+        %END;
         %PUT # OF US SALES WITH INVALID REGIONAL VALUES (WORK.NO_DP_REGION_TEST)     = %CMPRES(&COUNT_NO_DP_REGION_TEST);
         %PUT # OF US SALES WITH INVALID PURCHASER VALUES (WORK.NO_DP_PURCHASER_TEST) = %CMPRES(&COUNT_NO_DP_PURCHASER_TEST);
         %PUT # OF US SALES WITH INVALID TIME VALUES (WORK.NO_DP_PERIOD_TEST)         = %CMPRES(&COUNT_NO_DP_PERIOD_TEST);
@@ -386,3 +395,247 @@ RUN;
             &SALEDATE = &EARLIERDATE;
     %END;
 %MEND DEFINE_SALE_DATE;
+
+/*-----------------------------------------------------------------------------------*/
+/* PART 6: CALCULATE IMPORTER-SPECIFIC DE MINIMIS TEST RESULTS AND ASSESSMENT RATES. */
+/*-----------------------------------------------------------------------------------*/
+
+%MACRO PRINT_ASSESS(INDATA);
+    DATA ASSESS_&INDATA;
+        SET ASSESS_&INDATA;
+
+        /* AD VALOREM RATE FOR ASSESSMENT */
+
+        ASESRATE = (ITOTRESULTS / ITENTVAL)* 100;
+
+        /* PER-UNIT RATE FOR ASSESSMENT */
+
+        PERUNIT  = (ITOTRESULTS / ITOTQTY); 
+
+        /* RATE FOR DE MINIMIS TEST. */
+
+        DMINPCT  = ASESRATE;
+        LENGTH DMINTEST $3. ;
+
+        IF DMINPCT GE 0.5 THEN
+        DO;
+            DMINTEST = 'NO';
+
+            %IF %UPCASE(&PER_UNIT_RATE) = NO %THEN
+            %DO;
+                IF SOURCEU = 'REPORTED' THEN 
+                    PERUNIT = .;
+                ELSE 
+                IF SOURCEU IN ('MIXED','COMPUTED') THEN 
+            %END;
+
+            ASESRATE = .;
+        END;
+        ELSE 
+        IF DMINPCT LT 0.5 THEN
+        DO;
+            DMINTEST = 'YES';
+            ASESRATE = 0;
+            PERUNIT  = 0;
+        END;
+
+        DMINPCT  = INT(DMINPCT * 100) / 100;
+    RUN;
+
+	DATA ASSESS_&INDATA;
+        SET ASSESS_&INDATA;
+		IF PERUNIT NE . THEN
+			&INDATA.RATE = CATX(' ', ROUND(PERUNIT,.01), '($/Unit)');
+		ELSE
+        IF PERUNIT = . THEN
+			&INDATA.RATE = CATX(' ', ROUND(ASESRATE,.01), '(%)');
+		ELSE
+        IF PERUNIT = 0 THEN
+			&INDATA.RATE = CATX(' ',0,'(%)');
+	RUN;
+
+    PROC PRINT DATA = ASSESS_&INDATA SPLIT = '*' WIDTH = MINIMUM;
+        VAR US_IMPORTER SOURCEU ITENTVAL ITOTQTY IPOSRESULTS 
+            INEGRESULTS ITOTRESULTS DMINPCT DMINTEST ASESRATE
+            PERUNIT;
+        LABEL US_IMPORTER  = 'IMPORTER**========'
+              SOURCEU      = 'CUSTOMS VALUE*DATA SOURCE**============='
+              ITENTVAL     = 'CUSTOMS VALUE*(A)*============='
+              ITOTQTY      = 'TOTAL QUANTITY*(B)*============'
+              IPOSRESULTS  = 'TOTAL OF*POSITIVE*COMPARISON*RESULTS*(C)*=========='
+              INEGRESULTS  = 'TOTAL OF*NEGATIVE*COMPARISON*RESULTS*(D)*=========='
+              ITOTRESULTS  = 'ANTIDUMPING*DUTIES DUE*(see footnotes)*(E)*=============='
+              DMINPCT      = 'RATE FOR*DE MINIMIS TEST*(percent)*(E/A)x100*=============='
+              DMINTEST     = 'IS THE RATE*AT OR BELOW*DE MINIMIS?**===========' 
+              ASESRATE     = '*AD VALOREM*ASSESSMENT*RATE*(percent)*(E/A)x100*=========='
+              PERUNIT      = 'PER-UNIT*ASSESSMENT*RATE*($/unit)*(E/B) *==========' ;
+              FORMAT ITENTVAL ITOTQTY COMMA16.2
+                     DMINPCT ASESRATE PERUNIT COMMA8.2;
+        TITLE3 "IMPORTER-SPECIFIC DE MINIMIS TEST RESULTS AND ASSESSMENT RATES";
+        TITLE4 &ASSESS_TITLE4;
+        TITLE5 "FOR DISPLAY PURPOSES, THE DE MINIMIS PERCENT IS NOT ROUNDED";
+        FOOTNOTE1 &ASSESS_FOOTNOTE1;
+        FOOTNOTE2 &ASSESS_FOOTNOTE2;
+        FOOTNOTE4 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
+        FOOTNOTE5 "&BDAY, &BWDATE - &BTIME";
+    RUN;
+%MEND PRINT_ASSESS;
+
+/*---------------------------------------------*/
+/* PART 7: PRINT SUMMARY OF CASH DEPOSIT RATES */
+/*---------------------------------------------*/
+
+%MACRO US19_FINAL_CASH_DEPOSIT;
+    %IF %UPCASE(&PER_UNIT_RATE) = NO %THEN
+    %DO; 
+        %LET PREFIX = WTAVGPCT;
+        %LET LABEL_STND = "WEIGHTED AVERAGE*MARGIN RATE*STANDARD *METHOD*================";
+        %LET LABEL_MIXED = "WEIGHTED AVERAGE*MARGIN RATE*MIXED ALTERNATIVE*METHOD*=================";
+        %LET LABEL_ALT = "WEIGHTED AVERAGE*MARGIN RATE*A-to-T ALTERNATIVE*METHOD*==================";
+        %LET CDFORMAT = PCT_MARGIN.;
+    %END;
+    %ELSE
+    %IF %UPCASE(&PER_UNIT_RATE) = YES %THEN
+    %DO;
+        %LET PREFIX = PER_UNIT_RATE;
+        %LET LABEL_STND = "*WEIGHTED AVERAGE*MARGIN RATE*STANDARD METHOD*===============";
+        %LET LABEL_MIXED = "*WEIGHTED AVERAGE*MARGIN RATE*MIXED ALTERNATIVE*METHOD*=================";
+        %LET LABEL_ALT = "*WEIGHTED AVERAGE*RATE*A-to-T ALTERNATIVE*METHOD*==================";
+        %LET CDFORMAT = UNIT_MARGIN.;
+    %END;
+
+    %IF %UPCASE(&ABOVE_DEMINIMIS_ALT) = YES %THEN 
+    %DO;
+        %IF %UPCASE(&CASE_TYPE) = AR %THEN 
+        %DO;
+            DATA IMPANSWER; 
+    	        LENGTH US_IMPORTER $ 32;
+
+		  %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = YES %THEN
+		  %DO;
+    	        MERGE 
+
+				%IF %UPCASE(&ABOVE_DEMINIMIS_STND) = YES %THEN
+				%DO;
+                        ASSESS_IMPSTND (RENAME = (IMPSTNDRATE = &PREFIX._STND))
+                %END;
+		                ASSESS_MIXED (RENAME = (MIXEDRATE = &PREFIX._MIXED))
+	 	  %END;
+
+		  %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = NO %THEN 
+		  %DO;
+                SET
+		  %END;
+                    ASSESS_IMPTRAN (RENAME = (IMPTRANRATE = &PREFIX._ALT));
+
+		  %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = YES %THEN
+          %DO;
+	            BY US_IMPORTER;
+		  %END;
+
+            RUN;
+
+            DATA IMPANSWER;
+	            SET IMPANSWER (RENAME = (US_IMPORTER = CLASSIFICATION)
+	        		           KEEP = US_IMPORTER &PREFIX._ALT 
+
+	        	%IF %UPCASE(&ABOVE_DEMINIMIS_STND) = YES %THEN
+	        	%DO;
+	        	    &PREFIX._STND
+	        	%END;
+
+	        	%IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
+	        	%DO;
+                    &PREFIX._MIXED
+		        %END;
+                              );
+                    %IF %UPCASE(&ABOVE_DEMINIMIS_STND) = NO %THEN
+                    %DO;
+                        &PREFIX._STND = '0 (%)';
+                    %END;
+        
+                    %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = NO  %THEN
+                    %DO;
+                        &PREFIX._MIXED = '0 (%)';
+                    %END;
+            RUN;
+        %END;
+    %END;
+
+    DATA ANSWER;
+    	SET ANSWER;
+    	LENGTH CLASSIFICATION $ 32;
+    	CLASSIFICATION = 'Cash Deposit Rates';
+
+    	%IF %UPCASE(&PER_UNIT_RATE) = NO %THEN 
+    	%DO;
+    		STNDCDRATE = CATX(' ', ROUND(&PREFIX._STND, .01), '(%)');
+    		IF &PREFIX._MIXED NE . THEN
+            DO;
+    			MIXEDCDRATE = CATX(' ', ROUND(&PREFIX._MIXED, .01), '(%)');
+    		END;
+    		ALTCDRATE = CATX(' ', ROUND(&PREFIX._ALT, .01), '(%)');
+    	%END;
+    	%IF %UPCASE(&PER_UNIT_RATE) = YES %THEN 
+    	%DO;
+    		STNDCDRATE = CATX(' ', ROUND(&PREFIX._STND, .01), '($/Unit)');
+    		IF &PREFIX._MIXED NE . THEN
+            DO;
+    				MIXEDCDRATE = CATX(' ', ROUND(&PREFIX._MIXED, .01), '($/Unit)');
+	    	END;
+			ALTCDRATE = CATX(' ', ROUND(&PREFIX._ALT, .01), '($/Unit)');
+    	%END;
+
+        CALL SYMPUT("CDALTRATE", PUT(&PREFIX._ALT, 8.2));
+	RUN;
+	
+    DATA ANSWER;
+    	SET ANSWER (KEEP = CLASSIFICATION STNDCDRATE MIXEDCDRATE ALTCDRATE);
+    	RENAME STNDCDRATE = &PREFIX._STND MIXEDCDRATE = &PREFIX._MIXED ALTCDRATE = &PREFIX._ALT;
+    RUN;
+
+    %IF %UPCASE(&CASE_TYPE) = AR AND %UPCASE(&ABOVE_DEMINIMIS_ALT) = YES %THEN 
+    %DO;	
+        DATA ANSWER;
+        	SET ANSWER IMPANSWER;
+        RUN;
+    %END;
+
+    DATA ANSWER;
+        SET ANSWER NOBS = ANSWERCOUNT;
+	    CALL SYMPUT("ANSWEROBSCOUNT", ANSWERCOUNT);
+    RUN;
+
+    %IF %CMPRES(&PERCENT_VALUE_PASSING) = 0.00% OR %CMPRES(&PERCENT_VALUE_PASSING) = 100.00% %THEN 
+    %DO;
+        DATA ANSWER;
+		    SET ANSWER;
+		    &PREFIX._MIXED = 'N/A';
+	    RUN;
+    %END;
+
+    %IF %UPCASE(&CASE_TYPE) = AR AND &ANSWEROBSCOUNT > 1 %THEN 
+	%DO;
+		%LET LABEL_CLASS = "CASH DEPOSIT RATES (Row 1)*AND IMPORTER-SPECIFIC*DUTY ASSESSMENT RATES*(Rows 2 and below)";
+	%END;
+	%ELSE
+    %DO;
+		%LET LABEL_CLASS = '00'x;
+	%END;
+
+    PROC PRINT DATA = ANSWER NOOBS SPLIT = '*';
+        TITLE3 "SUMMARY OF CASH DEPOSIT RATES";
+    	TITLE4 "AND IMPORTER-SPECIFIC ASSESSMENT RATES";
+        TITLE6 "PERCENT OF SALES PASSING THE COHEN'S D TEST: %CMPRES(&PERCENT_VALUE_PASSING)";   
+        TITLE7 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE MIXED-ALTERNATIVE METHOD: %CMPRES(&MA_METHOD)";
+        TITLE8 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE A-to-T ALTERNATIVE METHOD: %CMPRES(&AT_METHOD)";
+        TITLE9 " ";
+        VAR CLASSIFICATION &PREFIX._STND &PREFIX._MIXED &PREFIX._ALT;
+        LABEL &PREFIX._STND = &LABEL_STND
+              &PREFIX._MIXED = &LABEL_MIXED
+              &PREFIX._ALT = &LABEL_ALT
+    		  CLASSIFICATION = &LABEL_CLASS;
+        FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
+        FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
+    RUN;
+%MEND US19_FINAL_CASH_DEPOSIT;

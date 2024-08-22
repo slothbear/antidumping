@@ -1,8 +1,8 @@
 /*--------------------------------------------------------------*/
 /*                ANTIDUMPING NON-MARKET ECONOMY                */
-/*                  MARGIN CALCULATION PROGRAM                  */
+/*                   MARGIN CALCULATION PROGRAM                 */
 /*                                                              */
-/*         GENERIC VERSION LAST UPDATED AUGUST 16, 2022         */
+/*           GENERIC VERSION LAST UPDATED JUNE 12, 2024         */
 /*                                                              */
 /* PART 1:  IDENTIFY DATA, VARIABLES, AND PARAMETERS            */
 /* PART 2:  GET U.S., FOP, AND SV DATA                          */
@@ -129,7 +129,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /*(T) Location & Name of the     
 %LET FOPDATA = <        >; /*(D) NAME OF FOP DATASET  */
 
 /*------------------------------------------------------------*/
-/* THE FOLLOWING FOUR MACRO VARIABLES ARE USED TO CONVERT THE */
+/* THE FOLLOWING FIVE MACRO VARIABLES ARE USED TO CONVERT THE */
 /* SURROGATE VALUE DATA, STORED AS A SPREADSHEET, INTO A SAS  */
 /* DATASET. USE THE SV COMPANY SPECIFIC SUMMARY SHEET.        */
 /*                                                            */
@@ -140,17 +140,25 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /*(T) Location & Name of the     
 /* NAME CANNOT START WITH A NUMBER.                           */
 /*------------------------------------------------------------*/
 
-/*-----------------------------------------------------------------*/
-/* THE MACRO VARIABLE 'SV_PATH' IS USED TO IDENTIFY THE LOCATION   */
-/* AND NAME OF THE OF THE SURROGATE VALUE DATASET.                 */
-/*                                                                 */
-/* EX. ON THE LAN:                                                 */
-/*   E:\Operations\Peoples Republic Of China\HEDP\2015 INV\SV.xls  */
-/*-----------------------------------------------------------------*/
+/*-----------------------------------------------------------------------*/
+/* THE MACRO VARIABLE 'SV_PATH' IS USED TO IDENTIFY THE LOCATION AND     */
+/* NAME OF THE OF THE SURROGATE VALUE DATASET.                           */
+/*                                                                       */
+/* EXAMPLE: E:\Operations\Peoples Republic Of China\HEDP\2015 INV\SV.xls */
+/*-----------------------------------------------------------------------*/
 
-%LET SV_PATH        = <       >; /*(T) WINDOWS EXPLORER LOCATION AND FILE     */
-                                 /*    NAME (INCLUDING THE FILE EXTENSION).   */
-%LET SV_NAME_RANGE  = <       >; /*(T) WORKSHEET NAME AND COLUMN RANGE        */
+%LET SV_PATH = <       >; /*(T) WINDOWS EXPLORER LOCATION AND FILE     */
+                          /*    NAME (INCLUDING THE FILE EXTENSION).   */
+
+/*-----------------------------------------------------------------------*/
+/* THE MACRO VARIABLES 'SV_NAME_RANGE' AND 'SV_VALUE_RANGE' ARE USED     */
+/* TO IDENTIFY WORKBOOK AND CELL RANGE ON THE SURROGATE VARIABLE         */
+/* NAMES AND SURROGATE VARIABLE VALUES RESPECTIVLY.                      */
+/*                                                                       */
+/* EXAMPLES: SV DATA$R3:R15 AND SV DATA$T3:T15                           */
+/*-----------------------------------------------------------------------*/
+
+%LET SV_NAME_RANGE = <       >;  /*(T) WORKSHEET NAME AND COLUMN RANGE        */
                                  /*    SEPARATED BY DOLLAR SIGN ($).          */
                                  /*    COLUMN RANGE REPRESENTS SURROGATE      */
                                  /*    VALUE VARIABLE NAMES. USE THE SYNTAX:  */
@@ -162,6 +170,19 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /*(T) Location & Name of the     
                                  /*    VALUE VARIABLE VALUES. USE THE SYNTAX: */
                                  /*    NAMEOFTHESHEET$COLUMNRANGE.            */
                                  /*    EXAMPLE: SummaryofSVs$P6:P34           */
+
+/*-----------------------------------------------------------------------*/
+/* THE MACRO VARIABLES 'SV_VAR_NAMES_COLUMN_LETTER' AND                  */
+/* 'SV_VAR_VALUES_COLUMN_LETTER' ARE USED  TO IDENTIFY WORKBOOK AND CELL */
+/* COLUMN NUMBERS.                                                       */
+/*                                                                       */
+/* EXAMPLES: R AND T                                                     */
+/*-----------------------------------------------------------------------*/
+
+%LET SV_VAR_NAMES_LABEL  = <       >; /*(T) SURROGATE VALUE NAME COLUMN */
+                                      /*    NAME. EXAMPLE: R            */
+%LET SV_VAR_VALUES_LABEL = <       >; /*(T) SURROGATE VALUE NAME COLUMN */
+                                      /*    NAME. EXAMPLE: T            */
 
 /*--------------------------------------------------------------------*/
 /* DATE INFORMATION                                                   */
@@ -192,12 +213,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /*(T) Location & Name of the     
 /* of the first month of the period and USENDDAY often corresponds to */
 /* the last day of the last month of the period, respectively,        */
 /* covering all U.S. sales dates.                                     */
-/*                                                                    */
-/* For Reviews USBEGINDAY often corresponds to the first day of the   */
-/* first month of the window (i.e., 3 months before month of first    */
-/* reported U.S. sale date) and USENDDAY often corresponds to the     */
-/* last day of the last month of the window (i.e., 2 months after     */
-/* month of last reported U.S. sale date).                            */
 /*--------------------------------------------------------------------*/
 
 %LET USSALEDATE = <        >;       /* (V) Variable representing the  */
@@ -301,7 +316,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /*(T) Location & Name of the     
 /*-------------------------------------------------------------------------*/
 /* The macro variables BEGINPERIOD and ENDPERIOD refer to the beginning    */
 /* and at the end of the official POI/POR. They are used for titling.      */
-/* BEGINPERIOD is also used in the Cohenís d Test.                         */
+/* BEGINPERIOD is also used in the Cohen’s d Test.                         */
 /*                                                                         */
 /* Typically, these dates refer to the first day of the first month for    */
 /* the POI/POR for the BEGINPERIOD and the last day of the last month of   */
@@ -496,7 +511,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /*(T) Location & Name of the     
 /* IF THERE ARE ANY ADJUSTMENTS THAT NEED TO BE CONVERTED INTO U.S. DOLLARS, MAKE   */
 /* A COPY OF THE DAILY EXCHANGE RATE DATASET(S) FROM:                               */
 /*                                                                                  */
-/* \\itacentral\myorg\ia\SAS\Shared Documents\Exchange Rates\SAS rates for Analysts */
+/* E:\Boilerplate SAS Programs and Exchange Rates\Exchange Rates                    */
 /*                                                                                  */
 /* AND PUT THE COPY (OR COPIES) IN THE LOCATION WHERE THE SAS DATASETS (EX. U.S.    */
 /* SALES, FOP) FOR THIS CASE ARE LOCATED.                                           */
@@ -826,7 +841,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /*(T) Location & Name of the     
                 /*---------------------------------------------------*/
 
                 /*------------------------------------------*/
-                /* CEP SELLING EXPENSE DEDUCTIONS FROM U.S. */ 
+                /* CEP SELLING EXPENSE DEDUCTIONS FROM U.S. */
                 /* STARTING PRICE THAT ARE INCURRED ON      */
                 /* ECONOMIC ACTIVITY IN THE U.S. MARKET.    */
                 /*------------------------------------------*/
@@ -867,6 +882,11 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /*(T) Location & Name of the     
 /*-----------------------------------*/
 /* FORMAT, PROGRAM AND PRINT OPTIONS */
 /*-----------------------------------*/
+
+TITLE1 "NME MARGIN CALCULATION PROGRAM - &PRODUCT FROM &COUNTRY - (&BEGINPERIOD - &ENDPERIOD)";
+TITLE2 "&SEGMENT &STAGE FOR RESPONDENT &RESPONDENT (&CASE_NUMBER)";
+FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
+FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
 
 %LET PRINTOBS = 10;        /* Number of observations to print.                 */
 
@@ -1108,7 +1128,7 @@ RUN;
 /*---------------------------------------------------*/
 
 PROC IMPORT OUT = SV_VAR_NAMES
-    DATAFILE = "&SV_PATH" DBMS = EXCEL REPLACE;
+    DATAFILE = "&SV_PATH" DBMS = XLSX REPLACE;
     RANGE = "&SV_NAME_RANGE"; 
     GETNAMES = NO;
 RUN;
@@ -1118,7 +1138,7 @@ RUN;
 /*----------------------------------------------------*/
 
 PROC IMPORT OUT = SV_VAR_VALUES
-    DATAFILE = "&SV_PATH" DBMS = EXCEL REPLACE;
+    DATAFILE = "&SV_PATH" DBMS = XLSX REPLACE;
     RANGE = "&SV_VALUE_RANGE"; 
     GETNAMES = NO;
 RUN;
@@ -1129,12 +1149,12 @@ RUN;
 /*----------------------------------------------------------*/
 
 DATA SV;
-    MERGE SV_VAR_NAMES SV_VAR_VALUES (RENAME = F1 = F2);
+    MERGE SV_VAR_NAMES SV_VAR_VALUES;
 RUN;
 
 PROC TRANSPOSE DATA = SV OUT = SV (DROP = _NAME_ _LABEL_);
-    VAR F2;
-    ID F1;
+    VAR &SV_VAR_VALUES_LABEL;
+    ID &SV_VAR_NAMES_LABEL;
 RUN;
 
 PROC PRINT DATA = SV;
@@ -1156,14 +1176,14 @@ RUN;
     %IF %UPCASE(&FILTER_CEP) = YES %THEN
     %DO;
         ELSE
-        IF (SALEU = "CEP") AND ("&BEGINDAY_CEP."D GT &CEP_DATE_VAR OR &CEP_DATE_VAR GT "&ENDDAY_CEP."D) 
+        IF (SALEU = "CEP") AND ("&BEGINDAY_CEP."D GT &CEP_DATE_VAR OR &CEP_DATE_VAR GT "&ENDDAY_CEP."D)
             THEN OUTPUT OUTDATES;
     %END;
 
     %IF %UPCASE(&FILTER_EP) = YES %THEN
     %DO; 
         ELSE
-        IF (SALEU = "EP") AND ("&BEGINDAY_EP."D GT &EP_DATE_VAR OR &EP_DATE_VAR GT "&ENDDAY_EP."D) 
+        IF (SALEU = "EP") AND ("&BEGINDAY_EP."D GT &EP_DATE_VAR OR &EP_DATE_VAR GT "&ENDDAY_EP."D)
             THEN OUTPUT OUTDATES;
     %END;
 %MEND MARGIN_FILTER;
@@ -1273,7 +1293,7 @@ RUN;
 
 /*-------------------------------------------------------------------------------*/
 /* PART 6: MERGE EXCHANGE RATES INTO SALES DATABASE. CONVERT VARIABLES INTO U.S. */
-/*         DOLLARS AND REVISE THE VARIABLE NAMES TO INCLUDE THE SUFFIX _USD.      */
+/*         DOLLARS AND REVISE THE VARIABLE NAMES TO INCLUDE THE SUFFIX _USD.     */
 /*-------------------------------------------------------------------------------*/
 
 %MACRO MERGE_EXRATES(USE_EXRATES = , EXDATA = ); 
@@ -2607,14 +2627,14 @@ RUN;
        /* AVGMARG:  Cash Deposit, Standard Method                 */
        /* AVGMIXED: Cash Deposit, sales not passing Cohen's d for */
        /*           Mixed Alternative Method                      */
-       /* TRNMIXED: Cash Deposit, sales passing Cohen's d for     */    
+       /* TRNMIXED: Cash Deposit, sales passing Cohen's d for     */
        /*           Mixed Alternative Method                      */
        /* TRANMARG: Cash Deposit, A-to-T Alternative Method       */
        /*                                                         */
        /* IMPSTND:  Assessment, Standard Method                   */
        /* IMPCSTN:  Assessment, sales not passing Cohen's d for   */
-       /*           Mixed Alternative Method                      */    
-       /* IMPCTRN:  Assessment, sales passing Cohen's d for Mixed */    
+       /*           Mixed Alternative Method                      */
+       /* IMPCTRN:  Assessment, sales passing Cohen's d for Mixed */
        /*           Alternative Method                            */
        /* IMPTRAN:  Assessment, A-to-T Alternative Method         */
        /*---------------------------------------------------------*/
@@ -2641,7 +2661,7 @@ RUN;
     /*    Method for the Cash Deposit Rate.  If there is a            */
     /*    mixture of sales pass and not passing Cohen's d, then the   */
     /*    CALC_RESULTS macro will be executed a third time using the  */
-    /*    Mixed Alternative Method.                                   */ 
+    /*    Mixed Alternative Method.                                   */
     /*                                                                */
     /*    The ABOVE_DEMINIMIS_STND, ABOVE_DEMINIMIS_MIXED and         */
     /*    ABOVE_DEMINIMIS_ALT macro variables were set to "NO" by     */
@@ -3529,8 +3549,8 @@ RUN;
         /* Alternative Method would be the same as the A-to-T Alternative */
         /* Method when all sales pass, or the Standard Method when all    */
         /* sales do not pass. Therefore, no need to calculate Mixed       */
-        /* Alternative assessment rates.                                  */     
-        /*----------------------------------------------------------------*/           
+        /* Alternative assessment rates.                                  */
+        /*----------------------------------------------------------------*/
 
         %IF &&ABOVE_DEMINIMIS_&TYPE = NA AND &&ABOVE_DEMINIMIS_ALT NE NO %THEN
         %DO;
@@ -3634,9 +3654,9 @@ RUN;
 
             DATA ASSESS_&INDATA;
                 LENGTH CALC_TYPE $11;
-                MERGE ENTVAL_&INDATA (IN=A) 
-                POSMARG_IMPORTER_&INDATA (IN=B) 
-                NEGMARG_IMPORTER_&INDATA (IN=C);
+                MERGE ENTVAL_&INDATA (IN = A) 
+                POSMARG_IMPORTER_&INDATA (IN = B) 
+                NEGMARG_IMPORTER_&INDATA (IN = C);
                 BY US_IMPORTER SOURCEU;
                     CALC_TYPE = "&CALC_TYPE";
                     IF A;
@@ -3665,22 +3685,22 @@ RUN;
 
         %IF &ABOVE_DEMINIMIS_STND = YES %THEN
         %DO;
-                %CALC_ASSESS(IMPSTND,STND,STANDARD)
+                %CALC_ASSESS(IMPSTND, STND, STANDARD)
         %END;
 
         /*----------------------------------------------------------*/
         /*    MIXED ALTERNATIVE METHOD                              */
         /*----------------------------------------------------------*/
 
-        %IF &ABOVE_DEMINIMIS_MIXED= YES %THEN
+        %IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
         %DO;
-            %CALC_ASSESS(IMPCSTN,STND,A-to-A)
-            %CALC_ASSESS(IMPCTRN,ALT,A-to-T)
+            %CALC_ASSESS(IMPCSTN, STND, A-to-A)
+            %CALC_ASSESS(IMPCTRN, ALT, A-to-T)
 
             /*--------------------------------------------------------------*/
             /*    COMBINE RESULTS FROM THE PORTION OF SALES                 */
             /*    CALCULATED A-to-A WITH OFFSETS, WITH THOSE FROM SALES     */
-            /*    CALCULATED A-to-T WITHOUT OFFSETS.                        */ 
+            /*    CALCULATED A-to-T WITHOUT OFFSETS.                        */
             /*--------------------------------------------------------------*/
 
             DATA ASSESS_MIXED_ALL;
@@ -3727,67 +3747,9 @@ RUN;
 
         %IF &ABOVE_DEMINIMIS_ALT= YES %THEN
         %DO;
-            %CALC_ASSESS(IMPTRAN,ALT,ALTERNATIVE)
+            %CALC_ASSESS(IMPTRAN, ALT, ALTERNATIVE)
         %END;
     %END;
-
-    %MACRO PRINT_ASSESS(INDATA);
-        DATA ASSESS_&INDATA;
-            SET ASSESS_&INDATA;
-
-            ASESRATE = (ITOTRESULTS / ITENTVAL) * 100; /* AD VALOREM RATE FOR ASSESSMENT, MAY BE CHANGED BELOW */
-            PERUNIT  = (ITOTRESULTS / ITOTQTY);        /* PER-UNIT RATE FOR ASSESSMENT, MAY BE CHANGED BELOW   */
-            DMINPCT  = ASESRATE;                       /* RATE FOR DE MINIMIS TEST                             */
-            
-            LENGTH DMINTEST $3. ;
-
-            IF DMINPCT GE 0.5 THEN
-            DO;
-                DMINTEST = 'NO';
-                %IF %UPCASE(&PER_UNIT_RATE) = NO %THEN
-                %DO;
-                    IF SOURCEU = 'REPORTED' THEN PERUNIT = .;
-                    ELSE 
-                    IF SOURCEU IN ('MIXED','COMPUTED')
-                    THEN 
-                %END;
-                ASESRATE = .;
-            END;
-            ELSE 
-            IF DMINPCT LT 0.5 THEN
-            DO;
-                DMINTEST = 'YES';
-                ASESRATE = 0;
-                PERUNIT  = 0;
-            END;
-
-            DMINPCT  = INT(DMINPCT*100)/100;
-        RUN;
-
-        PROC PRINT DATA = ASSESS_&INDATA SPLIT = '*' WIDTH = MINIMUM;
-            VAR US_IMPORTER SOURCEU ITENTVAL ITOTQTY IPOSRESULTS INEGRESULTS ITOTRESULTS
-                DMINPCT DMINTEST ASESRATE PERUNIT;
-            LABEL US_IMPORTER = 'IMPORTER**========'
-                  SOURCEU = 'CUSTOMS VALUE*DATA SOURCE**============='
-                  ITENTVAL = 'CUSTOMS VALUE*(A)*============='
-                  ITOTQTY = 'TOTAL QUANTITY*(B)*============'
-                  IPOSRESULTS = 'TOTAL OF*POSITIVE*COMPARISON*RESULTS*(C)*=========='
-                  INEGRESULTS = 'TOTAL OF*NEGATIVE*COMPARISON*RESULTS*(D)*=========='
-                  ITOTRESULTS = 'ANTIDUMPING*DUTIES DUE*(see footnotes)*(E)*=============='
-                  DMINPCT = 'RATE FOR*DE MINIMIS TEST*(percent)*(E/A)x100*=============='
-                  DMINTEST = 'IS THE RATE*AT OR BELOW*DE MINIMIS?**===========' 
-                  ASESRATE = '*AD VALOREM*ASSESSMENT*RATE*(percent)*(E/A)x100*=========='
-                  PERUNIT = 'PER-UNIT*ASSESSMENT*RATE*($/unit)*(E/B) *==========' ;
-                  FORMAT ITENTVAL ITOTQTY COMMA16.2 DMINPCT ASESRATE PERUNIT COMMA8.2;
-            TITLE3 "IMPORTER-SPECIFIC DE MINIMIS TEST RESULTS AND ASSESSMENT RATES";
-            TITLE4 &ASSESS_TITLE4;
-            TITLE5 "FOR DISPLAY PURPOSES, THE DE MINIMIS PERCENT IS NOT ROUNDED";
-            FOOTNOTE1 &ASSESS_FOOTNOTE1;
-            FOOTNOTE2 &ASSESS_FOOTNOTE2;
-            FOOTNOTE4 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
-            FOOTNOTE5 "&BDAY, &BWDATE - &BTIME";
-        RUN;
-    %MEND PRINT_ASSESS;
 
     %IF &ABOVE_DEMINIMIS_STND = YES %THEN
     %DO;
@@ -3822,41 +3784,7 @@ RUN;
 /* PART 19: REPRINT FINAL CASH DEPOSIT RATE */
 /*------------------------------------------*/
 
-%MACRO FINAL_CASH_DEPOSIT;
-    %IF %UPCASE(&PER_UNIT_RATE) = NO %THEN
-    %DO; 
-        %LET PREFIX = WTAVGPCT;
-        %LET LABEL_STND = "AD VALOREM*WEIGHTED AVERAGE*MARGIN RATE*(PERCENT)*STANDARD METHOD*================";
-        %LET LABEL_MIXED = "AD VALOREM*WEIGHTED AVERAGE*MARGIN RATE*(PERCENT)*MIXED ALTERNATIVE*METHOD*=================";
-        %LET LABEL_ALT = "AD VALOREM*WEIGHTED AVERAGE*MARGIN RATE*(PERCENT)*A-to-T ALTERNATIVE*METHOD*==================";
-        %LET CDFORMAT = PCT_MARGIN.;
-    %END;
-    %IF %UPCASE(&PER_UNIT_RATE) = YES %THEN
-    %DO;
-        %LET PREFIX = PER_UNIT_RATE;
-        %LET LABEL_STND = "PER-UNIT*WEIGHTED AVERAGE*MARGIN RATE*STANDARD METHOD*===============";
-        %LET LABEL_MIXED = "PER-UNIT*WEIGHTED AVERAGE*MARGIN RATE*MIXED ALTERNATIVE*METHOD*=================";
-        %LET LABEL_ALT = "PER-UNIT*WEIGHTED AVERAGE*RATE*A-to-T ALTERNATIVE*METHOD*==================";
-        %LET CDFORMAT = UNIT_MARGIN.;
-    %END;
-
-    PROC PRINT DATA = ANSWER NOOBS SPLIT = '*';
-        TITLE3 "SUMMARY OF CASH DEPOSIT RATES";
-        TITLE5 "PERCENT OF SALES PASSING THE COHEN'S D TEST: %SYSFUNC(STRIP(&PERCENT_VALUE_PASSING))";   
-        TITLE6 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE MIXED-ALTERNATIVE METHOD: %CMPRES(&MA_METHOD)";
-        TITLE7 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE A-to-T ALTERNATIVE METHOD: %CMPRES(&AT_METHOD)";
-        TITLE8 " ";
-        VAR &PREFIX._STND &PREFIX._MIXED &PREFIX._ALT;
-        LABEL &PREFIX._STND = &LABEL_STND
-              &PREFIX._MIXED = &LABEL_MIXED
-              &PREFIX._ALT = &LABEL_ALT;
-        FORMAT &PREFIX._STND  &PREFIX._MIXED &PREFIX._ALT &CDFORMAT;
-        FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
-        FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
-    RUN;
-%MEND FINAL_CASH_DEPOSIT;
-
-%FINAL_CASH_DEPOSIT
+%US19_FINAL_CASH_DEPOSIT
 
 DATA _NULL_;
     CALL SYMPUT('EDAY', STRIP(PUT(DATE(), DOWNAME.)));

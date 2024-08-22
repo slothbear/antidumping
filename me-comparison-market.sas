@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET ECONOMY                       */
 /*               ANALYSIS OF COMPARISON MARKET SALES PROGRAM               */
 /*                                                                         */
-/*              GENERIC VERSION LAST UPDATED AUGUST 16, 2022               */
+/*                 GENERIC VERSION LAST UPDATED JUNE 12, 2024              */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring in Comparison Market Sales, Convert Date Variable, If    */
@@ -13,7 +13,7 @@
 /* Part 6:  Add the Downstream Sales for Affiliated Parties That Failed    */
 /*          the Arm's-Length Test and Resold Merchandise                   */
 /* Part 7:  CM Values for CEP Profit Calculations                          */
-/* Part 8:  Cost Test                                                      */ 
+/* Part 8:  Cost Test                                                      */
 /* Part 9:  Weight-Averaged Comparison Market Values for Price-To-Price    */
 /*          Comparisons with U.S. Sales                                    */
 /* Part 10: Calculate Selling Expense and Profit Ratios for                */
@@ -69,16 +69,16 @@
 /*                    Macro Program and its file name.                 */
 /*---------------------------------------------------------------------*/
 
-LIBNAME COMPANY '<E:\....>';                   /* (T) Location of company and  */
-                                               /* exchange rate data sets.     */
-FILENAME MACR   '<E:\...\ME Macros.sas>';      /* (T) Location & name of AD-ME */
-                                               /* All Macros Program.          */
-%INCLUDE MACR;                                 /* Use the AD-ME All Macros     */
-                                               /* Program.                     */
-FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   */
-                                               /* Common Macros Program        */
-%INCLUDE C_MACS;                               /* Use the Common Macros        */
-                                               /* Program.                     */
+LIBNAME COMPANY '<E:\....>';                   /* (T) Location of company and   */
+                                               /* exchange rate data sets.      */
+FILENAME MACR   '<E:\...\ME Macros.sas>';      /* (T) Location & name of AD-ME  */
+                                               /* All Macros Program.           */
+%INCLUDE MACR;                                 /* Use the AD-ME All Macros      */
+                                               /* Program.                      */
+FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    */
+                                               /* Common Macros Program         */
+%INCLUDE C_MACS;                               /* Use the Common Macros         */
+                                               /* Program.                      */
 %LET LOG_SUMMARY = YES;                        /* Default value is "YES" (no    */
                                                /* quotes). Use "NO" (no quotes) */
                                                /* to run program in parts for   */
@@ -88,10 +88,11 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /* GET PROGRAM PATH/NAME AND CREATE THE SAME NAME FOR THE LOG FILE  */
 /* WITH .LOG EXTENSION                                              */
 /*------------------------------------------------------------------*/
+
 %GLOBAL MNAME LOG;
-%LET MNAME = %SYSFUNC(SCAN(%SYSFUNC(pathname(C_MACS)), 1, '.'));
-%LET LOG = %SYSFUNC(substr(&MNAME, 1, %SYSFUNC(length(&MNAME)) - %SYSFUNC(indexc(%SYSFUNC(
-           reverse(%SYSFUNC(trim(&MNAME)))), '\'))))%STR(\)%SYSFUNC(DEQUOTE(&_CLIENTTASKLABEL.))%STR(.log);  
+%LET MNAME = %SYSFUNC(SCAN(%SYSFUNC(PATHNAME(C_MACS)), 1, '.'));
+%LET LOG = %SYSFUNC(SUBSTR(&MNAME, 1, %SYSFUNC(LENGTH(&MNAME)) - %SYSFUNC(INDEXC(%SYSFUNC(
+           REVERSE(%SYSFUNC(TRIM(&MNAME)))), '\'))))%STR(\)%SYSFUNC(DEQUOTE(&_CLIENTTASKLABEL.))%STR(.LOG);  
 
 %CMAC1_WRITE_LOG;
 
@@ -200,7 +201,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*-------------------------------------------------------------------------*/
 /* The macro variables BEGINPERIOD and ENDPERIOD refer to the beginning    */
 /* and at the end of the official POI/POR. They are used for titling.      */
-/* BEGINPERIOD is also used in the Cohenís d Test.                         */
+/* BEGINPERIOD is also used in the Cohen’s d Test.                         */
 /*                                                                         */
 /* Typically, these dates refer to the first day of the first month for    */
 /* the POI/POR for the BEGINPERIOD and the last day of the last month of   */
@@ -556,7 +557,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                                 /*    unaffiliated sales. Default is       */
                                 /*    numeric value of 1.                  */
 %LET RUN_DOWNSTREAM = <YES/NO>; /*(T) Include a downstream sales dataset?  */
-                                /*    You must run the Armís-Length test   */
+                                /*    You must run the Arm’s-Length test   */
                                 /*    to use downstream sales. Type "YES"  */
                                 /*    or "NO" (without quotes).            */
 %LET     DOWNSTREAMDATA = <  >; /*(D) Downstream sales dataset filename.   */
@@ -1001,7 +1002,7 @@ RUN;
 PROC PRINT DATA = COST (OBS = &PRINTOBS);
     WHERE &COST_QTY IN (., 0);
     TITLE3 "RESPONDENTS REPORTED COST WITH MISSING OR ZERO PRODUCTION QUANTITY";
-    TITLE4 "BY DEFAULT THE PROGRAM WILL SET PRODUCTION QUATITY TO ONE (1)";
+    TITLE4 "BY DEFAULT THE PROGRAM WILL SET PRODUCTION QUANTITY  TO ONE (1)";
     TITLE5 "IF YOU WANT THE PROGRAM TO FIND SURROGATE COST FOR THESE CONNUMS WITHOUT PRODUCTION QUANTITY";
     TITLE6 "TURN ON SECTION 1-E-III-a. SURROGATE COSTS FOR NON-PRODUCTION";
 RUN;

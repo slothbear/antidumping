@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET ECONOMY                       */
 /*                        MARGIN CALCULATION PROGRAM                       */
 /*                                                                         */
-/*               GENERIC VERSION LAST UPDATED AUGUST 16, 2022              */
+/*                 GENERIC VERSION LAST UPDATED JUNE 12, 2024              */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
@@ -29,7 +29,7 @@
 /* Part 17: Reprint the Final Cash Deposit Rate                            */
 /* Part 18: Delete All Work Files in the SAS Memory Buffer, If Desired     */
 /* Part 19: Calculate Run Time for This Program, If Desired                */
-/* Part 20: Review Log for Errors, Warnings, Uninit. etc.                  */ 
+/* Part 20: Review Log for Errors, Warnings, Uninit. etc.                  */
 /***************************************************************************/
 
 /*-----------------------------------------------------------------------*/
@@ -97,9 +97,9 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*-----------------------------------------------------------------------------*/
 
 %GLOBAL MNAME LOG;
-%LET MNAME = %SYSFUNC(SCAN(%SYSFUNC(pathname(C_MACS)), 1, '.'));
-%LET LOG = %SYSFUNC(substr(&MNAME, 1, %SYSFUNC(length(&MNAME)) - %SYSFUNC(indexc(%SYSFUNC(
-           reverse(%SYSFUNC(trim(&MNAME)))), '\'))))%STR(\)%SYSFUNC(DEQUOTE(&_CLIENTTASKLABEL.))%STR(.log);  
+%LET MNAME = %SYSFUNC(SCAN(%SYSFUNC(PATHNAME(C_MACS)), 1, '.'));
+%LET LOG = %SYSFUNC(SUBSTR(&MNAME, 1, %SYSFUNC(LENGTH(&MNAME)) - %SYSFUNC(INDEXC(%SYSFUNC(
+           REVERSE(%SYSFUNC(TRIM(&MNAME)))), '\'))))%STR(\)%SYSFUNC(DEQUOTE(&_CLIENTTASKLABEL.))%STR(.LOG);  
 
 %CMAC1_WRITE_LOG;
 
@@ -297,7 +297,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*-------------------------------------------------------------------------*/
 /* The macro variables BEGINPERIOD and ENDPERIOD refer to the beginning    */
 /* and at the end of the official POI/POR. They are used for titling.      */
-/* BEGINPERIOD is also used in the Cohen’s d Test.                         */
+/* BEGINPERIOD is also used in the Cohenâ€™s d Test.                         */
 /*                                                                         */
 /* Typically, these dates refer to the first day of the first month for    */
 /* the POI/POR for the BEGINPERIOD and the last day of the last month of   */
@@ -762,40 +762,44 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /* 1-F: CONDITIONAL PROGRAMMING OPTIONS:                            */
 /*------------------------------------------------------------------*/
 
-%LET LOT_ADJUST = <NO/HM/INPUT>;  /*(T) Type "NO" (without quotes) when    */
-                                  /*    not making an LOT adjustment. Type */
-                                  /*    "HM" (without quotes) if using     */
-                                  /*    info. from CM sales. Type "INPUT"  */
-                                  /*    (without quotes) if using info.    */
-                                  /*    from a source other than CM sales. */
-                                  /*    If you typed "INPUT," then also    */
-                                  /*    complete Sect. 7-A-i below.        */
-%LET CEPROFIT = <CALC/INPUT>;     /*(T) Type "CALC" (without quotes) to    */
-                                  /*    use CM and U.S. expense and        */
-                                  /*    revenue data. You must have a cost */
-                                  /*    database if you type "CALC." Type  */
-                                  /*    "INPUT" (without quotes) to supply */
-                                  /*    an alternative CEP profit rate     */
-                                  /*    when not calculating the same.     */
-%LET CEPRATE = <  >;              /*(T) If you typed "LET CEPROFIT=INPUT"  */
-                                  /*    directly above, the alternative    */
-                                  /*    CEP profit rate in decimal form.   */
-%LET ALLOW_CEP_OFFSET = <YES/NO>; /*(T) Allow CEP offset? Type "YES" or    */
-                                  /*    "NO" (without quotes).             */
-%LET CVSELL_TYPE = <CM/OTHER>;    /*(T) Type "CM" (without quotes) when    */
-                                  /*    using CM selling & profit info.    */
-                                  /*    Type "OTHER" (without quotes)      */
-                                  /*    if using info. from a source       */
-                                  /*    other than CM sales.               */
-                                  /*    If you typed "OTHER," then also    */
-                                  /*    complete Sect. 9-A below. This     */
-                                  /*    macro variable is required only    */
-                                  /*    if you will have CV comparisons.   */
-%LET PER_UNIT_RATE = <YES/NO>;    /*(T) Only print per-unit (and not ad    */
-                                  /*    valorem) cash deposit and, if      */
-                                  /*    applicable, assessment rates even  */
-                                  /*    when entered values are reported?  */
-                                  /*    Type "YES" or "NO" (without quotes)*/
+%LET LOT_ADJUST = <NO/HM/INPUT>;  /*(T) Type "NO" (without quotes) when     */
+                                  /*    not making an LOT adjustment. Type  */
+                                  /*    "HM" (without quotes) if using      */
+                                  /*    info. from CM sales. Type "INPUT"   */
+                                  /*    (without quotes) if using info.     */
+                                  /*    from a source other than CM sales.  */
+                                  /*    If you typed "INPUT," then also     */
+                                  /*    complete Section 7-A-i below.       */
+%LET CEPROFIT = <CALC/INPUT>;     /*(T) If there are CEP sales, type "CALC" */
+                                  /*    (without quotes) to use CM and U.S. */
+                                  /*    expense and revenue data. Type      */
+                                  /*    "INPUT" (without quotes) to supply  */
+                                  /*    an alternative CEP profit rate      */
+                                  /*    when not calculating the same. If   */
+                                  /*    there are not CEP sales, skip       */
+                                  /*    filling in the macro variable       */
+                                  /*    CEPROFIT.                           */
+%LET CEPRATE = <  >;              /*(T) If you typed "LET CEPROFIT=INPUT"   */
+                                  /*    directly above, the alternative     */
+                                  /*    CEP profit rate in decimal form.    */
+%LET ALLOW_CEP_OFFSET = <YES/NO>; /*(T) Allow CEP offset? Type "YES" or     */
+                                  /*    "NO" (without quotes). If there are */
+                                  /*    no CEP sales, type "NO" (without    */
+                                  /*    quotes).                            */
+%LET CVSELL_TYPE = <CM/OTHER>;    /*(T) Type "CM" (without quotes) when     */
+                                  /*    using CM selling & profit info.     */
+                                  /*    Type "OTHER" (without quotes)       */
+                                  /*    if using info. from a source        */
+                                  /*    other than CM sales. If you typed   */
+                                  /*    "OTHER," then also complete section */
+                                  /*    9-A below. This macro variable is   */
+                                  /*    required only if you will have CV   */
+                                  /*    comparisons.                        */
+%LET PER_UNIT_RATE = <YES/NO>;    /*(T) Only print per-unit (and not ad     */
+                                  /*    valorem) cash deposit and, if       */
+                                  /*    applicable, assessment rates even   */
+                                  /*    when entered values are reported?   */
+                                  /*    Type "YES" or "NO" (without quotes) */
 
 /*------------------------------------------------------------------*/
 /* 1-G: FORMAT, PROGRAM AND PRINT OPTIONS                           */
@@ -1206,7 +1210,7 @@ RUN;
         PROC PRINT DATA = COST (OBS = &PRINTOBS);
             WHERE &COST_QTY IN (., 0);
             TITLE3 "RESPONDENTS REPORTED COST WITH MISSING OR ZERO PRODUCTION QUANTITY";
-            TITLE4 "BY DEFAULT THE PROGRAM WILL SET PRODUCTION QUATITY TO ONE (1)";
+            TITLE4 "BY DEFAULT THE PROGRAM WILL SET PRODUCTION QUANTITY TO ONE (1)";
             TITLE5 "IF YOU WANT THE PROGRAM TO FIND SURROGATE COST FOR THESE CONNUMS WITHOUT PRODUCTION QUANTITY";
             TITLE6 "TURN ON SECTION 1-E-ix. SURROGATE COSTS FOR NON-PRODUCTION";
         RUN;
@@ -1402,10 +1406,6 @@ DATA USSALES;
                          /* Section 1-E-ii above                           */
     USGUPADJ = <0>;      /* Price adjustments to be added to USGUP,        */
                          /* including duty drawback, CVD export subsidies. */
-                         /* If using Cost based duty drawback in the       */
-                         /* variable will need to be converted to USD by   */
-                         /* multiplying the variable by an exchange rate   */
-                         /* variable such as &EXRATE1.                     */
     USDISREB = <0>;      /* Discounts, rebates and other price adjust-     */
                          /* ments to be subtracted from USGUP              */
     USDOMMOVE = <0>;     /* Domestic U.S. movement expenses up to delivery */

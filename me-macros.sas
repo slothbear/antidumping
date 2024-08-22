@@ -2,7 +2,7 @@
 /*                    ANTIDUMPING MARKET ECONOMY                    */
 /*                          MACROS PROGRAM                          */
 /*                                                                  */
-/*          GENERIC VERSION LAST UPDATED AUGUST 16, 2022            */
+/*                 GENERIC VERSION LAST UPDATED JUNE 12, 2024       */
 /*                                                                  */
 /********************************************************************/
 /*                          GENERAL MACROS                          */
@@ -60,7 +60,6 @@
 /*     US16_CALC_CASH_DEPOSIT                                       */
 /*     US17_MEANINGFUL_DIFF_TEST                                    */
 /*     US18_ASSESSMENT                                              */
-/*     US19_FINAL_CASH_DEPOSIT                                      */
 /********************************************************************/
 
 /********************************************************/
@@ -144,9 +143,9 @@
             'AN' = 'Reported Annualized'
             'SG' = 'Surrogate Annualized'
 
-            'Q1' = 'Reported Quarterly'
-            'Q2' = 'Blended Surrogate Quarterly'
-            'Q3' = 'Gap Fill Surrogate Quarterly'
+            'RQ' = 'Reported Quarterly'
+            'BQ' = 'Blended Surrogate Quarterly'
+            'GQ' = 'Gap Fill Surrogate Quarterly'
 
             'H1' = 'Reported High Inflation'
             'H2' = 'Annualized High Inflation'
@@ -363,28 +362,37 @@
             %MARGIN_FILTER
             ELSE
             DO;
-                /*--------------------------------------------------------------------*/
-                /* In administrative reviews, define HMMONTH and USMONTH variables so */
-                /* that each month has a unique value.                                */
-                /*--------------------------------------------------------------------*/
+                /*--------------------------------------------------------------*/
+                /* In annualized cost administrative reviews, define HMMONTH    */
+                /* and USMONTH variables so that each month has a unique value. */
+                /*--------------------------------------------------------------*/
 
-                %IF %UPCASE(&CASE_TYPE) = AR %THEN
+                %IF (%UPCASE(&CASE_TYPE) EQ AR) %THEN
                 %DO;
-                    %IF &DBTYPE = US %THEN
-                    %DO;
-                        %LET BEGIN = &HMBEGINWINDOW;
+                    %IF (%UPCASE(&COMPARE_BY_TIME) NE YES) AND              /* In annualized cost reviews */
+                        (%UPCASE(&COMPARE_BY_HIGH_INFLATION) NE YES) %THEN  /* define USMONTH/HMMONTH.    */ 
+                    %DO; 
+                        %IF &DBTYPE = US %THEN
+                        %DO;
+                            %LET BEGIN = &HMBEGINWINDOW;
+                        %END;
+                        %ELSE
+                        %DO;
+                            %LET BEGIN = &HMBEGINDAY;
+                        %END;
+                            MON = MONTH(&DATE);
+                            YRDIFF = YEAR(&DATE) - YEAR("&BEGIN."D);
+                            &SALES_MONTH = MON + YRDIFF * 12;
+                            DROP MON YRDIFF;
+                            %LET MONTH = &SALES_MONTH;
                     %END;
                     %ELSE
-                    %DO;
-                        %LET BEGIN = &HMBEGINDAY;
+                    %IF (%UPCASE(&COMPARE_BY_TIME) EQ YES) OR               /* In non-annualized cost reviews */
+                        (%UPCASE(&COMPARE_BY_HIGH_INFLATION) EQ YES) %THEN  /* set USMONTH/HMMONTH to blank.  */
+                    %DO;                                                
+                        %LET MONTH = ;
                     %END;
-                    MON = MONTH(&DATE);
-                    YRDIFF = YEAR(&DATE) - YEAR("&BEGIN."D);
-                    &SALES_MONTH = MON + YRDIFF * 12;
-                    DROP MON YRDIFF;
-                    %LET MONTH = &SALES_MONTH;
                 %END;
-
                 OUTPUT &SALES;
             END;
         RUN;
@@ -610,14 +618,14 @@
             %IF %UPCASE(&TIME_ANNUALIZED) EQ NA %THEN
             %DO;
                 %MACRO NOPROD_TIME_TYPE;
-                    NOPROD_TIME_TYPE = 'Q1';
+                    NOPROD_TIME_TYPE = 'RQ';
                 %MEND NOPROD_TIME_TYPE;
             %END;
             %ELSE 
             %IF %UPCASE(&TIME_ANNUALIZED) NE NA %THEN
             %DO;
                 %MACRO NOPROD_TIME_TYPE;
-                    NOPROD_TIME_TYPE = 'Q1';
+                    NOPROD_TIME_TYPE = 'RQ';
                     IF &COST_TIME_PERIOD IN(&TIME_ANNUALIZED) THEN
                         NOPROD_TIME_TYPE = "AN";
                 %MEND NOPROD_TIME_TYPE;
@@ -906,7 +914,7 @@
 /**********************************************************************/
 
 /**********************************************************************************************/
-/* For cases where there are timeñspecific costs, i.e. quarterly cost, the program assigns    */
+/* For cases where there are time–specific costs, i.e. quarterly cost, the program assigns    */
 /* quarters to the CM and U.S. sales observations. The quarters are based off of the reported */
 /* sale date, and first day of the POR/POI. The quarters are character, length 2, with the    */
 /* values '-2', '-1', '0', '1', '2', etc. This will only run if there is quarterly cost.      */
@@ -942,7 +950,7 @@
 
 /**********************************************************************************************************************/
 /*                                                                                                                    */
-/* For cases where there are time ñ specific costs, i.e. quarterly cost, the program takes the following steps:       */
+/* For cases where there are time – specific costs, i.e. quarterly cost, the program takes the following steps:       */
 /* 1. In section G-10;                                                                                                */
 /*     a. Makes a list of CONNUMS and time periods with reported sales                                                */
 /*     b. Makes a list of time periods with reported costs.                                                           */
@@ -951,13 +959,13 @@
 /* 2. In Section G-11, if there are periods that have sales that do not have any reported costs:                      */
 /*     a. On a CONNUM specific basis, pull the closest period of production into the period that needs production.    */
 /*        Keep the direct materials costs, and index them to adjust those costs according to the period.              */
-/*     b. Apply the POR/I weight average ëconversion costsí i.e. the non-direct materials costs, to each CONNUM.      */
+/*     b. Apply the POR/I weight average ‘conversion costs’ i.e. the non-direct materials costs, to each CONNUM.      */
 /* 3. In Section G-12; if there CONNUMS with no production in a specific period, but production in other period(s):   */
 /*     a. Find the most similar CONNUM with production in the period and assign its direct materials costs as         */
 /*        surrogate to the CONNUM(s) with no production.                                                              */
 /*     b. Assign the POR/I weight average conversion costs to those CONNUMS with no production in the period.         */
 /* 4. In Section G-13; if there are CONNUMS with sales in the POR/I and no production anywhere in the POR/I:          */
-/*     a. Assign the most similar CONNUMís cost from within the period as the surrogate for the CONNUM with no costs. */
+/*     a. Assign the most similar CONNUM’s cost from within the period as the surrogate for the CONNUM with no costs. */
 /*                                                                                                                    */
 /**********************************************************************************************************************/
 
@@ -1610,7 +1618,7 @@
             SET ZERO_PROD_ALLCOST;
             SUMDURMATS = SUM(&SUM_DIRMAT_VARS);
             &TOTCOM = R&TOTCOM + SUMDURMATS;
-            COST_TIME_TYPE = 'Q2';
+            COST_TIME_TYPE = 'BQ';
         RUN;
 
         PROC PRINT DATA = ZERO_PROD_ALLCOST (OBS = &PRINTOBS);
@@ -1622,7 +1630,7 @@
 
         DATA COST;
             SET COST;
-            COST_TIME_TYPE = 'Q1';
+            COST_TIME_TYPE = 'RQ';
         RUN;
 
         DATA COST;
@@ -1698,7 +1706,7 @@
                         DIFCHR(I) = ABS(INPUT(NOPROD(I), 8.) - INPUT(COSTPROD(I), 8.));
                     END;
 
-                    COST_TIME_TYPE = 'Q2';
+                    COST_TIME_TYPE = 'BQ';
                     OUTPUT ISNC_SIMCOST;
                 END;
             END;
@@ -1744,7 +1752,7 @@
         DATA COST;
             SET COST ISNC_SIMCOST_TOP1 (IN = B);
             IF B THEN
-                COST_TIME_TYPE = 'Q2';
+                COST_TIME_TYPE = 'BQ';
             FORMAT COST_TIME_TYPE $TIMETYPE.;
         RUN;
 
@@ -2494,6 +2502,14 @@
 
             DATA COST;
                 SET COST;
+
+            %IF (%UPCASE(&COMPARE_BY_TIME) = NO) AND
+                (%UPCASE(&COMPARE_BY_HIGH_INFLATION) = NO) AND
+                (%UPCASE(&FIND_SURROGATES) = NO) %THEN
+            %DO;
+                COST_TIME_TYPE = 'AN';
+            %END;
+
                 FORMAT COST_TIME_TYPE $TIMETYPE.;
             RUN;
 
@@ -3885,10 +3901,12 @@
         %IF &RUN_RECOVERY = YES %THEN
         %DO;
             PROC MEANS NWAY DATA = COMPANY.&RESPONDENT._&SEGMENT._&STAGE._COST NOPRINT;
+                WHERE '1' <= COST_TIME_PERIOD <= PUT(SUM(INTCK('QTR', "&BEGINPERIOD"D, "&ENDPERIOD"D, 'DISCRETE'), 1), 1.) 
+                      AND COST_TIME_TYPE = 'RQ';
                 CLASS &COP_MANF_OUT COST_MATCH;
                 VAR AVGCOST;
                 WEIGHT COST_QTY;
-               OUTPUT OUT = CONNUMCOST (DROP = _:) MEAN = CONNUM_COST;
+                OUTPUT OUT = CONNUMCOST (DROP = _:) MEAN = CONNUM_COST;
             RUN;
 
             PROC SORT DATA = HMBELOW OUT = HMBELOW;
@@ -3896,7 +3914,6 @@
             RUN;
 
             PROC MEANS NWAY DATA = HMBELOW NOPRINT;
-                WHERE "&BEGINPERIOD"D <= &HMSALEDATE <= "&ENDPERIOD"D;
                 CLASS &SALES_COST_MANF &HMPRIM &HMCONNUM;
                 VAR HMNPRICOP;
                 WEIGHT &HMQTY;
@@ -4266,6 +4283,7 @@
     %LET USPRIM = ;             /* prime code for U.S. sales data                    */
             
     /*------------------------------------------------------------------------------*/
+    /*------------------------------------------------------------------------------*/
     /*  1-B DEFINE INVESTIGATION OR ADMINISTRATIVE REVIEWS SPECIFIC MACRO VARIABLES */
     /*------------------------------------------------------------------------------*/
 
@@ -4279,8 +4297,19 @@
     %IF %UPCASE(&CASE_TYPE) EQ AR %THEN  /* de minimis is 0.5 and month is relevant */
     %DO;
         %LET DE_MINIMIS = .5;
-        %LET USMON = USMONTH;
-        %LET HMMON = HMMONTH;
+        %IF (%UPCASE(&COMPARE_BY_TIME) NE YES) AND              /* In annualized cost reviews */
+            (%UPCASE(&COMPARE_BY_HIGH_INFLATION) NE YES) %THEN  /* define USMONTH/HMMONTH.    */ 
+        %DO;                                                
+            %LET USMON = USMONTH;
+            %LET HMMON = HMMONTH;
+        %END;
+        %ELSE
+        %IF (%UPCASE(&COMPARE_BY_TIME) EQ YES) OR               /* In non-annualized cost reviews */
+            (%UPCASE(&COMPARE_BY_HIGH_INFLATION) EQ YES) %THEN  /* set USMONTH/HMMONTH to blank.  */
+        %DO;                                                
+            %LET USMON = ;
+            %LET HMMON = ;
+        %END;
     %END;
 
     /*------------------------------------------------------------------------*/
@@ -4792,7 +4821,7 @@ OPTIONS SYMBOLGEN;
         /*--------------------------------------------------------------------*/
 
         %MACRO CONTEMP; 
-            %IF %UPCASE(&CASE_TYPE) = AR %THEN
+            %IF (%UPCASE(&CASE_TYPE) = AR) AND (%UPCASE(&COMPARE_BY_TIME) NE YES) %THEN
             %DO;  
                 TIMEDEV = &USMON - &HMMON;
                 SELECT (TIMEDEV);
@@ -5301,19 +5330,16 @@ OPTIONS SYMBOLGEN;
         RUN;
 
         PROC SORT DATA = CVMODS OUT = CVMODS;
-            BY &USMANF &USPRIM USLOT &US_TIME_PERIOD &USMON &USCONNUM;
+            BY &USMANF &USPRIM USLOT &US_TIME_PERIOD &YEARMONTHU &USMON &USCONNUM;
         RUN;
-
         PROC SORT DATA = USSALES OUT = USSALES;
-            BY &USMANF &USPRIM USLOT &US_TIME_PERIOD &USMON &USCONNUM;
+            BY &USMANF &USPRIM USLOT &US_TIME_PERIOD &YEARMONTHU &USMON &USCONNUM;
         RUN;
-
         DATA NVCV;
             MERGE USSALES (IN=A) CVMODS (IN=B);
-            BY &USMANF &USPRIM USLOT &US_TIME_PERIOD &USMON &USCONNUM;
+            BY &USMANF &USPRIM USLOT &US_TIME_PERIOD &YEARMONTHU &USMON &USCONNUM;
             IF A & B;
         RUN;
-
     %END;
 
     %MACRO CV_ADJUSTMT_CEP;
@@ -5597,9 +5623,9 @@ OPTIONS SYMBOLGEN;
             %END;    
             %ELSE %IF %UPCASE(&DP_TIME_CALC) = YES %THEN
             %DO;
-                FIRSTMONTH =MONTH("&BEGINPERIOD"D);
-                DPMONTH=MONTH(&USSALEDATE)+(YEAR(&USSALEDATE)-YEAR("&BEGINPERIOD"D))*12;
-                DP_PERIOD="QTR"||PUT(INT(1+(DPMONTH-FIRSTMONTH)/3),Z2.);
+                FIRSTMONTH = MONTH("&BEGINPERIOD"D);
+                DPMONTH = MONTH(&USSALEDATE) + (YEAR(&USSALEDATE) - YEAR("&BEGINPERIOD"D)) * 12;
+                DP_PERIOD = "QTR"||PUT(INT(1 + (DPMONTH - FIRSTMONTH) / 3), Z2.);
                 DROP FIRSTMONTH DPMONTH;
                 %LET DP_PERIOD = &USSALEDATE;
                 %LET PERIOD_PRINT_VARS = &DP_PERIOD DP_PERIOD;
@@ -7441,75 +7467,6 @@ OPTIONS SYMBOLGEN;
         %END;
     %END;
 
-    %MACRO PRINT_ASSESS(INDATA);
-        DATA ASSESS_&INDATA;
-            SET ASSESS_&INDATA;
-
-            /* AD VALOREM RATE FOR ASSESSMENT */
-
-            ASESRATE = (ITOTRESULTS / ITENTVAL)* 100;
-
-            /* PER-UNIT RATE FOR ASSESSMENT */
-
-            PERUNIT  = (ITOTRESULTS / ITOTQTY); 
-
-            /* RATE FOR DE MINIMIS TEST. */
-
-            DMINPCT  = ASESRATE;
-            LENGTH DMINTEST $3. ;
-
-            IF DMINPCT GE 0.5 THEN
-            DO;
-                DMINTEST = 'NO';
-
-                %IF %UPCASE(&PER_UNIT_RATE) = NO %THEN
-                %DO;
-                    IF SOURCEU = 'REPORTED' THEN 
-                        PERUNIT = .;
-                    ELSE 
-                    IF SOURCEU IN ('MIXED','COMPUTED') THEN 
-                %END;
-
-                ASESRATE = .;
-            END;
-            ELSE 
-            IF DMINPCT LT 0.5 THEN
-            DO;
-                DMINTEST = 'YES';
-                ASESRATE = 0;
-                PERUNIT  = 0;
-            END;
-
-            DMINPCT  = INT(DMINPCT * 100) / 100;
-        RUN;
-
-        PROC PRINT DATA = ASSESS_&INDATA SPLIT = '*' WIDTH = MINIMUM;
-            VAR US_IMPORTER SOURCEU ITENTVAL ITOTQTY IPOSRESULTS 
-                INEGRESULTS ITOTRESULTS DMINPCT DMINTEST ASESRATE
-                PERUNIT;
-            LABEL US_IMPORTER  = 'IMPORTER**========'
-                  SOURCEU      = 'CUSTOMS VALUE*DATA SOURCE**============='
-                  ITENTVAL     = 'CUSTOMS VALUE*(A)*============='
-                  ITOTQTY      = 'TOTAL QUANTITY*(B)*============'
-                  IPOSRESULTS  = 'TOTAL OF*POSITIVE*COMPARISON*RESULTS*(C)*=========='
-                  INEGRESULTS  = 'TOTAL OF*NEGATIVE*COMPARISON*RESULTS*(D)*=========='
-                  ITOTRESULTS  = 'ANTIDUMPING*DUTIES DUE*(see footnotes)*(E)*=============='
-                  DMINPCT      = 'RATE FOR*DE MINIMIS TEST*(percent)*(E/A)x100*=============='
-                  DMINTEST     = 'IS THE RATE*AT OR BELOW*DE MINIMIS?**===========' 
-                  ASESRATE     = '*AD VALOREM*ASSESSMENT*RATE*(percent)*(E/A)x100*=========='
-                  PERUNIT      = 'PER-UNIT*ASSESSMENT*RATE*($/unit)*(E/B) *==========' ;
-                  FORMAT ITENTVAL ITOTQTY COMMA16.2
-                         DMINPCT ASESRATE PERUNIT COMMA8.2;
-            TITLE3 "IMPORTER-SPECIFIC DE MINIMIS TEST RESULTS AND ASSESSMENT RATES";
-            TITLE4 &ASSESS_TITLE4;
-            TITLE5 "FOR DISPLAY PURPOSES, THE DE MINIMIS PERCENT IS NOT ROUNDED";
-            FOOTNOTE1 &ASSESS_FOOTNOTE1;
-            FOOTNOTE2 &ASSESS_FOOTNOTE2;
-            FOOTNOTE4 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
-            FOOTNOTE5 "&BDAY, &BWDATE - &BTIME";
-        RUN;
-    %MEND PRINT_ASSESS;
-
     %IF &ABOVE_DEMINIMIS_STND = YES %THEN
     %DO;
         %LET ASSESS_FOOTNOTE1 = "IF C IS GREATER THAN THE ABSOLUTE VALUE OF D, THEN THE ANTIDUMPING DUTIES DUE ";
@@ -7535,42 +7492,3 @@ OPTIONS SYMBOLGEN;
     %END;
 %END;
 %MEND US18_ASSESSMENT;
-
-/******************************************/
-/* US-19: REPRINT FINAL CASH DEPOSIT RATE */
-/******************************************/
-
-%MACRO US19_FINAL_CASH_DEPOSIT;
-    %IF %UPCASE(&PER_UNIT_RATE) = NO %THEN
-    %DO; 
-        %LET PREFIX = WTAVGPCT;
-        %LET LABEL_STND = "AD VALOREM*WEIGHTED AVERAGE*MARGIN RATE*(PERCENT)*STANDARD METHOD*================";
-        %LET LABEL_MIXED = "AD VALOREM*WEIGHTED AVERAGE*MARGIN RATE*(PERCENT)*MIXED ALTERNATIVE*METHOD*=================";
-        %LET LABEL_ALT = "AD VALOREM*WEIGHTED AVERAGE*MARGIN RATE*(PERCENT)*A-to-T ALTERNATIVE*METHOD*==================";
-        %LET CDFORMAT = PCT_MARGIN.;
-    %END;
-    %ELSE
-    %IF %UPCASE(&PER_UNIT_RATE) = YES %THEN
-    %DO;
-        %LET PREFIX = PER_UNIT_RATE;
-        %LET LABEL_STND = "PER-UNIT*WEIGHTED AVERAGE*MARGIN RATE*STANDARD METHOD*===============";
-        %LET LABEL_MIXED = "PER-UNIT*WEIGHTED AVERAGE*MARGIN RATE*MIXED ALTERNATIVE*METHOD*=================";
-        %LET LABEL_ALT = "PER-UNIT*WEIGHTED AVERAGE*RATE*A-to-T ALTERNATIVE*METHOD*==================";
-        %LET CDFORMAT = UNIT_MARGIN.;
-    %END;
-
-    PROC PRINT DATA = ANSWER NOOBS SPLIT = '*';
-        TITLE3 "SUMMARY OF CASH DEPOSIT RATES";
-        TITLE5 "PERCENT OF SALES PASSING THE COHEN'S D TEST: %CMPRES(&PERCENT_VALUE_PASSING)";   
-        TITLE6 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE MIXED-ALTERNATIVE METHOD: %CMPRES(&MA_METHOD)";
-        TITLE7 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE A-to-T ALTERNATIVE METHOD: %CMPRES(&AT_METHOD)";
-        TITLE8 " ";
-        VAR &PREFIX._STND &PREFIX._MIXED &PREFIX._ALT;
-        LABEL &PREFIX._STND = &LABEL_STND
-              &PREFIX._MIXED = &LABEL_MIXED
-              &PREFIX._ALT = &LABEL_ALT;
-        FORMAT &PREFIX._STND  &PREFIX._MIXED &PREFIX._ALT &CDFORMAT;
-        FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
-        FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
-    RUN;
-%MEND US19_FINAL_CASH_DEPOSIT;
