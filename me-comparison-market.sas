@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET ECONOMY                       */
 /*               ANALYSIS OF COMPARISON MARKET SALES PROGRAM               */
 /*                                                                         */
-/*              GENERIC VERSION LAST UPDATED AUGUST 13, 2024               */
+/*              GENERIC VERSION LAST UPDATED JUNE 27, 2024               */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring in Comparison Market Sales, Convert Date Variable, If    */
@@ -201,7 +201,6 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
 /*-------------------------------------------------------------------------*/
 /* The macro variables BEGINPERIOD and ENDPERIOD refer to the beginning    */
 /* and at the end of the official POI/POR. They are used for titling.      */
-/* BEGINPERIOD is also used in the Cohen’s d Test.                         */
 /*                                                                         */
 /* Typically, these dates refer to the first day of the first month for    */
 /* the POI/POR for the BEGINPERIOD and the last day of the last month of   */
@@ -566,7 +565,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the    
                                 /*    unaffiliated sales. Default is       */
                                 /*    numeric value of 1.                  */
 %LET RUN_DOWNSTREAM = <YES/NO>; /*(T) Include a downstream sales dataset?  */
-                                /*    You must run the Arm’s-Length test   */
+                                /*    You must run the Arm s-Length test   */
                                 /*    to use downstream sales. Type "YES"  */
                                 /*    or "NO" (without quotes).            */
 %LET     DOWNSTREAMDATA = <  >; /*(D) Downstream sales dataset filename.   */

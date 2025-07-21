@@ -2,7 +2,7 @@
 /*                        ANTIDUMPING MARKET ECONOMY                       */
 /*                        MARGIN CALCULATION PROGRAM                       */
 /*                                                                         */
-/*                GENERIC VERSION LAST UPDATED AUGUST 13, 2024             */
+/*                GENERIC VERSION LAST UPDATED JUNE 27, 2025               */
 /*                                                                         */
 /* Part 1:  Database and General Program Information                       */
 /* Part 2:  Bring In U.S. Sales, Convert Date Variable, If Necessary,      */
@@ -18,11 +18,10 @@
 /* Part 9:  Calculate CEP and Commission Offsets For Constructed Value     */
 /*          Comparisons                                                    */
 /* Part 10: Combine Price-2-Price Comparisons with Sales Compared To CV    */
-/* Part 11: Cohen's-d Test                                                 */
+/* Part 11: Pricing Test                                                   */
 /* Part 12: Weight Average U.S. Sales                                      */
-/* Part 13: Calculate FUPDOL, NV, PUDD, Etc. Using the Standard Method,    */
-/*          the A-to-T Alternative Method and, When Required, the Mixed    */
-/*          Alternative Method                                             */
+/* Part 13: Calculate FUPDOL, NV, PUDD, Etc. Using the Standard Method and */
+/*          the A-to-T Alternative Method                                  */
 /* Part 14: Cash Deposit Rates                                             */
 /* Part 15: Meaningful Difference Test                                     */
 /* Part 16: Assessment Rates (Administrative Reviews Only)                 */
@@ -297,7 +296,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*-------------------------------------------------------------------------*/
 /* The macro variables BEGINPERIOD and ENDPERIOD refer to the beginning    */
 /* and at the end of the official POI/POR. They are used for titling.      */
-/* BEGINPERIOD is also used in the Cohen’s d Test.                         */
+/* BEGINPERIOD is also used in the Pricing Test.                           */
 /*                                                                         */
 /* Typically, these dates refer to the first day of the first month for    */
 /* the POI/POR for the BEGINPERIOD and the last day of the last month of   */
@@ -443,7 +442,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
                            /*    '_USD' added.                           */
 
 /*-----------------------------------------------------------------*/
-/* 1-E-ii-b. COHEN'S-D TEST                                        */
+/* 1-E-ii-b. PRICING TEST                                          */
 /*                                                                 */
 /*     Normally, the regions will correspond to the 5 Census       */
 /*     regions:  Northeast, Midwest, South, West, and Puerto Rico. */
@@ -467,7 +466,7 @@ FILENAME C_MACS '<E:\...\Common Macros.sas>';  /* (T) Location & Name of the   *
 /*     "UNKNOWN" or "UNK." If this is not the case, please edit    */
 /*     the data accordingly.                                       */
 /*                                                                 */
-/*     Usually, time periods for purposes of the Cohen's-d Test    */
+/*     Usually, time periods for purposes of the Pricing Test      */
 /*     will be defined by quarters, beginning with the first month */
 /*     of POI/POR as found in the BEGINPERIOD macro variable       */
 /*     defined above in Sect.1-B-i. If you wish to use quarters    */
@@ -1749,32 +1748,24 @@ RUN;
 /*ep*/
 
 /***************************************************************************/
-/* PART 11: COHEN'S-D TEST                                                 */
+/* PART 11: PRICING TEST                                                   */
 /*                                                                         */
-/*    The Cohen's-d Test is run three ways:  1) by purchaser, 2) by region */
-/*    and 3) by time period. U.S. sales are compared to sales to other     */
-/*    purchasers/regions/periods to see if they pass the test. At the end  */
-/*    of the test, the percentage of U.S. sales found to pass the test is  */
-/*    recorded.                                                            */
+/*-------------------------------------------------------------------------*/
+/* The Pricing Test is run three ways: 1) by purchaser, 2) by region,      */
+/* and 3) by time period. U.S. sales are compared to sales to other        */
+/* purchasers/regions/periods to see if they pass the test. At the end     */
+/* of the test, the percentage of U.S. sales found to pass the test is     */
+/* recorded.                                                               */
 /*                                                                         */
-/*    In the remaining sections of this program, the Cash Deposit Rate     */
-/*    will be calculated three ways:  1) Standard Method (average-to       */
-/*    -average comparisons on all sales, offsetting positive comparison    */
-/*    results with negatives), 2) A-to-T Alternative Method (average-to-   */
-/*    transaction comparisons on all sales, no offsetting of positive      */
-/*    comparison results with negative ones), and 3) Mixed Alternative     */
-/*    Method (A-to-A with offsets for sales that do not pass the           */
-/*    Cohen's-d Test and A-to-T with no offsets on sales that do pass.     */
-/*                                                                         */
-/*    If no sale passes the Cohen's-d Test, the Mixed Alternative Method   */
-/*    would be the same as the Standard Method. In this case, the Mixed    */
-/*    Alternative Method will not be calculated. Similarly, the Mixed      */
-/*    Alternative Method will also not be calculated when all sales        */
-/*    pass the Cohen's-d Test since the it would be the same as the        */
-/*    A-to-T Alternative Method.                                           */
+/* In the remaining sections of this program, the Cash Deposit Rate will   */
+/* be calculated two ways: 1) Standard Methodology (average-to-average     */
+/* comparisons on all sales, offsetting positive comparison results with   */
+/* negatives), and 2) A-to-T Alternative Methodology (average-to-          */
+/* comparisons on all sales, no offsetting of positive comparison results  */
+/* transaction with negative ones).                                        */
 /***************************************************************************/
 
-%US13_COHENS_D_TEST
+%US13_PRICING_TEST
 
 /*ep*/
 
@@ -1785,13 +1776,11 @@ RUN;
 /*     back onto the single-transaction database. The averaged variables   */
 /*     will have the same names as the un-averaged ones, but with a        */
 /*     suffix added. For the Standard Method, the suffix will be "_MEAN."  */
-/*     For the Mixed Alternative Method, the suffix will be "_MIXED."  For */
-/*     example, the averaged versions of USNETPRI will be USNETPRI_MEAN    */
-/*     for the Standard Method and USNETPRI_MIXED for the Mixed            */
-/*     Alternative Method. Both the single-transaction and weight-averaged */
-/*     values will be in the data. In the US15_RESULTS macro below, the    */
-/*     appropriate selection of the weight-averaged v single-transaction   */
-/*     values will occur.                                                  */
+/*     For example, the averaged versions of USNETPRI will be              */
+/*     USNETPRI_MEAN for the Standard Method. Both the single-transaction  */
+/*     and weight-averaged values will be in the data. In the US15_RESULTS */
+/*     macro below, the appropriate selection of the weight-averaged vs    */
+/*     single-transaction values will occur.                               */
 /***************************************************************************/
 
 %US14_WT_AVG_DATA
@@ -1808,16 +1797,12 @@ RUN;
 
 /***************************************************************************/
 /* PART 13: CALCULATE FUPDOL, NV, PUDD, ETC. USING THE STANDARD METHOD,    */
-/*          THE A-to-T ALTERNATIVE METHOD AND, WHEN REQUIRED, THE MIXED    */
-/*          ALTERNATIVE METHOD                                             */
+/*          THE A-to-T ALTERNATIVE METHOD                                  */
+/*                                                                         */
 /*                                                                         */
 /*     STANDARD METHOD:                                                    */
 /*          - Use weight-averaged U.S. prices, offsetting positive         */
 /*            comparison results with negative ones, for all sales.        */
-/*     MIXED ALTERNATIVE METHOD:                                           */
-/*          - A rate calculated by using single-transaction prices without */
-/*            offsetting on sales that pass the Cohen's-d Test, and weight-*/
-/*            averaged U.S. prices with offsetting on sales not passing.   */
 /*     A-to-T ALTERNATIVE METHOD                                           */
 /*          - Use single-transaction U.S. prices without offsetting        */
 /*            positive comparison results with negative ones on all sales. */
@@ -1832,12 +1817,6 @@ RUN;
 /*                                                                         */
 /*          - &RESPONDENT._&SEGMENT._&STAGE_AVGMARG for the Standard       */
 /*                    Method on the full U.S. sales database               */
-/*          - &RESPONDENT._&SEGMENT._&STAGE._AVGMIXED for the portion of   */
-/*                    sales being calculated with the Standard Method as   */
-/*                    part of the Mixed Alternative Method.                */
-/*          - &RESPONDENT._&SEGMENT._&STAGE._TRNMIXED for the portion of   */
-/*                    sales being calculated with the A-to-T Alternative   */
-/*                    Method as part of the Mixed Alternative Method.      */
 /*          - &RESPONDENT._&SEGMENT._&STAGE._TRANMARG for the A-to-T       */
 /*                    Alternative Method on the full U.S. sales database.  */
 /*                                                                         */
@@ -1846,9 +1825,7 @@ RUN;
 /*   transaction value when &SUFFIX is a blank space (e.g., USPACK&SUFFIX  */
 /*   becomes USPACK), 2) the weight-averaged value when &SUFFIX=_MEAN      */
 /*   (e.g., USPACK&SUFFIX becomes USPACK_MEAN) for the Standard Method,    */
-/*   and sometimes 3) the weight-averaged value when &SUFFIX=_MIXED (e.g., */
-/*   USPACK&SUFFIX becomes USPACK_MIXED) for the Mixed Alternative         */
-/*   Method. The selection of averaged v non-averaged values is done       */
+/*   The selection of averaged vs non-averaged values is done              */
 /*   automatically.                                                        */
 /*                                                                         */
 /*   The calculation of the foreign unit price in dollars (i.e., FUPDOL)   */
@@ -1886,22 +1863,13 @@ RUN;
 /***************************************************************************/
 /* PART 14: CASH DEPOSIT RATES                                             */
 /*                                                                         */
-/*   Calculate Cash Deposit Rates based upon the Standard, Mixed           */
-/*   Alternative (when  required) and A-to-T Alternative Methods.          */
+/*   Calculate Cash Deposit Rates based upon the Standard and              */
+/*   A-to-T Alternative Methods.										   */
 /*                                                                         */
 /*   For the Standard Method, calculated amounts from the database         */
 /*   &RESPONDENT._&SEGMENT._&STAGE_AVGMARG will be used. Positive          */
 /*   comparison results will be offset by negatives on all sales.          */
 /*                                                                         */
-/*   The Mixed Alternative Method will be a combination calculation.       */
-/*   Sales that passed the Cohen's-d Test will be calculated using the     */
-/*   &RESPONDENT._&SEGMENT._&STAGE._TRNMIXED database. No offsetting of    */
-/*   positive comparison results with negatives will be done on these      */
-/*   sales. Sales that did not pass the Test will be calculated using      */
-/*   the &RESPONDENT._&SEGMENT._&STAGE_AVGMIXED database in which these    */
-/*   sales were weight averaged separately from those that did pass the    */
-/*   test. Positive comparison results will be offset by negatives on      */
-/*   these sales.                                                          */
 /*                                                                         */
 /*   Cash Deposit Rate using the A-to-T Alternative Method for all sales   */
 /*   will be calculated using the &RESPONDENT._&SEGMENT._&STAGE._TRANMARG  */
@@ -1917,9 +1885,8 @@ RUN;
 /* PART 15: MEANINGFUL DIFFERENCE TEST                                     */
 /*                                                                         */
 /*     Compare the cash deposit rate based on the Standard Method to rates */
-/*     based on the Mixed Alternative (when required) and the A-to-T       */
-/*     Alternative Methods to see if there is a Meaningful Difference.     */
-/*     A Meaningful Difference occurs if:                                  */
+/*     and the A-to-T Alternative Methods to see if there is a Meaningful  */
+/*     Difference. A Meaningful Difference occurs if:                      */
 /*                                                                         */
 /*     - the Standard rate is de minimis/zero and the other is not, or     */
 /*     - the Standard rate is above de minimis and the other is 25%        */
@@ -1941,10 +1908,6 @@ RUN;
 /*     various methods are as follows:                                     */
 /*                                                                         */
 /*      IMPSTND:  Assessment, Standard Method                              */
-/*      IMPCSTN:  Assessment, sales not passing Cohens-d for Mixed         */
-/*                Alternative Method                                       */
-/*      IMPCTRN:  Assessment, sales passing Cohens-d for Mixed Alternative */
-/*                Method                                                   */
 /*      IMPTRAN:  Assessment, A-to-T Alternative Method                    */
 /***************************************************************************/
 

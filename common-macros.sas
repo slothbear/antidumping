@@ -2,7 +2,7 @@
 /*                    COMMON UTILITY MACROS PROGRAM                    */
 /*                 FOR USE BY BOTH ME AND NME PROGRAMS                 */
 /*                                                                     */
-/*            GENERIC VERSION LAST UPDATED AUGUST 13, 2024             */
+/*            GENERIC VERSION LAST UPDATED JUNE 27, 2025               */
 /*                                                                     */
 /* PART 0: SET UP MACRO VARIABLES FOR RUN TIME CALCULATION             */
 /* PART 1: MACRO TO WRITE LOG TO A PERMANENT FILE                      */
@@ -426,7 +426,7 @@ RUN;
                 IF SOURCEU = 'REPORTED' THEN 
                     PERUNIT = .;
                 ELSE 
-                IF SOURCEU IN ('MIXED','COMPUTED') THEN 
+              IF SOURCEU IN ('MIXED','COMPUTED') THEN 
             %END;
 
             ASESRATE = .;
@@ -490,7 +490,6 @@ RUN;
     %DO; 
         %LET PREFIX = WTAVGPCT;
         %LET LABEL_STND = "WEIGHTED AVERAGE*MARGIN RATE*STANDARD *METHOD*================";
-        %LET LABEL_MIXED = "WEIGHTED AVERAGE*MARGIN RATE*MIXED ALTERNATIVE*METHOD*=================";
         %LET LABEL_ALT = "WEIGHTED AVERAGE*MARGIN RATE*A-to-T ALTERNATIVE*METHOD*==================";
         %LET CDFORMAT = PCT_MARGIN.;
     %END;
@@ -499,52 +498,25 @@ RUN;
     %DO;
         %LET PREFIX = PER_UNIT_RATE;
         %LET LABEL_STND = "*WEIGHTED AVERAGE*MARGIN RATE*STANDARD METHOD*===============";
-        %LET LABEL_MIXED = "*WEIGHTED AVERAGE*MARGIN RATE*MIXED ALTERNATIVE*METHOD*=================";
         %LET LABEL_ALT = "*WEIGHTED AVERAGE*RATE*A-to-T ALTERNATIVE*METHOD*==================";
         %LET CDFORMAT = UNIT_MARGIN.;
     %END;
 
     %IF %UPCASE(&ABOVE_DEMINIMIS_ALT) = YES %THEN 
     %DO;
-        %IF %UPCASE(&CASE_TYPE) = AR %THEN 
-        %DO;
-            DATA IMPANSWER; 
-    	        LENGTH US_IMPORTER $ 32;
+        %IF %UPCASE(&CASE_TYPE) = AR %THEN
+	%DO;
 
-		  %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = YES %THEN
-		  %DO;
-    	        MERGE 
-
+		DATA IMPANSWER;
+			LENGTH US_IMPORTER $ 32;
+			MERGE
 				%IF %UPCASE(&ABOVE_DEMINIMIS_STND) = YES %THEN
 				%DO;
                         ASSESS_IMPSTND (RENAME = (IMPSTNDRATE = &PREFIX._STND))
                 %END;
-		                ASSESS_MIXED (RENAME = (MIXEDRATE = &PREFIX._MIXED))
-	 	  %END;
-
-	      %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = NA %THEN
-	      %DO;	
-			   MERGE 
-
-		   %IF %UPCASE(&ABOVE_DEMINIMIS_STND) = YES %THEN
-			%DO;
-                     ASSESS_IMPSTND (RENAME = (IMPSTNDRATE = &PREFIX._STND))
-		   %END;
-	  %END;
-		  	
-
-		  %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED)  = NO %THEN 
-		  %DO;
-                SET
-		  %END;
-                    ASSESS_IMPTRAN (RENAME = (IMPTRANRATE = &PREFIX._ALT));
-
-		  %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = YES %THEN
-          %DO;
-	            BY US_IMPORTER;
-		  %END;
-
-            RUN;
+				ASSESS_IMPTRAN (RENAME = (IMPTRANRATE = &PREFIX._ALT));
+			BY US_IMPORTER;
+           RUN;
 
             DATA IMPANSWER;
 	            SET IMPANSWER (RENAME = (US_IMPORTER = CLASSIFICATION)
@@ -554,25 +526,10 @@ RUN;
 	        	%DO;
 	        	    &PREFIX._STND
 	        	%END;
-
-	        	%IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
-	        	%DO;
-                    &PREFIX._MIXED
-		        %END;
                               );
                 %IF %UPCASE(&ABOVE_DEMINIMIS_STND) = NO %THEN
                 %DO;
                     &PREFIX._STND = '0 (%)';
-                %END;
-        
-                %IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = NO  %THEN
-                %DO;
-                    &PREFIX._MIXED = '0 (%)';
-                %END;
-
-    			%IF %UPCASE(&ABOVE_DEMINIMIS_MIXED) = NA  %THEN
-                %DO;
-                    &PREFIX._MIXED = 'NA';
                 %END;
             RUN;
         %END;
@@ -586,19 +543,11 @@ RUN;
     	%IF %UPCASE(&PER_UNIT_RATE) = NO %THEN 
     	%DO;
     		STNDCDRATE = CATX(' ', ROUND(&PREFIX._STND, .01), '(%)');
-    		IF &PREFIX._MIXED NE . THEN
-            DO;
-    			MIXEDCDRATE = CATX(' ', ROUND(&PREFIX._MIXED, .01), '(%)');
-    		END;
     		ALTCDRATE = CATX(' ', ROUND(&PREFIX._ALT, .01), '(%)');
     	%END;
     	%IF %UPCASE(&PER_UNIT_RATE) = YES %THEN 
     	%DO;
     		STNDCDRATE = CATX(' ', ROUND(&PREFIX._STND, .01), '($/Unit)');
-    		IF &PREFIX._MIXED NE . THEN
-            DO;
-    				MIXEDCDRATE = CATX(' ', ROUND(&PREFIX._MIXED, .01), '($/Unit)');
-	    	END;
 			ALTCDRATE = CATX(' ', ROUND(&PREFIX._ALT, .01), '($/Unit)');
     	%END;
 
@@ -606,8 +555,8 @@ RUN;
 	RUN;
 	
     DATA ANSWER;
-    	SET ANSWER (KEEP = CLASSIFICATION STNDCDRATE MIXEDCDRATE ALTCDRATE);
-    	RENAME STNDCDRATE = &PREFIX._STND MIXEDCDRATE = &PREFIX._MIXED ALTCDRATE = &PREFIX._ALT;
+   	SET ANSWER (KEEP = CLASSIFICATION STNDCDRATE ALTCDRATE);
+   	RENAME STNDCDRATE = &PREFIX._STND ALTCDRATE = &PREFIX._ALT;
     RUN;
 
     %IF %UPCASE(&CASE_TYPE) = AR AND %UPCASE(&ABOVE_DEMINIMIS_ALT) = YES %THEN 
@@ -626,7 +575,6 @@ RUN;
     %DO;
         DATA ANSWER;
 		    SET ANSWER;
-		    &PREFIX._MIXED = 'N/A';
 	    RUN;
     %END;
 
@@ -647,13 +595,11 @@ RUN;
             TITLE4 "AND IMPORTER-SPECIFIC ASSESSMENT RATES";
         %END;
 
-        TITLE6 "PERCENT OF SALES PASSING THE COHEN'S D TEST: %CMPRES(&PERCENT_VALUE_PASSING)";   
-        TITLE7 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE MIXED-ALTERNATIVE METHOD: %CMPRES(&MA_METHOD)";
-        TITLE8 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE A-to-T ALTERNATIVE METHOD: %CMPRES(&AT_METHOD)";
-        TITLE9 " ";
-        VAR CLASSIFICATION &PREFIX._STND &PREFIX._MIXED &PREFIX._ALT;
+        TITLE6 "PERCENT OF SALES PASSING THE DIFFERENTIAL PRICING TEST: %CMPRES(&PERCENT_VALUE_PASSING)";   
+        TITLE7 "IS THERE A MEANINGFUL DIFFERENCE BETWEEN THE STANDARD METHOD AND THE A-to-T ALTERNATIVE METHOD: %CMPRES(&AT_METHOD)";
+        TITLE8 " ";
+        VAR CLASSIFICATION &PREFIX._STND &PREFIX._ALT;
         LABEL &PREFIX._STND = &LABEL_STND
-              &PREFIX._MIXED = &LABEL_MIXED
               &PREFIX._ALT = &LABEL_ALT
     		  CLASSIFICATION = &LABEL_CLASS;
         FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";

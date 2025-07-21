@@ -2,7 +2,7 @@
 /*                    ANTIDUMPING MARKET ECONOMY                    */
 /*                          MACROS PROGRAM                          */
 /*                                                                  */
-/*               GENERIC VERSION LAST UPDATED AUGUST 13, 2024       */
+/*               GENERIC VERSION LAST UPDATED JUNE 27, 2025         */
 /*                                                                  */
 /********************************************************************/
 /*                          GENERAL MACROS                          */
@@ -54,7 +54,7 @@
 /*     US10_LOT_ADJUST_OFFSETS                                      */
 /*     US11_CVSELL_OFFSETS                                          */
 /*     US12_COMBINE_P2P_CV                                          */
-/*     US13_COHENS_D_TEST                                           */
+/*     US13_PRICING_TEST                                            */
 /*     US14_WT_AVG_DATA                                             */
 /*     US15_RESULTS                                                 */
 /*     US16_CALC_CASH_DEPOSIT                                       */
@@ -905,7 +905,7 @@
 /**********************************************************************/
 
 /**********************************************************************************************/
-/* For cases where there are time–specific costs, i.e. quarterly cost, the program assigns    */
+/* For cases where there are time specific costs, i.e. quarterly cost, the program assigns    */
 /* quarters to the CM and U.S. sales observations. The quarters are based off of the reported */
 /* sale date, and first day of the POR/POI. The quarters are character, length 2, with the    */
 /* values '-2', '-1', '0', '1', '2', etc. This will only run if there is quarterly cost.      */
@@ -941,7 +941,7 @@
 
 /**********************************************************************************************************************/
 /*                                                                                                                    */
-/* For cases where there are time – specific costs, i.e. quarterly cost, the program takes the following steps:       */
+/* For cases where there are time   specific costs, i.e. quarterly cost, the program takes the following steps:       */
 /* 1. In section G-10;                                                                                                */
 /*     a. Makes a list of CONNUMS and time periods with reported sales                                                */
 /*     b. Makes a list of time periods with reported costs.                                                           */
@@ -950,13 +950,13 @@
 /* 2. In Section G-11, if there are periods that have sales that do not have any reported costs:                      */
 /*     a. On a CONNUM specific basis, pull the closest period of production into the period that needs production.    */
 /*        Keep the direct materials costs, and index them to adjust those costs according to the period.              */
-/*     b. Apply the POR/I weight average ‘conversion costs’ i.e. the non-direct materials costs, to each CONNUM.      */
+/*     b. Apply the POR/I weight average  conversion costs  i.e. the non-direct materials costs, to each CONNUM.      */
 /* 3. In Section G-12; if there CONNUMS with no production in a specific period, but production in other period(s):   */
 /*     a. Find the most similar CONNUM with production in the period and assign its direct materials costs as         */
 /*        surrogate to the CONNUM(s) with no production.                                                              */
 /*     b. Assign the POR/I weight average conversion costs to those CONNUMS with no production in the period.         */
 /* 4. In Section G-13; if there are CONNUMS with sales in the POR/I and no production anywhere in the POR/I:          */
-/*     a. Assign the most similar CONNUM’s cost from within the period as the surrogate for the CONNUM with no costs. */
+/*     a. Assign the most similar CONNUM s cost from within the period as the surrogate for the CONNUM with no costs. */
 /*                                                                                                                    */
 /**********************************************************************************************************************/
 
@@ -5429,12 +5429,12 @@ OPTIONS SYMBOLGEN;
     %END;
 %MEND US12_COMBINE_P2P_CV;
 
-/*****************************/
-/* US-13:  COHENS-D ANALYSIS */
-/*****************************/
+/**********************************************/
+/* US-13:  DIFFERENTIAL PRICING TEST ANALYSIS */
+/**********************************************/
  
-%MACRO US13_COHENS_D_TEST;
-    TITLE3 "THE COHENS-D TEST";
+%MACRO US13_PRICING_TEST ;
+    TITLE3 "THE DIFFERENTIAL PRICING TEST";
 
     /**************************************************/
     /* US-13-A. Create macros needed re: manufacturer */
@@ -5574,8 +5574,8 @@ OPTIONS SYMBOLGEN;
     %END;        
 
     /*****************************************************************/
-    /*  US-13-B Calculate net price for Cohens-d Analysis and set up */
-    /*            regions, purchasers and time periods.              */
+    /*  US-13-B Calculate net price for Price Difference Analysis    */
+    /*          and set up regions, purchasers and time periods.     */
     /*****************************************************************/
 
     DATA DPSALES;
@@ -5702,18 +5702,18 @@ OPTIONS SYMBOLGEN;
                 USINTLMOVE USCREDIT USDIRSELL  
                 USCOMM USICC USISELL CEPICC CEPISELL CEPOTHER CEPROFIT DP_NETPRI 
                 DP_PURCHASER &PERIOD_PRINT_VARS &REGION_PRINT_VARS;
-                LABEL DP_NETPRI = "NET PRICE*FOR COHENS-D*ANALYSIS"
+                LABEL DP_NETPRI = "NET PRICE*FOR DIFFERENTIAL PRICING*ANALYSIS"
                       %DPPERIOD_PRINT_LABEL
-                      DP_PERIOD = "TIME PERIOD*FOR COHENS-D*ANALYSIS"
+                      DP_PERIOD = "TIME PERIOD*FOR DIFFERENTIAL PRICING*ANALYSIS"
                       %DPREGION_PRINT_LABEL
-                      DP_REGION = "REGION FOR*COHENS-D*ANALYSIS"
-                      DP_PURCHASER = "PURCHASER*FOR COHENS-D*ANALYSIS*(&DP_PURCHASER)";
-            TITLE4 "NET PRICE CALCULATIONS AND PURCHASER/TIME/REGION ASSIGNMENTS FOR COHENS-D";
+                      DP_REGION = "REGION FOR*DIFFERENTIAL PRICING*ANALYSIS"
+                      DP_PURCHASER = "PURCHASER*FOR DIFFERENTIAL PRICING*ANALYSIS*(&DP_PURCHASER)";
+            TITLE4 "NET PRICE CALCULATIONS AND PURCHASER/TIME/REGION ASSIGNMENTS FOR DIFFERENTIAL PRICING";
         RUN;
 
     /***************************************************************/
     /* US-13-C. Calculate Information Using Comparable Merchandise */
-    /*          Criteria for Cohens-D.                             */
+    /*          Criteria for the Price Difference Test.            */
     /***************************************************************/
 
     PROC MEANS NWAY DATA = DPSALES VARDEF = WEIGHT NOPRINT;
@@ -5726,8 +5726,7 @@ OPTIONS SYMBOLGEN;
                SUM = TOTAL_CONNUM_VALUE
                MEAN = AVG_CONNUM_PRICE
                MIN = MIN_CONNUM_PRICE
-               MAX = MAX_CONNUM_PRICE
-               STD = STD_CONNUM_PRICE;
+               MAX = MAX_CONNUM_PRICE;
     RUN;
 
     PROC PRINT DATA = DPCONNUM (OBS = &PRINTOBS) SPLIT = "*";
@@ -5738,7 +5737,6 @@ OPTIONS SYMBOLGEN;
               AVG_CONNUM_PRICE = "AVERAGE*PRICE "
               MIN_CONNUM_PRICE = "LOWEST*PRICE "
               MAX_CONNUM_PRICE = "HIGHEST*PRICE "
-              STD_CONNUM_PRICE = "STANDARD*DEVIATION*IN PRICE";
         BY &USMANF &USPRIM USLOT;
         ID &USMANF &USPRIM USLOT;
         SUM TOTAL_CONNUM_QTY TOTAL_CONNUM_VALUE;
@@ -5749,7 +5747,7 @@ OPTIONS SYMBOLGEN;
     /* US-13-D. STAGE 1: Test Control Numbers by Region, Time and Purchaser */
     /************************************************************************/
 
-        %MACRO COHENS_D(DP_GROUP,TITLE4);
+        %MACRO PRICING(DP_GROUP,TITLE4);
 
             /*************************************************************/
             /* US-13-D-ii-a. Put sales to be tested for each round in    */
@@ -5797,8 +5795,7 @@ OPTIONS SYMBOLGEN;
                        N = TEST_&DP_GROUP._OBS
                        SUMWGT = TEST_&DP_GROUP._QTY
                        SUM = TEST_&DP_GROUP._VALUE
-                       MEAN = TEST_AVG_&DP_GROUP._PRICE
-                       STD = TEST_&DP_GROUP._STD;
+                       MEAN = TEST_AVG_&DP_GROUP._PRICE;
             RUN;
 
             PROC PRINT DATA = &DP_GROUP (OBS = &PRINTOBS) SPLIT = "*";
@@ -5809,8 +5806,7 @@ OPTIONS SYMBOLGEN;
                         TEST_&DP_GROUP._OBS = "TRANSACTIONS*  IN  *TEST GROUP"
                         TEST_&DP_GROUP._QTY = "TOTAL QTY*  OF  *TEST GROUP"
                         TEST_&DP_GROUP._VALUE = "TOTAL VALUE*  OF  *TEST GROUP" 
-                        TEST_AVG_&DP_GROUP._PRICE = "WT AVG PRICE*  OF  *TEST GROUP"
-                        TEST_&DP_GROUP._STD = "STANDARD*DEVIATION*TEST GROUP*PRICE";
+                        TEST_AVG_&DP_GROUP._PRICE = "WT AVG PRICE*  OF  *TEST GROUP";
                 TITLE5 "CALCULATION OF TEST GROUP STATISTICS BY &DP_GROUP";
             RUN;
 
@@ -5824,7 +5820,7 @@ OPTIONS SYMBOLGEN;
             /*                                                               */
             /*    If there is no base group for a control number because all */
             /*    sales are to one purchaser, for example, (as evidenced by  */
-            /*    zero obs/quantity) then no Cohens-d coefficient will be    */
+            /*    zero obs/quantity) then no PRICE DIFFERENCE will be        */
             /*    calculated.                                                */
             /*****************************************************************/
 
@@ -5887,7 +5883,7 @@ OPTIONS SYMBOLGEN;
 
             PROC SORT DATA = DPGROUP (KEEP = &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP
                                              TEST_&DP_GROUP._OBS TEST_AVG_&DP_GROUP._PRICE
-                                             TEST_&DP_GROUP._STD BASE_&DP_GROUP._OBS
+                                             BASE_&DP_GROUP._OBS
                                              BASE_AVG_&DP_GROUP._PRICE &DP_GROUP._QTY_RATIO)
                       OUT = DPGROUP_VAR_SUBSET;
                 BY &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP;
@@ -5910,60 +5906,32 @@ OPTIONS SYMBOLGEN;
                        BP.BASE_LOT EQ DP.USLOT AND
                        BP.BASE_CONNUM EQ DP.&USCONNUM AND
                        BP.BASE_GROUP NE DP.&DP_GROUP AND
-                       DP.BASE_&DP_GROUP._OBS GE 2 AND
-                       DP.TEST_&DP_GROUP._OBS GE 2 AND
-                       DP.&DP_GROUP._QTY_RATIO GE 0.05;
+                       DP.BASE_&DP_GROUP._OBS GE 1 AND
+                       DP.TEST_&DP_GROUP._OBS GE 1;
             QUIT;
 
             /**************************************************************/
-            /* US-13-D-ii-e. Calculate the base group standard deviation. */
+            /* US-13-D-ii-e. Calculate Price Differential */
             /**************************************************************/
 
-            PROC MEANS NWAY DATA = BASECALC VARDEF = WEIGHT NOPRINT;
-                CLASS &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP;
-                WEIGHT &USQTY;
-                VAR DP_NETPRI;
-                OUTPUT OUT = BASESTD (DROP = _:) STD = BASE_STD;
-            RUN;
-
-            PROC PRINT DATA = BASESTD (OBS = &PRINTOBS) SPLIT="*";
-                BY &USMANF &USPRIM USLOT &USCONNUM;
-                ID &USMANF &USPRIM USLOT &USCONNUM;
-                VAR &DP_GROUP BASE_STD;
-                LABEL &USCONNUM = "CONTROL NUMBER"
-                      &DP_GROUP = "TEST GROUP*(&DP_GROUP.)"
-                      BASE_STD = "STANDARD DEVIATION*IN PRICE*OF BASE GROUP";
-                TITLE5 "CALCULATION OF BASE GROUP STANDARD DEVIATIONS BY &DP_GROUP";
-            RUN; 
-
             DATA &DP_GROUP._RESULTS;
-                MERGE DPGROUP (IN = A) BASESTD (IN = B);
+               SET DPGROUP;
                 BY &USMANF &USPRIM USLOT &USCONNUM &DP_GROUP;
-                IF A & B;
-
+              
                 LENGTH &DP_GROUP._RESULT $7;
                 &DP_GROUP._RESULT = "No Pass";
 
                 IF BASE_&DP_GROUP._OBS GE 1 THEN 
                 DO;
-                    IF TEST_&DP_GROUP._STD NE . AND BASE_STD  NE . THEN 
-                    DO;
-                        STD_POOLED = SQRT((BASE_STD**2 + TEST_&DP_GROUP._STD**2)/2);
-                        IF     BASE_&DP_GROUP._OBS GE 2 AND
-                            TEST_&DP_GROUP._OBS GE 2 AND 
-                            &DP_GROUP._QTY_RATIO GE 0.05 THEN
-                        DO;
-                            IF STD_POOLED NE 0 THEN 
-                            DO;
-                                COHEN_D=(BASE_AVG_&DP_GROUP._PRICE - TEST_AVG_&DP_GROUP._PRICE)/STD_POOLED;
-                                IF ABS(COHEN_D) GE 0.8 THEN &DP_GROUP._RESULT = "Pass";
-                            END;
-                            ELSE
-                            IF FUZZ(BASE_AVG_&DP_GROUP._PRICE - TEST_AVG_&DP_GROUP._PRICE) ^= 0 THEN
-                                &DP_GROUP._RESULT = "Pass";
-                        END;
-                    END;
-                END;
+                  IF BASE_&DP_GROUP._OBS GE 1 AND TEST_&DP_GROUP._OBS GE 1 THEN
+  				  DO;				                    
+					PRICE_DIFF=(BASE_AVG_&DP_GROUP._PRICE - TEST_AVG_&DP_GROUP._PRICE)/ BASE_AVG_&DP_GROUP._PRICE;
+                    IF ABS(PRICE_DIFF) GE 0.02 
+                    THEN &DP_GROUP._RESULT ="Pass";
+                   END;
+				   ELSE IF FUZZ(BASE_AVG_&DP_GROUP._PRICE - TEST_AVG_&DP_GROUP._PRICE) ^= 0 
+				   THEN &DP_GROUP._RESULT = "Pass";
+				END;            
             RUN;
 
             PROC SORT DATA = &DP_GROUP._RESULTS OUT = &DP_GROUP._RESULTS;
@@ -5974,26 +5942,21 @@ OPTIONS SYMBOLGEN;
                 BY &DP_GROUP &USMANF &USPRIM USLOT ;
                 ID &DP_GROUP &USMANF &USPRIM USLOT;
                 VAR &USCONNUM TEST_&DP_GROUP._OBS 
-                    TEST_AVG_&DP_GROUP._PRICE TEST_&DP_GROUP._STD
-                    BASE_&DP_GROUP._OBS BASE_AVG_&DP_GROUP._PRICE BASE_STD 
-                    &DP_GROUP._QTY_RATIO STD_POOLED COHEN_D &DP_GROUP._RESULT;
-                FORMAT     BASE_AVG_&DP_GROUP._PRICE &COMMA_FORMAT. &DP_GROUP._QTY_RATIO &PERCENT_FORMAT.;
-                LABEL     &USCONNUM="CONTROL NUMBER"
+                    TEST_AVG_&DP_GROUP._PRICE
+                    BASE_&DP_GROUP._OBS BASE_AVG_&DP_GROUP._PRICE &DP_GROUP._QTY_RATIO PRICE_DIFF &DP_GROUP._RESULT;
+                FORMAT  BASE_AVG_&DP_GROUP._PRICE &COMMA_FORMAT. &DP_GROUP._QTY_RATIO &PERCENT_FORMAT.;
+                LABEL   &USCONNUM="CONTROL NUMBER"
                         &DP_GROUP="TEST GROUP*(&DP_GROUP.)"
                         TEST_&DP_GROUP._OBS="TRANSACTIONS*  IN  *TEST GROUP" 
                         TEST_AVG_&DP_GROUP._PRICE="WTD AVG*TEST GROUP*PRICE* ( A ) "
-                        TEST_&DP_GROUP._STD="STANDARD DEVIATION*TEST GROUP PRICE* ( C )"
                         BASE_&DP_GROUP._OBS="TRANSACTIONS*  IN  *BASE GROUP" 
                         BASE_AVG_&DP_GROUP._PRICE="WTD AVG *BASE GROUP*PRICE  * ( B )  "
-                        BASE_STD="STANDARD DEVIATION*BASE GROUP PRICE* ( D )  " 
                         &DP_GROUP._QTY_RATIO="PERCENT QTY* OF *BASE GROUP"
-                        STD_POOLED="POOLED*STANDARD DEVIATION*E =SQ ROOT OF*((CxC + DxD)/2)" 
-                        COHEN_D="COHEN'S d*COEFFICIENT*(F = (A-B)/E)"
+						PRICE_DIFF="DIFFERENTIAL*PRICING*(C=(A-B)/B)" 
                         &DP_GROUP._RESULT="RESULT OF*TEST BY*&DP_GROUP";
-                TITLE5 "COHEN'S-d CALCULATIONS BY &DP_GROUP FOR COMPARABLE MERCHANDISE";
-                TITLE6 "To pass: A) |COHEN'S-d| > 0.8, B) Test & Base obs >= 2, C) Base qty >= 5%";
+                TITLE5 "DIFFERENTIAL PRICING CALCULATIONS BY &DP_GROUP FOR COMPARABLE MERCHANDISE";
+                TITLE6 "To pass: A) |Differential Pricing| > 0.02, B) Test & Base obs >= 1";
             RUN;
-
             /****************************************************************/
             /*  US-13-D-ii-f. Merge results into U.S. sales data. Sales are */
             /*    flagged as either passing or not passing.                 */
@@ -6018,33 +5981,33 @@ OPTIONS SYMBOLGEN;
                 END;            
             RUN;
 
-        %MEND COHENS_D;
+        %MEND PRICING;
  
-    /********************************************************************************/
-    /* US-13-D-iii. Execute Stage 1: Cohens-d Test for region, time, then purchaser */
-    /********************************************************************************/
+    /****************************************************************************************/
+    /* US-13-D-iii. Execute Stage 1: Price Difference Test for region, time, then purchaser */
+    /****************************************************************************************/
 
-    %COHENS_D(DP_REGION,FIRST PASS: ANALYSIS BY REGION)
-    %COHENS_D(DP_PERIOD,SECOND PASS: ANALYSIS BY TIME PERIOD)
-    %COHENS_D(DP_PURCHASER,THIRD AND FINAL PASS: ANALYSIS BY PURCHASER)
+    %PRICING(DP_REGION,FIRST PASS: ANALYSIS BY REGION)
+    %PRICING(DP_PERIOD,SECOND PASS: ANALYSIS BY TIME PERIOD)
+    %PRICING(DP_PURCHASER,THIRD AND FINAL PASS: ANALYSIS BY PURCHASER)
 
-    /*************************************************************************/
-    /* US-13-E. Stage 2: Calculate Ratios of Sales Passing the Cohens-d Test */
-    /*************************************************************************/
+    /*********************************************************************************/
+    /* US-13-E. Stage 2: Calculate Ratios of Sales Passing the Price Difference Test */
+    /*********************************************************************************/
 
         /**********************************************************************/
-        /* US-13-E-i. Sales that pass any of the three rounds of the Cohens-d */
-        /*   analysis pass the test as a whole.                               */
+        /* US-13-E-i. Sales that pass any of the three rounds of the Price    */
+        /*   Difference analysis pass the test as a whole.                    */
         /**********************************************************************/
 
-        DATA DPSALES DPPASS (KEEP=DP_COUNT COHENS_D_PASS);
+        DATA DPSALES DPPASS (KEEP=DP_COUNT PRICE_TEST_PASS);
             SET DPSALES;
-            FORMAT COHENS_D_PASS $3.;
-            COHENS_D_PASS = "No";
+            FORMAT PRICE_TEST_PASS $3.;
+            PRICE_TEST_PASS = "No";
             IF    DP_PURCHASER_RESULT  = "Pass" OR   
                 DP_REGION_RESULT = "Pass" OR
                 DP_PERIOD_RESULT = "Pass" 
-            THEN COHENS_D_PASS = "Yes";
+            THEN PRICE_TEST_PASS = "Yes";
         RUN;
 
         PROC SORT DATA = DPSALES OUT = DPSALES;
@@ -6059,30 +6022,30 @@ OPTIONS SYMBOLGEN;
         RUN;
 
         PROC SORT DATA = DPSALES_PRINT OUT  = DPSALES_PRINT;
-            BY COHENS_D_PASS &USMANF &USPRIM USLOT &USCONNUM;
+            BY PRICE_TEST_PASS &USMANF &USPRIM USLOT &USCONNUM;
         RUN;
 
         DATA DPSALES_PRINT (DROP=COUNT);
             SET DPSALES_PRINT;
-            BY COHENS_D_PASS &USMANF &USPRIM USLOT &USCONNUM;
-            IF FIRST.COHENS_D_PASS THEN COUNT = 1;
+            BY PRICE_TEST_PASS &USMANF &USPRIM USLOT &USCONNUM;
+            IF FIRST.PRICE_TEST_PASS THEN COUNT = 1;
             COUNT + 1;
             IF COUNT LE &PRINTOBS THEN OUTPUT;
         RUN;
 
         PROC PRINT DATA = DPSALES_PRINT;
-            ID COHENS_D_PASS;
-            BY COHENS_D_PASS;
+            ID PRICE_TEST_PASS;
+            BY PRICE_TEST_PASS;
             VAR &USMANF &USPRIM USLOT &USCONNUM 
                 DP_PERIOD DP_REGION DP_PURCHASER DP_PERIOD_RESULT 
                 DP_REGION_RESULT DP_PURCHASER_RESULT;
-            TITLE4 "SAMPLE OF &PRINTOBS FOR EACH TYPE OF RESULT FROM THE COHEN'S-D ANALYSIS FOR";
+            TITLE4 "SAMPLE OF &PRINTOBS FOR EACH TYPE OF RESULT FROM THE DIFFERENTIAL PRICING'S ANALYSIS FOR";
             TITLE5 "UNIQUE COMBINATIONS OF REGION, PURCHASER AND TIME PERIOD FOR EACH CONTROL NUMBER";
         RUN;
 
-        /******************************************************************************/
-        /* US-13-E-iii. Calculate the percentage of sales that pass the Cohens-d Test */
-        /******************************************************************************/
+        /**************************************************************************************/
+        /* US-13-E-iii. Calculate the percentage of sales that pass the Price Difference Test */
+        /**************************************************************************************/
 
         PROC MEANS DATA = DPSALES NOPRINT;
             VAR DP_NETPRI;
@@ -6091,7 +6054,7 @@ OPTIONS SYMBOLGEN;
         RUN;
 
         PROC MEANS DATA = DPSALES NOPRINT;
-          WHERE COHENS_D_PASS = "Yes";
+          WHERE PRICE_TEST_PASS = "Yes";
           VAR DP_NETPRI;
           WEIGHT &USQTY;
           OUTPUT OUT = PASS (DROP = _:) SUM = PASS_VALUE;
@@ -6107,13 +6070,9 @@ OPTIONS SYMBOLGEN;
             LENGTH CALC_METHOD $11.;
             IF PERCENT_VALUE_PASSING = 0 THEN
                 CALC_METHOD = 'STANDARD';
-            ELSE
-            DO;
-                IF PERCENT_VALUE_PASSING EQ 1 THEN
+            ELSE IF PERCENT_VALUE_PASSING EQ 1 THEN
                     CALC_METHOD = 'ALTERNATIVE';
-                ELSE
-                    CALC_METHOD = 'MIXED';
-            END;
+
             %GLOBAL CALC_METHOD;
             CALL SYMPUT("CALC_METHOD", CALC_METHOD);
         RUN;
@@ -6127,12 +6086,6 @@ OPTIONS SYMBOLGEN;
                   PERCENT_VALUE_PASSING = "PERCENT OF*SALES PASSING*BY VALUE*=============";
             TITLE4 "OVERALL RESULTS";
             TITLE10 "CASE ANALYST:  Please notify management of results re: the selection of correct method to be used.";
-            FOOTNOTE1 "If some sales pass the Cohens-d Test and others do not pass, then three methods will be calculated:";
-            FOOTNOTE2 "1) the Standard Method (applied to all sales), 2) the A-to-T Alternative Method (applied to all sales)";
-            FOOTNOTE3 "3) and the Mixed Alternative Method which will be a combination of the A-to-A (with offsets)";
-            FOOTNOTE4 "applied to sales that did not pass, and A-to-T (without offsets) applied to sales that did pass.";
-            FOOTNOTE6 "If either no sale or all sales pass the Cohens-d Test, then the Mixed Alternative Method will yield the same";
-            FOOTNOTE7 "results as the Standard Method or the A-to-T Alternative Method, respectively, and will not be calculated.";
             FOOTNOTE9 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
             FOOTNOTE10 "&BDAY, &BWDATE - &BTIME";
         RUN;
@@ -6140,13 +6093,12 @@ OPTIONS SYMBOLGEN;
     FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
     FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
 
-    %GLOBAL ABOVE_DEMINIMIS_STND ABOVE_DEMINIMIS_ALT ABOVE_DEMINIMIS_MIXED CASH_DEPOSIT_DONE;
+    %GLOBAL ABOVE_DEMINIMIS_STND ABOVE_DEMINIMIS_ALT CASH_DEPOSIT_DONE;
     %LET ABOVE_DEMINIMIS_STND = NO;/* Default value. Do not edit. */
     %LET ABOVE_DEMINIMIS_ALT = NO; /* Default value. Do not edit. */
-    %LET ABOVE_DEMINIMIS_MIXED = NO;/* Default value. Do not edit. */
     %LET CASH_DEPOSIT_DONE = NO;  /* Default value.  Do not edit. */
 
-%MEND US13_COHENS_D_TEST;
+%MEND US13_PRICING_TEST;
 
 /********************************************************************/
 /* US-14: WEIGHT AVERAGING OF U.S. SALES DATA                       */
@@ -6168,17 +6120,6 @@ OPTIONS SYMBOLGEN;
     /* blank value for investigations or the US month variable in */
     /* administrative reviews.                                    */
     /*                                                            */
-    /* When the Cohens-d Test determines that the Mixed           */
-    /* Alternative Method is to be used, then the DP_COUNT and    */
-    /* COHENS_D_PASS macro variables will be to the variables by  */
-    /* the same names in order to keep track of which             */
-    /* observations passed Cohens-d and which did not. Otherwise, */
-    /* the DP_COUNT and COHENS_D_PASS macro variables will be set */
-    /* to null values. In addition, the MIXED_BY_VAR macro        */
-    /* variable will be set to COHENS_D_PASS in order to allow    */
-    /* the weight-averaging to be constricted to within just      */
-    /* sales passing the Cohens-d test.                           */
-    /*                                                            */
     /* When an assessment calculation is warranted, the section   */
     /* will be re-executed on an importer-specific basis. This    */
     /* is done by adding the US_IMPORTER variables to the BY      */
@@ -6186,7 +6127,7 @@ OPTIONS SYMBOLGEN;
     /*------------------------------------------------------------*/
 
     %GLOBAL AR_VARS AR_BY_VARS TITLE4_WTAVG TITLE4_MCALC
-            DP_COUNT COHENS_D_PASS ;
+            DP_COUNT PRICE_TEST_PASS ;
 
     %IF %UPCASE(&CASE_TYPE) = INV %THEN
     %DO;
@@ -6237,7 +6178,7 @@ OPTIONS SYMBOLGEN;
     %IF &CALC_METHOD NE STANDARD %THEN
     %DO;
         %LET DP_COUNT = DP_COUNT;
-        %LET COHENS_D_PASS = COHENS_D_PASS;
+        %LET PRICE_TEST_PASS = PRICE_TEST_PASS;
 
             PROC SORT DATA = USSALES OUT = USSALES;
                 BY DP_COUNT;
@@ -6256,7 +6197,7 @@ OPTIONS SYMBOLGEN;
     %ELSE
     %DO;
         %LET DP_COUNT = ;
-        %LET COHENS_D_PASS = ;
+        %LET PRICE_TEST_PASS = ;
     %END;
 
     /*---------------------------------------------------------/
@@ -6268,10 +6209,10 @@ OPTIONS SYMBOLGEN;
                      NVMATCH &USQTY &EXRATE1 &EXRATE2 USNETPRI USCOMM
                      USCREDIT USDIRSELL USPACK USECEPOFST CEPOFFSET
                      COMOFFSET INDDOL COMMDOL ICOMMDOL &P2P_VARS 
-                     &CV_VARS &AR_VARS &DP_COUNT &COHENS_D_PASS)
+                     &CV_VARS &AR_VARS &DP_COUNT &PRICE_TEST_PASS)
               OUT = USNETPR;
         BY &USMANF &USPRIM USLOT SALE_TYPE &USCONNUM &US_TIME_PERIOD 
-           &AR_BY_VARS &COHENS_D_PASS;
+           &AR_BY_VARS &PRICE_TEST_PASS;
     RUN;
 
     /*----------------------------------------------------------*/
@@ -6280,13 +6221,6 @@ OPTIONS SYMBOLGEN;
     /* "_MEAN" added to the end of their original names as a    */
     /* suffix.                                                  */
     /*                                                          */
-    /* When the Mixed Alternative Method is employed, an extra  */
-    /* weight-averaging will be done that additionally includes */
-    /* the COHENS_D_PASS variable in the BY statement. This     */
-    /* will allow sales not passing the Cohens-D Test to be     */
-    /* eight-averaged separately from those that did pass.      */
-    /* Weight-averaged amounts will have "_MIXED" added to the  */
-    /* end of their original names.                             */
     /*----------------------------------------------------------*/
 
     %MACRO WEIGHT_AVERAGE(NAMES, DP_BYVAR);
@@ -6319,15 +6253,6 @@ OPTIONS SYMBOLGEN;
     %IF &CASH_DEPOSIT_DONE = NO  %THEN
     %DO;
         %WEIGHT_AVERAGE(/AUTONAME, )
-
-        %IF &CALC_METHOD = MIXED %THEN
-        %DO;
-            %LET TITLE6 = "THOSE ENDING IN '_MIXED' WITH SALES NOT PASSING COHENS'D WITH THE MIXED ALTERNATIVE METHOD.";
-            %WEIGHT_AVERAGE(USNETPRI_MIXED USPACK_MIXED USCOMM_MIXED
-                            USCREDIT_MIXED USDIRSELL_MIXED
-                            CEPOFFSET_MIXED COMOFFSET_MIXED,
-                            COHENS_D_PASS)
-        %END;
     %END;
 
     /*------------------------------------------------------*/
@@ -6344,23 +6269,10 @@ OPTIONS SYMBOLGEN;
 
         %IF &ABOVE_DEMINIMIS_STND = YES %THEN
         %DO;
-            %LET TITLE6 = "THOSE ENDING IN '_MEAN' WITH SALES NOT PASSING COHENS'D WITH THE STANDARD METHOD.";
+            %LET TITLE6 = "THOSE ENDING IN '_MEAN' WITH SALES NOT PASSING PRICE DIFFERENCE'S TEST WITH THE STANDARD METHOD.";
             %WEIGHT_AVERAGE(/AUTONAME, )
         %END;
 
-        /*----------------------------------------------------------*/
-        /* 14-c-ii-B Weight-average variables for assessments using */
-        /*           the Mixed Alternative Method, if required.     */
-        /*----------------------------------------------------------*/
-
-        %IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
-        %DO;
-            %LET TITLE6 = "THOSE ENDING IN '_MIXED' WITH SALES NOT PASSING COHENS'D WITH THE MIXED ALTERNATIVE METHOD.";
-            %WEIGHT_AVERAGE(USNETPRI_MIXED USPACK_MIXED USCOMM_MIXED
-                            USCREDIT_MIXED USDIRSELL_MIXED
-                            CEPOFFSET_MIXED COMOFFSET_MIXED,
-                            COHENS_D_PASS)
-        %END;
 
         /*-------------------------------------------------------*/
         /*  14-c-ii-C Weight-average variables for assessments   */
@@ -6378,12 +6290,10 @@ OPTIONS SYMBOLGEN;
 /* US-15: FUPDOL, NORMAL VALUE AND COMPARISON RESULTS                     */
 /*                                                                        */
 /*   For variables with the macro variable SUFFIX added to their names,   */
-/*   weight-averaged values will be used when SUFFIX = _MEAN or _MIXED,   */
+/*   weight-averaged values will be used when SUFFIX = _MEAN,             */
 /*   but single-transaction values will be used when the suffix is a      */
 /*   blank space. For example, USNETPRI will be used in calculating the   */
-/*   Alternative Method, USNETPRI_MEAN for the Standard Method            */
-/*   and USNETPRI_MIXED with the sales not passing Cohens-D for the       */
-/*   Mixed Alternative Method.                                            */
+/*   Alternative Method, USNETPRI_MEAN for the Standard Method.           */
 /*                                                                        */
 /*   For purposes of calculating the initial cash deposit rate, the       */
 /*   IMPORTER macro variable will be set to a blank space and not enter   */ 
@@ -6410,15 +6320,6 @@ OPTIONS SYMBOLGEN;
             %IF &CALC_TYPE = STANDARD %THEN
             %DO;
                 %LET TITLE5 = "STANDARD METHOD APPLIED TO ALL SALES USING VALUES ENDING WITH SUFFIX '_MEAN'";
-                %MACRO IF_COHEN;
-                %MEND IF_COHEN;
-            %END;
-            %IF &CALC_TYPE = MIXED %THEN
-            %DO;
-                %LET TITLE5 = "MIXED ALTERNATIVE METHOD PART 1: A-to-A APPLIED TO SALES NOT PASSING COHENS-D USING VALUES ENDING WITH SUFFIX '_MIXED'";
-                %MACRO IF_COHEN;
-                    IF COHENS_D_PASS = "No";
-                %MEND IF_COHEN;
             %END;
         %END;
 
@@ -6432,15 +6333,6 @@ OPTIONS SYMBOLGEN;
             %IF &CALC_TYPE = ALTERNATIVE %THEN
             %DO;
                 %LET TITLE5 = "ALTERNATIVE METHOD APPLIED TO ALL U.S. SALES";
-                %MACRO IF_COHEN;
-                %MEND IF_COHEN;
-            %END;
-            %IF &CALC_TYPE = MIXED %THEN
-            %DO;
-                %LET TITLE5 = "MIXED ALTERNATIVE METHOD PART 2: A-to-T APPLIED TO SALES PASSING COHENS-D TEST";
-                %MACRO IF_COHEN;
-                        IF COHENS_D_PASS = "Yes";
-                %MEND IF_COHEN;
             %END;
         %END;
 
@@ -6450,7 +6342,6 @@ OPTIONS SYMBOLGEN;
 
         DATA COMPANY.&RESPONDENT._&SEGMENT._&STAGE._&OUTDATA NONVMARG_&OUTDATA; 
             SET USNETPR;
-                %IF_COHEN
                 %MACRO FUPDOL;
                     %IF &CALC_P2P = YES %THEN
                     %DO;
@@ -6518,24 +6409,16 @@ OPTIONS SYMBOLGEN;
     /*    offsetting information.    <OUTDATA> will be as follows */
     /*                                                            */
     /*    AVGMARG:  Cash Deposit, Standard Method                 */
-    /*    AVGMIXED: Cash Deposit, sales not passing Cohens-d for  */
-    /*              Mixed Alternative Method                      */
-    /*    TRNMIXED: Cash Deposit, sales passing Cohens-d for      */    
-    /*              Mixed Alternative Method                      */
     /*    TRANMARG: Cash Deposit, A-to-T Alternative Method       */
     /*                                                            */
     /*    IMPSTND:  Assessment, Standard Method                   */
-    /*    IMPCSTN:  Assessment, sales not passing Cohens-d for    */
-    /*              Mixed Alternative Method                      */    
-    /*    IMPCTRN:  Assessment, sales passing Cohens-d for Mixed  */    
-    /*              Alternative Method                            */
     /*    IMPTRAN:  Assessment, A-to-T Alternative Method         */
     /*------------------------------------------------------------*/
 
         PROC SORT DATA = COMPANY.&RESPONDENT._&SEGMENT._&STAGE._&OUTDATA 
                   OUT = SUMMARG_&OUTDATA (KEEP = &IMPORTER &USQTY USNETPRI&SUFFIX
                         USVALUE PCTMARG EMARGIN UMARGIN &USMANF SALE_TYPE NVMATCH 
-                        USECEPOFST CEPOFFSET COMOFFSET &AR_VARS &COHENS_D_PASS);
+                        USECEPOFST CEPOFFSET COMOFFSET &AR_VARS &PRICE_TEST_PASS);
             BY &IMPORTER SALE_TYPE NVMATCH DESCENDING PCTMARG;
         RUN;
 
@@ -6551,22 +6434,15 @@ OPTIONS SYMBOLGEN;
         /*                                                               */
         /*   In all cases, the CALC_RESULTS macro will be executed using */
         /*   the Standard Method and the A-to-T Alternative              */
-        /*   Method for the Cash Deposit Rate.  If there is a            */
-        /*   mixture of sales pass and not passing Cohens-D, then the    */
-        /*   CALC_RESULTS macro will be executed a third time using the  */
-        /*   Mixed Alternative Method.                                   */ 
+        /*   Method for the Cash Deposit Rate.  					     */
         /*                                                               */
-        /*   The ABOVE_DEMINIMIS_STND, ABOVE_DEMINIMIS_MIXED and         */
-        /*   ABOVE_DEMINIMIS_ALT macro variables were set to "NO" by     */
+        /*   The ABOVE_DEMINIMIS_STND and ABOVE_DEMINIMIS_ALT macro      */
+	    /*   variables were set to "NO" by                               */
         /*   default above in US13.  They remains "NO" through the       */
         /*   calculation of the Cash Deposit rate(s). If a particular    */
         /*   Cash Deposit rate is above de minimis, its attendant macro  */
         /*   variable gets changed to "YES" to allow for its assessment  */
         /*   calculation in reviews in Sect 15-E-ii below.               */
-        /*                                                               */
-        /*   If the Mixed Alternative Method is not being                */
-        /*   calculated because all sales either did or did not pass the */
-        /*   Cohens-D Test, then ABOVE_DEMINIMIS_MIXED is set to "NA"    */
         /*---------------------------------------------------------------*/
 
         %IF &CASH_DEPOSIT_DONE = NO %THEN
@@ -6574,11 +6450,6 @@ OPTIONS SYMBOLGEN;
             %LET ASSESS_TITLE = ;
             %CALC_RESULTS(STANDARD,STANDARD, ,AVGMARG,_MEAN)
             %CALC_RESULTS(ALTERNATIVE,ALTERNATIVE, ,TRANMARG, )
-            %IF &CALC_METHOD = MIXED %THEN
-            %DO;
-                %CALC_RESULTS(STANDARD,MIXED, ,AVGMIXED,_MIXED)
-                %CALC_RESULTS(ALTERNATIVE,MIXED, ,TRNMIXED, )
-            %END;
         %END;
 
         /*---------------------------------------------------------*/
@@ -6599,11 +6470,6 @@ OPTIONS SYMBOLGEN;
                 %DO;
                     %CALC_RESULTS(STANDARD,STANDARD,US_IMPORTER,IMPSTND,_MEAN)
                 %END;
-                %IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
-                %DO;
-                    %CALC_RESULTS(STANDARD,MIXED,US_IMPORTER,IMPCSTN,_MIXED)
-                    %CALC_RESULTS(ALTERNATIVE,MIXED,US_IMPORTER,IMPCTRN, )
-                %END;
                 %IF &ABOVE_DEMINIMIS_ALT = YES %THEN
                 %DO;
                     %CALC_RESULTS(ALTERNATIVE,ALTERNATIVE,US_IMPORTER,IMPTRAN, )
@@ -6620,18 +6486,9 @@ OPTIONS SYMBOLGEN;
 %MACRO US16_CALC_CASH_DEPOSIT;
     /*-----------------------------------------------------------------*/
     /* 16-A. The Standard Method will employed on all U.S. sales       */
-    /* regardless of the results of the Cohens-D Test.  Also, the      */
-    /* A-to-T Alternative Method will also be used on all sales to     */
+    /* regardless of the results of the Price Difference Test.  Also,  */
+    /* the A-to-T Alternative Method will also be used on all sales to */
     /* calculate a second Cash Deposit rate.                           */
-    /*                                                                 */
-    /* When there are both sales that pass and do not pass Cohens-D, a */
-    /* Mixed Alternative Cash Deposit rate (in addition to the rates   */
-    /* based on the Standard and A-to-T Alternative Methods) will be   */
-    /* calculated using a mixture of A-to-A (with offsets) and A-to-T  */
-    /* (without offsets). To calculate the Mixed rate, the A-to-A      */
-    /* Method will be employed on sales not passing the Cohens-d       */
-    /* Test, the A-to-T Method on the rest and then then two results   */
-    /* will be aggregated.                                             */
     /*-----------------------------------------------------------------*/
 
     %MACRO CALC_CASH_DEPOSIT(TEMPDATA, SUFFIX, METHOD);
@@ -6685,19 +6542,7 @@ OPTIONS SYMBOLGEN;
             MERGE ALLVAL_&TEMPDATA SUMMAR_&TEMPDATA 
                   MINMAX_&TEMPDATA NEGMARG_&TEMPDATA;
 
-            %IF &TEMPDATA = TRNMIXED %THEN 
-            %DO;
-                CALC_TYPE = "A-to-T";
-            %END;
-            %ELSE
-            %IF &TEMPDATA = AVGMIXED %THEN
-            %DO;
-                CALC_TYPE = "A-to-A";
-            %END;
-            %ELSE 
-            %DO;
                 CALC_TYPE = "&METHOD";
-            %END;
 
             IF MARGQTY = . THEN
                 MARGQTY = 0;
@@ -6739,64 +6584,6 @@ OPTIONS SYMBOLGEN;
 
     %CALC_CASH_DEPOSIT(AVGMARG, _MEAN, STANDARD)
     %CALC_CASH_DEPOSIT(TRANMARG, , ALTERNATIVE)
-    %IF  &CALC_METHOD = MIXED %THEN
-    %DO;
-        %CALC_CASH_DEPOSIT(AVGMIXED, _MIXED, STANDARD)
-        %CALC_CASH_DEPOSIT(TRNMIXED, , ALTERNATIVE)
-    %END;
-
-    %MACRO MIXED;
-        %IF &CALC_METHOD = MIXED %THEN
-        %DO;
-            DATA MIXED;
-                SET ANSWER_AVGMIXED ANSWER_TRNMIXED;
-            RUN;
-
-            DATA ANSWER_MIXEDSPLIT;
-                SET ANSWER_AVGMIXED ANSWER_TRNMIXED;
-                PCTMARQ  = (MARGQTY / TOTQTY) * 100;
-                PCTMARV  = (MARGVAL / TOTVAL) * 100;
-            RUN;
-
-            PROC MEANS DATA = MIXED NOPRINT;
-                VAR TOTSALES TOTQTY TOTVAL MARGQTY MARGVAL
-                    POSDUMPING NEGDUMPING TOTDUMPING;
-                OUTPUT OUT = MIXED_SUM (DROP = _:) 
-                       SUM = TOTSALES TOTQTY TOTVAL MARGQTY MARGVAL
-                             POSDUMPING NEGDUMPING TOTDUMPING;
-            RUN;
-
-            PROC MEANS DATA = MIXED NOPRINT;
-                VAR MINMARG;
-                OUTPUT OUT = MINMARG (DROP = _:) MIN = MINMARG;
-            RUN;
-
-            PROC MEANS DATA = MIXED NOPRINT;
-                VAR MAXMARG;
-                OUTPUT OUT = MAXMARG (DROP = _:) MAX = MAXMARG;
-            RUN;
-
-            DATA MIXED_SUM ANSWER_MIXEDMARG (DROP = CALC_TYPE);
-                LENGTH CALC_TYPE $11.;
-                MERGE MIXED_SUM MINMARG MAXMARG;
-                CALC_TYPE = "MIXED";
-                PCTMARQ  = (MARGQTY / TOTQTY) * 100;
-                PCTMARV  = (MARGVAL / TOTVAL) * 100;
-            RUN;
-
-            DATA MIXED_ALL;
-                SET MIXED MIXED_SUM;
-            RUN;
-
-            PROC PRINT DATA = MIXED_ALL;
-                TITLE3 "WHEN SOME SALES PASS THE COHENS-D AND OTHERS NOT, CALCULATE THE MIXED ALTERNATIVE METHOD";
-                TITLE4 "COMBINE RESULTS FROM SALES NOT PASSING THE COHENS-D TEST CALCULATED A-to-A WITH OFFSETS";
-                TITLE5 "WITH RESULTS FROM SALES PASSING THE COHENS-D TEST CALCULATED A-to-T WITHOUT OFFSETS";
-            RUN; 
-        %END;
-    %MEND MIXED;
-
-    %MIXED
 
     /*-------------------------------------------------------*/
     /* 16-G. CREATE MACRO VARIABLES TO TRACK WHEN MARGIN     */
@@ -6825,24 +6612,12 @@ OPTIONS SYMBOLGEN;
             %DO;
                 CALL SYMPUT('ABOVE_DEMINIMIS_ALT',ABOVE_DEMIN_ALT);
             %END;
-            %IF &TYPE = MIXED %THEN
-            %DO;
-                CALL SYMPUT('ABOVE_DEMINIMIS_MIXED',ABOVE_DEMIN_&TYPE);
-            %END;
         RUN;
     %MEND DE_MINIMIS;
 
     %DE_MINIMIS(AVGMARG, STND, YES)
     %DE_MINIMIS(TRANMARG, ALT, YES)
 
-    %IF &CALC_METHOD = MIXED %THEN
-    %DO;
-        %DE_MINIMIS(MIXEDMARG, MIXED, YES)
-    %END;
-    %ELSE 
-    %DO;
-        %LET ABOVE_DEMINIMIS_MIXED = NA;
-    %END;
 
     /*------------------------------------------------------------- */
     /* 16-H. PRINT CASH DEPOSIT RATE CALCULATIONS FOR ALL SCENARIOS */
@@ -6871,17 +6646,6 @@ OPTIONS SYMBOLGEN;
             %LET FOOTNOTE2 = ;
             %MACRO TOTDUMP_LABEL;
                  TOTDUMPING = 'TOTAL AMOUNT*OF DUMPING *( E=C )*=============';
-            %MEND TOTDUMP_LABEL;
-        %END;
-        %IF &METHOD = MIXED %THEN
-        %DO;
-            %LET SUMVARS = SUM TOTSALES TOTVAL TOTQTY POSDUMPING NEGDUMPING TOTDUMPING MARGVAL MARGQTY;
-            %LET METHODOLOGY = MIXED ALTERNATIVE;
-            %LET TITLE = "OFFSETTING POSITIVE COMPARISON RESULTS WITH NEGATIVES ONLY FOR SALES NOT PASSING COHENS-D";
-            %LET FOOTNOTE1 = "FOR SALES THAT FAIL THE COHEN'S-D TEST, AD DUTIES DUE ARE THE SUM OF C AND D (IF C>|D|) OR ZERO.";
-            %LET FOOTNOTE2 = "FOR SALES THAT PASS COHEN'S-D TEST, AD DUTIES DUE ARE THE SUM OF C.";
-            %MACRO TOTDUMP_LABEL;
-                TOTDUMPING = 'TOTAL AMOUNT  *OF DUMPING   *(SEE FOOTNOTES) *===============';
             %MEND TOTDUMP_LABEL;
         %END;
 
@@ -6919,41 +6683,11 @@ OPTIONS SYMBOLGEN;
     /*----------------------------------------------------------*/
 
     %PRINT_CASH_DEPOSIT(AVGMARG, STANDARD)
-
-    %IF &ABOVE_DEMINIMIS_MIXED NE NA %THEN
-    %DO;
-        %PRINT_CASH_DEPOSIT(MIXEDSPLIT,MIXED)
-    %END;
-
     %PRINT_CASH_DEPOSIT(TRANMARG, ALTERNATIVE)
     
     /*--------------------------------------------------*/
     /* 16-J. PRINT CASH DEPOSIT RATES FOR ALL SCENARIOS */
     /*--------------------------------------------------*/
-
-    %IF &CALC_METHOD = STANDARD %THEN
-    %DO;
-        %LET FOOTNOTE1 = "Because all sales did not pass Cohens-D Test, the Mixed Alternative Cash Deposit Rate is the same as the Cash";
-        %LET FOOTNOTE2 = "Deposit Rate for the Standard Method.  Accordingly, the Mixed Alternative Method will not be used";
-        %LET FOOTNOTE3 = "separately in the Meaningful Difference Test nor in the calculation of assessments in Administrative Reviews.";
-        %LET ANSWER_MIXEDMARG = ; /* macro variable for mixed database nulled out */
-    %END;
-
-    %IF &CALC_METHOD = MIXED %THEN
-    %DO;
-        %LET FOOTNOTE1 = " ";
-        %LET FOOTNOTE2 = " ";
-        %LET FOOTNOTE3 = " ";
-        %LET ANSWER_MIXEDMARG = ANSWER_MIXEDMARG (KEEP=WTAVGPCT_MIXED PER_UNIT_RATE_MIXED);
-    %END;
-
-    %IF &CALC_METHOD = ALTERNATIVE %THEN
-    %DO;
-        %LET FOOTNOTE1 = "Because all sales passed the Cohens-D Test, the Mixed Alternative Cash Deposit Rate is the same as the Cash Deposit";
-        %LET FOOTNOTE2 = "Rate for the A-to-T Alternative Method.  Accordingly, the Mixed Alternative Method will not be separately";
-        %LET FOOTNOTE3 = "used in the Meaningful Difference Test nor in the calculation of assessments in Administrative Reviews.";
-        %LET ANSWER_MIXEDMARG = ;
-    %END;
 
     PROC FORMAT;
         VALUE PCT_MARGIN 
@@ -6966,37 +6700,28 @@ OPTIONS SYMBOLGEN;
 
     DATA ANSWER;
         MERGE ANSWER_AVGMARG (KEEP = WTAVGPCT_STND PER_UNIT_RATE_STND)
-              &ANSWER_MIXEDMARG  
-              ANSWER_TRANMARG (KEEP = WTAVGPCT_ALT PER_UNIT_RATE_ALT);
-        %IF &CALC_METHOD NE MIXED %THEN
-        %DO;
-            WTAVGPCT_MIXED = .;
-            PER_UNIT_RATE_MIXED = .;
-        %END;
+              ANSWER_TRANMARG (KEEP = WTAVGPCT_ALT PER_UNIT_RATE_ALT);     
     RUN;
 
     PROC PRINT DATA = ANSWER NOOBS SPLIT = '*';
         %IF %UPCASE(&PER_UNIT_RATE) = NO %THEN
         %DO;
-            VAR WTAVGPCT_STND WTAVGPCT_MIXED WTAVGPCT_ALT;
+            VAR WTAVGPCT_STND WTAVGPCT_ALT;
             LABEL WTAVGPCT_STND = "STANDARD METHOD*AD VALOREM*WEIGHT AVERAGE MARGIN*(E/A x 100)*(percent)* *================="
-                  WTAVGPCT_MIXED = "MIXED ALTERNATIVE*METHOD*AD VALOREM*WEIGHT AVERAGE MARGIN*(percent)* *================="
                   WTAVGPCT_ALT = "A-to-T ALTERNATIVE*METHOD*AD VALOREM*WEIGHT AVERAGE MARGIN*(E/A x 100)*(percent)* *==================";
-            FORMAT WTAVGPCT_STND WTAVGPCT_MIXED WTAVGPCT_ALT PCT_MARGIN.;
+            FORMAT WTAVGPCT_STND WTAVGPCT_ALT PCT_MARGIN.;
         %END;
         %IF %UPCASE(&PER_UNIT_RATE) = YES %THEN
         %DO;
-            VAR PER_UNIT_RATE_STND PER_UNIT_RATE_MIXED PER_UNIT_RATE_ALT;
+            VAR PER_UNIT_RATE_STND PER_UNIT_RATE_ALT;
             LABEL PER_UNIT_RATE_STND = "STANDARD METHOD*PER-UNIT*WEIGHT AVERAGE MARGIN*( E/B )* *================="    
-                  PER_UNIT_RATE_MIXED = "MIXED ALTERNATIVE*METHOD*PER-UNIT*WEIGHT AVERAGE MARGIN*(percent)* *=================" 
                   PER_UNIT_RATE_ALT = "A-to-T ALTERNATIVE*METHOD*PER-UNIT*WEIGHT AVERAGE MARGIN*(E/A x 100)*(percent)* *==================";
-            FORMAT PER_UNIT_RATE_STND PER_UNIT_RATE_MIXED PER_UNIT_RATE_ALT UNIT_MARGIN.;
-        %END;
+            FORMAT PER_UNIT_RATE_STND  PER_UNIT_RATE_ALT UNIT_MARGIN.;
+       %END;
 
         TITLE3 "WEIGHT AVERAGE MARGINS";
         FOOTNOTE1 &FOOTNOTE1;
         FOOTNOTE2 &FOOTNOTE2;
-        FOOTNOTE3 &FOOTNOTE3;
         FOOTNOTE6 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
         FOOTNOTE7 "&BDAY, &BWDATE - &BTIME";
     RUN;
@@ -7013,27 +6738,8 @@ OPTIONS SYMBOLGEN;
 /*************************************/
 
 %MACRO US17_MEANINGFUL_DIFF_TEST;
-    %GLOBAL MA_METHOD AT_METHOD;
-    %LET MA_METHOD = N/A;
+    %GLOBAL AT_METHOD; 
     %LET AT_METHOD = N/A;
-
-    %IF &CALC_METHOD NE STANDARD %THEN
-    %DO;
-        %IF &CALC_METHOD EQ MIXED %THEN
-        %DO;
-            %LET ADD_SET = MIXEDMARG;
-
-            DATA MIXEDMARG;
-                SET  ANSWER_MIXEDMARG (KEEP = WTAVGPCT_MIXED);
-                    LENGTH METHOD $18.;
-                    METHOD = "MIXED ALTERNATIVE";
-                    RENAME WTAVGPCT_MIXED = WTAVGPCT;
-            RUN;
-        %END;
-        %ELSE
-        %DO;
-            %LET ADD_SET = ;
-        %END;
 
         DATA TRANMARG;
             SET  ANSWER_TRANMARG (KEEP = WTAVGPCT_ALT);
@@ -7044,7 +6750,7 @@ OPTIONS SYMBOLGEN;
 
         DATA MEANINGFUL_DIFF_TEST;
             LENGTH RESULT $ 36 MEANINGFUL_DIFF $ 3;
-            SET &ADD_SET TRANMARG;
+            SET TRANMARG;
             IF _N_ = 1 THEN
                 SET ANSWER_AVGMARG (KEEP = WTAVGPCT_STND);
 
@@ -7077,9 +6783,6 @@ OPTIONS SYMBOLGEN;
                 END;
             END;
 
-            IF METHOD = "MIXED ALTERNATIVE" THEN
-                CALL SYMPUT('MA_METHOD', MEANINGFUL_DIFF);
-            ELSE
             IF METHOD = "A-to-T ALTERNATIVE" THEN
                 CALL SYMPUT('AT_METHOD', MEANINGFUL_DIFF);
         RUN;
@@ -7100,11 +6803,10 @@ OPTIONS SYMBOLGEN;
             FORMAT WTAVGPCT WTAVGPCT_STND RELATIVE_CHANGE RELCHNG.;
             TITLE3 "RESULTS OF THE MEANINGFUL DIFFERENCE TEST";
             TITLE5 "CASE ANALYST:  Please notify management of results so that the proper method can be selected.";
-            TITLE7 "PERCENT OF SALES PASSING THE COHEN'S D TEST = %CMPRES(&PERCENT_VALUE_PASSING)";        
+            TITLE7 "PERCENT OF SALES PASSING THE DIFFERENTIAL PRICING TEST = %CMPRES(&PERCENT_VALUE_PASSING)";        
             FOOTNOTE1 "*** BUSINESS PROPRIETARY INFORMATION SUBJECT TO APO ***";
             FOOTNOTE2 "&BDAY, &BWDATE - &BTIME";
         RUN;
-    %END;
 %MEND US17_MEANINGFUL_DIFF_TEST;
 
 /******************************************************************/
@@ -7125,7 +6827,6 @@ OPTIONS SYMBOLGEN;
 
         %MACRO NO_ASSESS(TYPE);
             %IF &ABOVE_DEMINIMIS_STND = NO OR
-                &ABOVE_DEMINIMIS_MIXED = NO OR
                 &ABOVE_DEMINIMIS_ALT = NO %THEN
             %DO;
                 %IF &&ABOVE_DEMINIMIS_&TYPE = NO %THEN
@@ -7191,96 +6892,13 @@ OPTIONS SYMBOLGEN;
                             LABEL US_IMPORTER = "&IMPORTER";
                             TITLE3 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
                         RUN;
-                    %END;
-
-                    /*----------------------------------------------*/
-                    /* 18-A-iii The Cash Deposit rate for the Mixed */
-                    /*          Alternative Method is below de      */
-                    /*          minimis.                            */
-                    /*----------------------------------------------*/
-
-                    %IF &TYPE = MIXED AND &CALC_METHOD NE STANDARD %THEN
-                    %DO;
-                        %IF &&ABOVE_DEMINIMIS_ALT NE NO %THEN
-                        %DO; 
-                            DATA NOCALC;
-                                SET ANSWER (KEEP = WTAVGPCT_&TYPE);
-                                REASON = "CASH DEPOSIT RATE IS BELOW 0.5 PERCENT (de minimis)";
-                            RUN;
-
-                            PROC PRINT DATA = NOCALC NOOBS SPLIT = "*";
-                                VAR REASON WTAVGPCT_&TYPE;
-                                LABEL WTAVGPCT_&TYPE = "MIXED ALTERNATIVE*METHOD*AD VALOREM*CASH DEPOSIT RATE*(percent)* *================"
-                                REASON = " ";
-                                TITLE3 "NO ASSESSMENTS WILL BE CALCULATED FOR THE MIXED ALTERNATIVE METHOD";
-                                FORMAT WTAVGPCT_&TYPE PCT_MARGIN.; 
-                            RUN;
-
-                            PROC SORT DATA = SUMMARG_AVGMARG
-                                      OUT = IMPORTER_LIST (KEEP = US_IMPORTER) NODUPKEY;
-                                BY US_IMPORTER;
-                            RUN;
-
-                            PROC PRINT DATA = IMPORTER_LIST SPLIT = '*';
-                                LABEL US_IMPORTER = "&IMPORTER";
-                                TITLE3 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
-                            RUN;
-                        %END;
-                    %END;
+                    %END;                  
                 %END;
             %END;
 
-            /*------------------------------------------------------*/
-            /* 18-A-iv All sales either pass Cohens-D or do not     */
-            /*         pass. The Mixed Alternative Method would be  */
-            /*         the same as the A-to-T Alternative Method    */
-            /*         when all sales pass, or the Standard Method  */
-            /*         when all sales do not pass. Therefore,       */
-            /*         no need to calculate Mixed Alternative       */
-            /*         assessment rates.                            */
-            /*------------------------------------------------------*/
-
-            %IF &&ABOVE_DEMINIMIS_&TYPE = NA AND 
-                &&ABOVE_DEMINIMIS_ALT NE NO %THEN
-            %DO;
-                DATA NOCALC;
-                    REASON = "All sales either do not pass/pass the Cohens-D, Mixed Alternative Method the same as Standard/A-to-T Alternative, respectively.";
-                RUN;
-
-                %IF &ABOVE_DEMINIMIS_STND = NO %THEN
-                %DO;
-                    PROC PRINT DATA = NOCALC NOOBS SPLIT = "*";
-                        VAR REASON;
-                        LABEL REASON = " ";
-                        TITLE3 "NO SEPARATE ASSESMENT CALCULATIONS WILL BE DONE USING THE MIXED ALTERNATIVE METHOD";
-                        TITLE4 "(ASSESSMENTS WILL BE CALCULATED USING THE A-to-T ALTERNATIVE METHOD ONLY)";
-                    RUN;
-                %END;
-                %ELSE
-                %IF &ABOVE_DEMINIMIS_STND = YES %THEN
-                %DO;
-                    PROC PRINT DATA = NOCALC NOOBS SPLIT = "*";
-                        VAR REASON;
-                        LABEL REASON = " ";
-                        TITLE3 "NO SEPARATE ASSESMENT CALCULATIONS WILL BE DONE USING THE MIXED ALTERNATIVE METHOD";
-                        TITLE4 "(ASSESSMENTS WILL BE CALCULATED USING THE STANDARD AND A-to-T ALTERNATIVE METHODS)";
-                    RUN;
-                %END;
-
-                PROC SORT DATA = SUMMARG_AVGMARG
-                          OUT = IMPORTER_LIST (KEEP = US_IMPORTER) NODUPKEY;
-                    BY US_IMPORTER;
-                RUN;
-
-                PROC PRINT DATA = IMPORTER_LIST SPLIT = '*';
-                    LABEL US_IMPORTER = "&IMPORTER";
-                        TITLE3 "LIST OF REPORTED IMPORTERS OR CUSTOMERS";
-                RUN;
-            %END;
         %MEND NO_ASSESS;
 
     %NO_ASSESS(STND)
-    %NO_ASSESS(MIXED)
     %NO_ASSESS(ALT)
 
     /*-----------------------------------------------------------*/
@@ -7289,7 +6907,6 @@ OPTIONS SYMBOLGEN;
     /*-----------------------------------------------------------*/
                 
     %IF &ABOVE_DEMINIMIS_STND = YES OR
-        &ABOVE_DEMINIMIS_MIXED = YES OR
         &ABOVE_DEMINIMIS_ALT = YES %THEN
     %DO;
         %US14_WT_AVG_DATA;  /* Re-weight average data by importer. */
@@ -7349,7 +6966,7 @@ OPTIONS SYMBOLGEN;
             /*         results. Otherwise, set the total comparison */
             /*         results to zero. Calculate the ad valorem    */
             /*         and per-unit assessment rates, and the       */
-            /* de minimis percent.                                  */
+            /*         de minimis percent.                          */
             /*------------------------------------------------------*/
 
             DATA ASSESS_&INDATA;
@@ -7393,58 +7010,6 @@ OPTIONS SYMBOLGEN;
             %CALC_ASSESS(IMPSTND, STND, STANDARD)
         %END;
 
-        /*----------------------------------*/
-        /* 18-C-ii MIXED ALTERNATIVE METHOD */
-        /*----------------------------------*/
-
-        %IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
-        %DO;
-            %CALC_ASSESS(IMPCSTN, STND, A-to-A)
-            %CALC_ASSESS(IMPCTRN, ALT, A-to-T)
-
-            /*------------------------------------------------------*/
-            /* 18-C-i-a COMBINE RESULTS FROM THE PORTION OF SALES   */
-            /*          CALCULATED A-to-A WITH OFFSETS, WITH THOSE  */
-            /*          FROM SALES CALCULATED A-to-T WITHOUT        */
-            /*          OFFSETS.                                    */
-            /*------------------------------------------------------*/
-
-            DATA ASSESS_MIXED_ALL;
-               SET ASSESS_IMPCSTN ASSESS_IMPCTRN;
-            RUN;
-
-            PROC MEANS NWAY DATA = ASSESS_MIXED_ALL NOPRINT;
-                CLASS US_IMPORTER SOURCEU;
-                VAR SALES ITOTQTY ITENTVAL IPOSRESULTS INEGRESULTS 
-                    ITOTRESULTS;
-                OUTPUT OUT = ASSESS_MIXED_SUM (DROP = _:) 
-                       SUM = SALES ITOTQTY ITENTVAL IPOSRESULTS
-                             INEGRESULTS ITOTRESULTS;
-            RUN;
-
-            DATA ASSESS_MIXED_SUM ASSESS_MIXED (DROP = CALC_TYPE);
-                LENGTH CALC_TYPE $11.;
-                SET ASSESS_MIXED_SUM;
-                CALC_TYPE = "MIXED";
-            RUN;
-
-            DATA ASSESS_MIXED_ALL;
-                SET ASSESS_MIXED_ALL ASSESS_MIXED_SUM;
-            RUN;
-
-            PROC SORT DATA = ASSESS_MIXED_ALL OUT = ASSESS_MIXED_ALL;
-                BY US_IMPORTER SOURCEU CALC_TYPE;
-            RUN;
-
-            PROC PRINT DATA = ASSESS_MIXED_ALL (OBS = &PRINTOBS);
-                BY US_IMPORTER SOURCEU;
-                ID US_IMPORTER SOURCEU;
-                TITLE3 "FOR THE MIXED ALTERNATIVE METHOD, COMBINE";
-                TITLE4 "RESULTS FROM SALES NOT PASSING COHENS-D CALCULATED A-to-A WITH OFFSETS";
-                TITLE5 "WITH RESULTS FROM SALES PASSING COHENS-D CALCULATED A-to-T WITHOUT OFFSETS";
-            RUN; 
-        %END;
-
         /*-----------------------------*/
         /* 18-C-iii ALTERNATIVE METHOD */
         /*-----------------------------*/
@@ -7461,14 +7026,6 @@ OPTIONS SYMBOLGEN;
         %LET ASSESS_FOOTNOTE2 = "ARE THE SUM OF C AND D, OTHERWISE THE ANTIDUMPING DUTIES DUE ARE ZERO.";
         %LET ASSESS_TITLE4 = "STANDARD METHOD, OFFSETTING POSITIVE COMPARISON RESULTS WITH NEGATIVES";
         %PRINT_ASSESS(IMPSTND)
-    %END;
-
-    %IF &ABOVE_DEMINIMIS_MIXED = YES %THEN
-    %DO;
-        %LET ASSESS_FOOTNOTE1 = "FOR SALES THAT FAIL THE COHEN'S-D TEST, AD DUTIES DUE ARE THE SUM OF C AND D (IF C>|D|) OR ZERO.";
-        %LET ASSESS_FOOTNOTE2 = "FOR SALES THAT PASS COHEN'S-D TEST, AD DUTIES DUE ARE THE SUM OF C.";
-        %LET ASSESS_TITLE4 = "MIXED ALTERNATIVE METHOD: FOR SALES FAILING COHEN'S-D ONLY, OFFSET POSITIVE COMPARISON RESULTS WITH NEGATIVES";
-        %PRINT_ASSESS(MIXED)
     %END;
 
     %IF &ABOVE_DEMINIMIS_ALT = YES %THEN
