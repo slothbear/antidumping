@@ -1,0 +1,7 @@
+{
+  "bundle": "t005_convert_to_usd",
+  "source_file": "nme-margin-calculation.sas",
+  "source_blob_sha": "f89283cc50a70e588fbfdc7e1dd9bfb03bb397ff",
+  "source_commit": "7c52a1a98dfdeca25575a0b8e05221e04d96002d",
+  "notes": "CONVERT_TO_USD (nme-margin-calculation.sas) converts foreign-currency sale adjustments (e.g. freight, brokerage) to U.S. dollars using each sale's own daily exchange rate, dynamically building the list of _USD output variable names via %SCAN/%DO %UNTIL. Reproduced verbatim, called the same way the repo calls it. Mock 5-row USSALES dataset carries per-row EXRATE_DAILY, FREIGHT, and BROKERAGE; conversion arithmetic verified by hand (FREIGHT_USD = FREIGHT * EXRATE_DAILY for every row) and DROP=&VARS_TO_USD confirmed to remove the original foreign-currency columns."
+}

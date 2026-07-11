@@ -1,0 +1,7 @@
+{
+  "bundle": "t003_unique_connums",
+  "source_file": "nme-margin-calculation.sas",
+  "source_blob_sha": "f89283cc50a70e588fbfdc7e1dd9bfb03bb397ff",
+  "source_commit": "7c52a1a98dfdeca25575a0b8e05221e04d96002d",
+  "notes": "UNIQUE_CONNUMS (nme-margin-calculation.sas) verifies each control number (CONNUM) maps to exactly one combination of physical characteristics, using PROC SORT NODUPKEY plus first./last. BY-group logic. Reproduced verbatim. Mock 6-row USSALES dataset deliberately reports CONNUM C002 with two different GRADE/FINISH combinations so the failure path (NOT_UNIQUE_CONNUMS populated, UNIQUE_CONNUMS empty) is genuinely exercised, not just the trivial all-pass case. Note: this run also surfaced a minor Jenner log-message observation (column count in the 'NOTE: Wrote ...' line for multi-output DATA steps with DROP=/KEEP= reports pre-drop/keep counts) -- confirmed cosmetic only (actual dataset shape, PROC CONTENTS, and PROC PRINT are all correct); not pinned in expected.json's log_contains and not filed as a regression test in this run (could not obtain a sas-expert BUG verdict -- no subagent dispatch tool available in this environment)."
+}

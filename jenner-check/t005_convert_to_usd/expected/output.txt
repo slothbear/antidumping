@@ -1,0 +1,17 @@
+  Obs  EXRATE_DAILY  FREIGHT  BROKERAGE  FREIGHT_USD  BROKERAGE_USD
+-----  ------------  -------  ---------  -----------  -------------
+    1         0.135      850        120       114.75           16.2
+    2        0.1362      620       95.5       84.444        13.0071
+    3        0.1341      990     140.25      132.759      18.807525
+    4        0.1358      410         60       55.678          8.148
+    5        0.1347      705     110.75      94.9635      14.918025
+
+                                    FREIGHT AND BROKERAGE CONVERTED TO U.S. DOLLARS                                     
+
+        US_IMPORTER  EXRATE_DAILY  FREIGHT_USD  BROKERAGE_USD
+ACME TRADING                0.135       114.75           16.2
+DELTA IMPORTS              0.1362       84.444        13.0071
+GLOBAL METALS INC          0.1341      132.759      18.807525
+HARBOR STEEL CO            0.1358       55.678          8.148
+PACIFIC RIM TRADERS        0.1347      94.9635      14.918025
+

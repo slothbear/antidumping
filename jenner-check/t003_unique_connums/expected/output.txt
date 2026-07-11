@@ -1,0 +1,7 @@
+  Obs  CONNUM     GRADE    FINISH
+-----  ------  --------  --------
+    1  C002    PREMIUM   POLISHED
+    2  C002    STANDARD  POLISHED
+
+No observations in dataset.
+

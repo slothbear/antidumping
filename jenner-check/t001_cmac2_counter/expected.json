@@ -1,0 +1,13 @@
+{
+  "_captured_at": "2026-07-11T10:20:00Z",
+  "_captured_run_id": "r_39f17da9f3d54dd9a051c08fb8bea16c",
+  "status": "ok",
+  "exit_code": 0,
+  "log_contains": [
+    "NOTE: Wrote USSALES (10 rows, 3 columns).",
+    "NOTE: Macro variable COUNT_ORIG_USSALES = 10",
+    "NOTE: COUNT_ORIG_USSALES = 10"
+  ],
+  "log_does_not_contain": ["ERROR:", "[JENNER-ERROR"],
+  "diagnostics": {"parse_warnings": [], "runtime_warnings": []}
+}

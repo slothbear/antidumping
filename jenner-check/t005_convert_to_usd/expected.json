@@ -1,0 +1,15 @@
+{
+  "_captured_at": "2026-07-11T10:20:00Z",
+  "_captured_run_id": "r_f32a8f9ef63349d2b616d0c950d612c2",
+  "status": "ok",
+  "exit_code": 0,
+  "log_contains": [
+    "NOTE: Wrote USSALES (5 rows, 4 columns).",
+    "NOTE: PROC PRINT completed: 5 observations printed, 4 variables"
+  ],
+  "log_does_not_contain": ["ERROR:", "[JENNER-ERROR"],
+  "output_contains": [
+    "ACME TRADING                0.135       114.75           16.2"
+  ],
+  "diagnostics": {"parse_warnings": [], "runtime_warnings": []}
+}

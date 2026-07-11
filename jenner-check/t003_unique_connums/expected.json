@@ -1,0 +1,17 @@
+{
+  "_captured_at": "2026-07-11T10:20:00Z",
+  "_captured_run_id": "r_8ab569ca04ea4956bf0ebca62c7c315a",
+  "status": "ok",
+  "exit_code": 0,
+  "log_contains": [
+    "NOTE: Wrote USSALES (6 rows, 3 columns).",
+    "NOTE: 2 duplicate observations were deleted.",
+    "NOTE: PROC PRINT completed: 2 observations printed, 3 variables"
+  ],
+  "log_does_not_contain": ["ERROR:", "[JENNER-ERROR"],
+  "output_contains": [
+    "C002    PREMIUM   POLISHED",
+    "C002    STANDARD  POLISHED"
+  ],
+  "diagnostics": {"parse_warnings": [], "runtime_warnings": []}
+}
