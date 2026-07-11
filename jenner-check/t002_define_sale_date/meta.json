@@ -1,0 +1,7 @@
+{
+  "bundle": "t002_define_sale_date",
+  "source_file": "common-macros.sas",
+  "source_blob_sha": "665695c2d94bc5c53b6fea3830a1e0c14b153a05",
+  "source_commit": "7c52a1a98dfdeca25575a0b8e05221e04d96002d",
+  "notes": "DEFINE_SALE_DATE (common-macros.sas, PART 5) selectively rewrites a sale date to an earlier reported date when it truly precedes it. Reproduced verbatim, called the same way the repo calls it for U.S. sales (SALEDATE=, DATEBEFORESALE=, EARLIERDATE=). Mock 5-row USSALES dataset exercises both branches: rows where the earlier ship date is genuinely earlier (date gets overwritten) and one row where the 'earlier' date is actually later (date is left unchanged), matching the macro's IF EARLIERDATE < SALEDATE guard."
+}

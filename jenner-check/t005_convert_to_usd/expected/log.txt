@@ -1,0 +1,32 @@
+NOTE: Option OBS changed to 100.
+NOTE: DATA USSALES
+
+NOTE: Processing inline DATALINES (5 lines)
+
+NOTE: Read 5 rows from DATALINES.
+NOTE: Wrote USSALES (5 rows, 4 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: DATA USSALES
+
+
+NOTE: Read 5 rows from USSALES.
+NOTE: Wrote USSALES (5 rows, 7 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC PRINT data=USSALES
+
+NOTE: PROC PRINT completed: 5 observations printed, 5 variables
+NOTE: DATA USSALES
+
+
+NOTE: Read 5 rows from USSALES.
+NOTE: Wrote USSALES (5 rows, 5 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC PRINT data=USSALES
+
+NOTE: PROC PRINT completed: 5 observations printed, 4 variables

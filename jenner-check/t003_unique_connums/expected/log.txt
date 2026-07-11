@@ -1,0 +1,31 @@
+NOTE: Option OBS changed to 100.
+NOTE: DATA USSALES
+
+NOTE: Processing inline DATALINES (6 lines)
+
+NOTE: Read 6 rows from DATALINES.
+NOTE: Wrote USSALES (6 rows, 3 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC SORT data=USSALES
+
+NOTE: 2 duplicate observations were deleted.
+NOTE: Read 6 rows from USSALES.
+NOTE: Wrote CONNUM_CHECK (4 rows, 3 columns).
+NOTE: PROC SORT statement used.
+NOTE: DATA NOT_UNIQUE_CONNUMS UNIQUE_CONNUMS
+
+NOTE: Multi-output DATA step splits stream into: NOT_UNIQUE_CONNUMS UNIQUE_CONNUMS
+
+NOTE: Read 4 rows from CONNUM_CHECK.
+NOTE: Wrote NOT_UNIQUE_CONNUMS (2 rows, 5 columns).
+NOTE: Wrote UNIQUE_CONNUMS (0 rows, 5 columns).
+NOTE: DATA elapsed:
+  wall  0.00 seconds
+  cpu   0.00 seconds
+NOTE: PROC PRINT data=NOT_UNIQUE_CONNUMS
+
+NOTE: PROC PRINT completed: 2 observations printed, 3 variables
+NOTE: PROC PRINT data=UNIQUE_CONNUMS
+

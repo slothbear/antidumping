@@ -1,0 +1,7 @@
+{
+  "bundle": "t001_cmac2_counter",
+  "source_file": "common-macros.sas",
+  "source_blob_sha": "665695c2d94bc5c53b6fea3830a1e0c14b153a05",
+  "source_commit": "7c52a1a98dfdeca25575a0b8e05221e04d96002d",
+  "notes": "CMAC2_COUNTER (common-macros.sas, PART 2) counts rows in a dataset via PROC SQL INTO :macrovar, used throughout the antidumping programs to log observation counts at each pipeline stage (e.g. COMPANY.&USDATA). Reproduced verbatim; caller supplies a 10-row mock USSALES dataset in the same shape (importer, quantity, price) the real programs count."
+}

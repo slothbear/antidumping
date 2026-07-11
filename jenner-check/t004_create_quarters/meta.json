@@ -1,0 +1,7 @@
+{
+  "bundle": "t004_create_quarters",
+  "source_file": "me-macros.sas",
+  "source_blob_sha": "270d49c4d63c171da36b80a1224c14df99bbee04",
+  "source_commit": "7c52a1a98dfdeca25575a0b8e05221e04d96002d",
+  "notes": "CREATE_QUARTERS (me-macros.sas) assigns each sale to a period-of-review quarter relative to &BEGINPERIOD, used to group sales for time-based price comparisons. Reproduced verbatim, called the same way the repo calls it inside the DATA step that reads U.S. sales. Mock 5-row USSALES dataset spans all four quarters of a 2024 period of review; QTR assignment verified by hand against the macro's month-offset arithmetic."
+}
